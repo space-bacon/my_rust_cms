@@ -1,0 +1,24 @@
+[package]
+name = "my_rust_cms"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+actix-web = "4.0"
+diesel = { version = "2.0", features = ["postgres"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dotenv = "0.15"
+jsonwebtoken = "8.1"
+yew = { version = "0.20", features = ["csr"] }
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.2"
+thiserror = "1.0"
+async-trait = "0.1"
+rpassword = "5.0"
+bcrypt = "0.9"
+mio = "1.0.2"  
+
+[dev-dependencies]
+trunk = "0.15.0"

@@ -1,0 +1,25 @@
+/* Styles for the page builder */
+.page-builder {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+}
+
+.toolbox, .editor, .preview {
+    border: 1px solid #ddd;
+    padding: 10px;
+    background-color: #fff;
+}
+
+.toolbox {
+    width: 20%;
+}
+
+.editor {
+    width: 50%;
+    min-height: 400px;
+}
+
+.preview {
+    width: 25%;
+}
