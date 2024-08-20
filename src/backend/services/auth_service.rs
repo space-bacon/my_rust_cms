@@ -1,24 +1,30 @@
 use bcrypt::{hash, verify, DEFAULT_COST};
 use crate::repositories::user_repository::UserRepository;
 use crate::models::user::User;
+use std::sync::Arc;
+use warp::reject::Reject;
 
 pub struct AuthService;
 
+#[derive(Debug)]
+struct AuthError;
+impl Reject for AuthError {}
+
 impl AuthService {
-    pub fn login(username: &str, password: &str) -> Result<String, &'static str> {
+    pub async fn login(username: &str, password: &str) -> Result<String, warp::Rejection> {
         if let Some(user) = UserRepository::find_by_username(username).ok() {
             if verify_password(password, &user.password_hash)? {
                 // Generate JWT token or session token here
                 Ok("JWT token".to_string())
             } else {
-                Err("Invalid credentials")
+                Err(warp::reject::custom(AuthError))
             }
         } else {
-            Err("User not found")
+            Err(warp::reject::custom(AuthError))
         }
     }
 
-    pub fn register(username: &str, email: &str, password: &str) -> Result<(), &'static str> {
+    pub async fn register(username: &str, email: &str, password: &str) -> Result<(), warp::Rejection> {
         let hashed_password = hash_password(password)?;
         let new_user = User {
             id: 0,
@@ -29,14 +35,14 @@ impl AuthService {
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         };
-        UserRepository::create(new_user)
+        UserRepository::create(new_user).map_err(|_| warp::reject::custom(AuthError))
     }
 }
 
-fn hash_password(password: &str) -> Result<String, &'static str> {
-    hash(password, DEFAULT_COST).map_err(|_| "Failed to hash password")
+fn hash_password(password: &str) -> Result<String, warp::Rejection> {
+    hash(password, DEFAULT_COST).map_err(|_| warp::reject::custom(AuthError))
 }
 
-fn verify_password(password: &str, hash: &str) -> Result<bool, &'static str> {
-    verify(password, hash).map_err(|_| "Failed to verify password")
+fn verify_password(password: &str, hash: &str) -> Result<bool, warp::Rejection> {
+    verify(password, hash).map_err(|_| warp::reject::custom(AuthError))
 }

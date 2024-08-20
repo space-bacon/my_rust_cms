@@ -1,42 +1,53 @@
-use actix_web::{get, post, delete, HttpResponse, Responder, web};
+use warp::Filter;
 use crate::services::media_service::MediaService;
 use crate::models::media::Media;
+use warp::http::StatusCode;
 
-#[post("/api/media")]
-async fn upload_media(media_data: web::Json<Media>) -> impl Responder {
-    match MediaService::upload_media(media_data.into_inner()) {
-        Ok(media) => HttpResponse::Created().json(media),
-        Err(err) => HttpResponse::BadRequest().json(err),
+async fn upload_media_handler(media_data: Media) -> Result<impl warp::Reply, warp::Rejection> {
+    match MediaService::upload_media(media_data) {
+        Ok(media) => Ok(warp::reply::with_status(warp::reply::json(&media), StatusCode::CREATED)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
     }
 }
 
-#[get("/api/media")]
-async fn get_all_media() -> impl Responder {
+async fn get_all_media_handler() -> Result<impl warp::Reply, warp::Rejection> {
     match MediaService::list_media() {
-        Ok(media) => HttpResponse::Ok().json(media),
-        Err(err) => HttpResponse::InternalServerError().json(err),
+        Ok(media) => Ok(warp::reply::json(&media)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
     }
 }
 
-#[get("/api/media/{id}")]
-async fn get_media(id: web::Path<i32>) -> impl Responder {
-    match MediaService::get_media(id.into_inner()) {
-        Ok(media) => HttpResponse::Ok().json(media),
-        Err(err) => HttpResponse::NotFound().json(err),
+async fn get_media_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+    match MediaService::get_media(id) {
+        Ok(media) => Ok(warp::reply::json(&media)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::NOT_FOUND)),
     }
 }
 
-#[delete("/api/media/{id}")]
-async fn delete_media(id: web::Path<i32>) -> impl Responder {
-    match MediaService::delete_media(id.into_inner()) {
-        Ok(_) => HttpResponse::Ok().json("Media deleted"),
-        Err(err) => HttpResponse::InternalServerError().json(err),
+async fn delete_media_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+    match MediaService::delete_media(id) {
+        Ok(_) => Ok(warp::reply::with_status(warp::reply::json(&"Media deleted"), StatusCode::OK)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
     }
 }
 
-pub fn init_routes(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.service(upload_media);
-    cfg.service(get_all_media);
-    cfg.service(get_media);
-    cfg.service(delete_media);
+pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let upload_media_route = warp::path!("api" / "media")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and_then(upload_media_handler);
+
+    let get_all_media_route = warp::path!("api" / "media")
+        .and(warp::get())
+        .and_then(get_all_media_handler);
+
+    let get_media_route = warp::path!("api" / "media" / i32)
+        .and(warp::get())
+        .and_then(get_media_handler);
+
+    let delete_media_route = warp::path!("api" / "media" / i32)
+        .and(warp::delete())
+        .and_then(delete_media_handler);
+
+    warp::any().and(upload_media_route.or(get_all_media_route).or(get_media_route).or(delete_media_route))
 }

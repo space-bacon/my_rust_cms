@@ -1,6 +1,7 @@
 use crate::models::page::Page;
 use crate::repositories::page_repository::PageRepository;
 use serde::{Deserialize, Serialize};
+use warp::reject::Reject;
 
 #[derive(Serialize, Deserialize)]
 pub struct NewPageData {
@@ -10,8 +11,12 @@ pub struct NewPageData {
 
 pub struct BuilderService;
 
+#[derive(Debug)]
+struct BuilderError;
+impl Reject for BuilderError {}
+
 impl BuilderService {
-    pub fn create_page(data: NewPageData) -> Result<Page, &'static str> {
+    pub async fn create_page(data: NewPageData) -> Result<Page, warp::Rejection> {
         let new_page = Page {
             id: 0,  // Auto-incremented by the database
             title: data.title,
@@ -19,14 +24,14 @@ impl BuilderService {
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
         };
-        PageRepository::create(new_page)
+        PageRepository::create(new_page).map_err(|_| warp::reject::custom(BuilderError))
     }
 
-    pub fn get_page(id: i32) -> Result<Page, &'static str> {
-        PageRepository::find_by_id(id)
+    pub async fn get_page(id: i32) -> Result<Page, warp::Rejection> {
+        PageRepository::find_by_id(id).map_err(|_| warp::reject::custom(BuilderError))
     }
 
-    pub fn update_page(id: i32, data: NewPageData) -> Result<Page, &'static str> {
+    pub async fn update_page(id: i32, data: NewPageData) -> Result<Page, warp::Rejection> {
         let updated_page = Page {
             id,
             title: data.title,
@@ -34,6 +39,6 @@ impl BuilderService {
             created_at: chrono::Utc::now().naive_utc(),  // Fetch original or use updated timestamp logic
             updated_at: chrono::Utc::now().naive_utc(),
         };
-        PageRepository::update(id, updated_page)
+        PageRepository::update(id, updated_page).map_err(|_| warp::reject::custom(BuilderError))
     }
 }

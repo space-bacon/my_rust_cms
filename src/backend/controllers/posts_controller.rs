@@ -1,51 +1,62 @@
-use actix_web::{get, post, put, delete, HttpResponse, Responder, web};
+use warp::Filter;
 use crate::services::post_service::PostService;
 use crate::models::post::Post;
+use warp::http::StatusCode;
 
-#[post("/api/posts")]
-async fn create_post(post_data: web::Json<Post>) -> impl Responder {
-    match PostService::create_post(post_data.into_inner()) {
-        Ok(post) => HttpResponse::Created().json(post),
-        Err(err) => HttpResponse::BadRequest().json(err),
+async fn create_post_handler(post_data: Post) -> Result<impl warp::Reply, warp::Rejection> {
+    match PostService::create_post(post_data) {
+        Ok(post) => Ok(warp::reply::with_status(warp::reply::json(&post), StatusCode::CREATED)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
     }
 }
 
-#[get("/api/posts")]
-async fn get_all_posts() -> impl Responder {
+async fn get_all_posts_handler() -> Result<impl warp::Reply, warp::Rejection> {
     match PostService::list_posts() {
-        Ok(posts) => HttpResponse::Ok().json(posts),
-        Err(err) => HttpResponse::InternalServerError().json(err),
+        Ok(posts) => Ok(warp::reply::json(&posts)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
     }
 }
 
-#[get("/api/posts/{id}")]
-async fn get_post(id: web::Path<i32>) -> impl Responder {
-    match PostService::get_post(id.into_inner()) {
-        Ok(post) => HttpResponse::Ok().json(post),
-        Err(err) => HttpResponse::NotFound().json(err),
+async fn get_post_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+    match PostService::get_post(id) {
+        Ok(post) => Ok(warp::reply::json(&post)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::NOT_FOUND)),
     }
 }
 
-#[put("/api/posts/{id}")]
-async fn update_post(id: web::Path<i32>, post_data: web::Json<Post>) -> impl Responder {
-    match PostService::update_post(id.into_inner(), post_data.into_inner()) {
-        Ok(post) => HttpResponse::Ok().json(post),
-        Err(err) => HttpResponse::BadRequest().json(err),
+async fn update_post_handler(id: i32, post_data: Post) -> Result<impl warp::Reply, warp::Rejection> {
+    match PostService::update_post(id, post_data) {
+        Ok(post) => Ok(warp::reply::json(&post)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
     }
 }
 
-#[delete("/api/posts/{id}")]
-async fn delete_post(id: web::Path<i32>) -> impl Responder {
-    match PostService::delete_post(id.into_inner()) {
-        Ok(_) => HttpResponse::Ok().json("Post deleted"),
-        Err(err) => HttpResponse::InternalServerError().json(err),
+async fn delete_post_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+    match PostService::delete_post(id) {
+        Ok(_) => Ok(warp::reply::with_status(warp::reply::json(&"Post deleted"), StatusCode::OK)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
     }
 }
 
-pub fn init_routes(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.service(create_post);
-    cfg.service(get_all_posts);
-    cfg.service(get_post);
-    cfg.service(update_post);
-    cfg.service(delete_post);
-}
+pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let create_post_route = warp::path!("api" / "posts")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and_then(create_post_handler);
+
+    let get_all_posts_route = warp::path!("api" / "posts")
+        .and(warp::get())
+        .and_then(get_all_posts_handler);
+
+    let get_post_route = warp::path!("api" / "posts" / i32)
+        .and(warp::get())
+        .and_then(get_post_handler);
+
+    let update_post_route = warp::path!("api" / "posts" / i32)
+        .and(warp::put())
+        .and(warp::body::json())
+        .and_then(update_post_handler);
+
+    let delete_post_route = warp::path!("api" / "posts" / i32)
+        .and(warp::delete())
+        .and_then

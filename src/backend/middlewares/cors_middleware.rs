@@ -1,11 +1,9 @@
-use actix_cors::Cors;
-use actix_web::http;
+use warp::filters::cors::Cors;
 
 pub fn cors_middleware() -> Cors {
-    Cors::default()
-        .allowed_origin("http://localhost:8080")
-        .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-        .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
-        .allowed_header(http::header::CONTENT_TYPE)
+    warp::cors()
+        .allow_origin("http://localhost:8080")
+        .allow_methods(vec!["GET", "POST", "PUT", "DELETE"])
+        .allow_headers(vec!["Authorization", "Accept", "Content-Type"])
         .max_age(3600)
 }

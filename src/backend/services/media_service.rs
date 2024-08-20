@@ -1,22 +1,27 @@
 use crate::models::media::Media;
 use crate::repositories::media_repository::MediaRepository;
+use warp::reject::Reject;
 
 pub struct MediaService;
 
+#[derive(Debug)]
+struct MediaError;
+impl Reject for MediaError {}
+
 impl MediaService {
-    pub fn upload_media(new_media: Media) -> Result<Media, &'static str> {
-        MediaRepository::create(new_media)
+    pub async fn upload_media(new_media: Media) -> Result<Media, warp::Rejection> {
+        MediaRepository::create(new_media).map_err(|_| warp::reject::custom(MediaError))
     }
 
-    pub fn get_media(id: i32) -> Result<Media, &'static str> {
-        MediaRepository::find_by_id(id)
+    pub async fn get_media(id: i32) -> Result<Media, warp::Rejection> {
+        MediaRepository::find_by_id(id).map_err(|_| warp::reject::custom(MediaError))
     }
 
-    pub fn delete_media(id: i32) -> Result<(), &'static str> {
-        MediaRepository::delete(id)
+    pub async fn delete_media(id: i32) -> Result<(), warp::Rejection> {
+        MediaRepository::delete(id).map_err(|_| warp::reject::custom(MediaError))
     }
 
-    pub fn list_media() -> Result<Vec<Media>, &'static str> {
-        MediaRepository::find_all()
+    pub async fn list_media() -> Result<Vec<Media>, warp::Rejection> {
+        MediaRepository::find_all().map_err(|_| warp::reject::custom(MediaError))
     }
 }

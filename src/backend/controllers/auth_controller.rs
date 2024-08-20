@@ -1,6 +1,7 @@
-use actix_web::{post, HttpResponse, Responder, web};
+use warp::Filter;
 use crate::services::auth_service::AuthService;
 use serde::Deserialize;
+use warp::http::StatusCode;
 
 #[derive(Deserialize)]
 pub struct AuthData {
@@ -8,23 +9,30 @@ pub struct AuthData {
     pub password: String,
 }
 
-#[post("/api/auth/login")]
-async fn login(auth_data: web::Json<AuthData>) -> impl Responder {
+async fn login_handler(auth_data: AuthData) -> Result<impl warp::Reply, warp::Rejection> {
     match AuthService::login(&auth_data.username, &auth_data.password) {
-        Ok(token) => HttpResponse::Ok().json(token),
-        Err(err) => HttpResponse::Unauthorized().json(err),
+        Ok(token) => Ok(warp::reply::json(&token)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::UNAUTHORIZED)),
     }
 }
 
-#[post("/api/auth/register")]
-async fn register(auth_data: web::Json<AuthData>) -> impl Responder {
+async fn register_handler(auth_data: AuthData) -> Result<impl warp::Reply, warp::Rejection> {
     match AuthService::register(&auth_data.username, &auth_data.username, &auth_data.password) {
-        Ok(_) => HttpResponse::Created().json("User registered"),
-        Err(err) => HttpResponse::BadRequest().json(err),
+        Ok(_) => Ok(warp::reply::with_status(warp::reply::json(&"User registered"), StatusCode::CREATED)),
+        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
     }
 }
 
-pub fn init_routes(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.service(login);
-    cfg.service(register);
+pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    let login_route = warp::path!("api" / "auth" / "login")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and_then(login_handler);
+
+    let register_route = warp::path!("api" / "auth" / "register")
+        .and(warp::post())
+        .and(warp::body::json())
+        .and_then(register_handler);
+
+    warp::any().and(login_route.or(register_route))
 }
