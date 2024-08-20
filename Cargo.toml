@@ -28,6 +28,7 @@ thiserror = "1.0"
 async-trait = "0.1"
 rpassword = "5.0"
 bcrypt = "0.9"
+socket2 = "0.5.7"
 
 [dev-dependencies]
 # Trunk is used for building WebAssembly projects
