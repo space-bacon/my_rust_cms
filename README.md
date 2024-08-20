@@ -132,7 +132,7 @@ my_rust_cms/
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/yourusername/my_rust_cms.git
+   git clone https://github.com/space-bacon/my_rust_cms.git
    cd my_rust_cms
    ```
 
