@@ -1,7 +1,7 @@
 
 # My Rust CMS
 
-My Rust CMS is a powerful, flexible, and scalable content management system (CMS) built using Rust. It leverages modern web technologies such as Actix-web for the backend and Yew for the frontend, offering a performant and secure platform for content creation and management. The CMS is designed to provide a hybrid of WordPress and Elementor, allowing users to create and manage content via a web builder interface with drag-and-drop capabilities.
+My Rust CMS is a powerful, flexible, and scalable content management system (CMS) built using Rust. It leverages modern web technologies such as WARP for the backend and Yew for the frontend, offering a performant and secure platform for content creation and management. The CMS is designed to provide a hybrid of WordPress and Elementor, allowing users to create and manage content via a web builder interface with drag-and-drop capabilities.
 
 ## Table of Contents
 
@@ -69,9 +69,9 @@ my_rust_cms/
 
 ## Dependencies and Libraries
 
-### 1. **Actix-Web**
-   - **Version:** `4.0`
-   - **Usage:** Actix-web is a powerful and fast web framework for Rust. It is used to build the backend server, handling HTTP requests and routing. Actix-web supports asynchronous programming and is highly performant, making it suitable for building scalable web applications.
+### 1. **WARP**
+   - **Version:** `*`
+   - **Usage:** WARP is a powerful and fast web framework for Rust. It is used to build the backend server, handling HTTP requests and routing. 
 
 ### 2. **Diesel**
    - **Version:** `2.0`
