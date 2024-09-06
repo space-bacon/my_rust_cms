@@ -1,7 +1,7 @@
 use std::env;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
-use reqwasm::http::{Request};
+use reqwasm::http::Request;
 use web_sys::console;
 use yew::Callback;
 

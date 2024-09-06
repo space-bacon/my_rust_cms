@@ -1,17 +1,18 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-
 #[cfg(target_arch = "wasm32")]
 use yew::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use yew::Renderer;
 
-// Entry point for the WebAssembly version
+// WebAssembly entry point
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn run_app() {
-    App::<Model>::new().mount_to_body();
+    Renderer::<Model>::new().render();
 }
 
-// Basic Yew app component
+// Yew component for Wasm
 #[cfg(target_arch = "wasm32")]
 struct Model;
 
@@ -20,23 +21,28 @@ impl Component for Model {
     type Message = ();
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_: &Context<Self>) -> Self {
         Self
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _: &Context<Self>, _: Self::Message) -> bool {
         true
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _: &Context<Self>) -> Html {
         html! {
             <h1>{ "Hello, CMS!" }</h1>
         }
     }
 }
 
-// Entry point for the native version
+// Native entry point for non-wasm32 builds
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    println!("Hello, CMS!");
+    println!("Hello, native CMS!");
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // WebAssembly has no main function
 }
