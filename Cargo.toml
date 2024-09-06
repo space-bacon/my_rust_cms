@@ -7,16 +7,17 @@ edition = "2021"
 # The getrandom crate is updated to work with WebAssembly by enabling the "js" feature.
 getrandom = { version = "0.2", features = ["js"] }
 
-# Actix-web, Diesel, Serde, and other dependencies remain unchanged
-# actix-web = "4.0"
+# warp is kept for server-side operations, and diesel is configured for PostgreSQL
 warp = "0.3"
 diesel = { version = "2.0", features = ["postgres"] }
+
+# Serde is kept for serialization/deserialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 dotenv = "0.15"
 jsonwebtoken = "8.1"
 
-# Yew is configured for client-side rendering (csr) in a WebAssembly target
+# Yew is configured for client-side rendering in WebAssembly
 yew = { version = "0.20", features = ["csr"] }
 
 # WebAssembly specific dependencies
@@ -28,8 +29,19 @@ thiserror = "1.0"
 async-trait = "0.1"
 rpassword = "5.0"
 bcrypt = "0.9"
-socket2 = "0.5.7"
+
+# socket2 should not be used in WebAssembly (wasm32) targets, so we disable it for wasm32
+socket2 = { version = "0.5.7", optional = true }
 
 [dev-dependencies]
 # Trunk is used for building WebAssembly projects
 trunk = "0.15.0"
+
+[features]
+# Define a feature to exclude socket2 for wasm32 targets
+default = []
+native = ["socket2"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+socket2 = "0.5.7"
+
