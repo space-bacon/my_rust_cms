@@ -32,3 +32,4 @@ bcrypt = { version = "0.9" }
 
 [dev-dependencies]
 trunk = "0.15.0"
+wasm-bindgen-test = "0.3"
