@@ -1,48 +1,79 @@
-use bcrypt::{hash, verify, DEFAULT_COST};
-use crate::repositories::user_repository::UserRepository;
-use crate::models::user::User;
-use std::sync::Arc;
-use warp::reject::Reject;
+use argon2::{self, Config};
+use wasm_bindgen::prelude::*;
+use serde::{Deserialize, Serialize};
+use web_sys::console;
+use js_sys::Error;
 
-pub struct AuthService;
+/// Fetch the salt from environment variables or fallback to a static value.
+const DEFAULT_SALT: &[u8] = b"default-salt";
+fn get_salt() -> Vec<u8> {
+    std::env::var("SALT")
+        .unwrap_or_else(|_| String::from_utf8(DEFAULT_SALT.to_vec()).unwrap())
+        .into_bytes()
+}
 
+/// Custom error handling to manage different failure cases in authentication.
 #[derive(Debug)]
-struct AuthError;
-impl Reject for AuthError {}
+enum AuthError {
+    HashingError(String),
+    VerificationError(String),
+    InvalidCredentials,
+    ServerError(String),
+}
 
-impl AuthService {
-    pub async fn login(username: &str, password: &str) -> Result<String, warp::Rejection> {
-        if let Some(user) = UserRepository::find_by_username(username).ok() {
-            if verify_password(password, &user.password_hash)? {
-                // Generate JWT token or session token here
-                Ok("JWT token".to_string())
-            } else {
-                Err(warp::reject::custom(AuthError))
-            }
-        } else {
-            Err(warp::reject::custom(AuthError))
-        }
-    }
-
-    pub async fn register(username: &str, email: &str, password: &str) -> Result<(), warp::Rejection> {
-        let hashed_password = hash_password(password)?;
-        let new_user = User {
-            id: 0,
-            username: username.to_string(),
-            email: email.to_string(),
-            password_hash: hashed_password,
-            role: "user".to_string(),
-            created_at: chrono::Utc::now().naive_utc(),
-            updated_at: chrono::Utc::now().naive_utc(),
+impl From<AuthError> for JsValue {
+    fn from(error: AuthError) -> Self {
+        let msg = match error {
+            AuthError::HashingError(e) => format!("Hashing error: {}", e),
+            AuthError::VerificationError(e) => format!("Verification error: {}", e),
+            AuthError::InvalidCredentials => "Invalid credentials".to_string(),
+            AuthError::ServerError(e) => format!("Server error: {}", e),
         };
-        UserRepository::create(new_user).map_err(|_| warp::reject::custom(AuthError))
+        JsValue::from_str(&msg)
     }
 }
 
-fn hash_password(password: &str) -> Result<String, warp::Rejection> {
-    hash(password, DEFAULT_COST).map_err(|_| warp::reject::custom(AuthError))
+// Hash password using Argon2 with environment-based salt
+pub fn hash_password(password: &str) -> Result<String, JsValue> {
+    let config = Config::default();
+    let salt = get_salt();
+    
+    argon2::hash_encoded(password.as_bytes(), &salt, &config)
+        .map_err(|e| {
+            console::log_1(&JsValue::from_str(&format!("Hashing error: {:?}", e)));
+            AuthError::HashingError(e.to_string()).into()
+        })
 }
 
-fn verify_password(password: &str, hash: &str) -> Result<bool, warp::Rejection> {
-    verify(password, hash).map_err(|_| warp::reject::custom(AuthError))
+// Verify password with detailed error handling
+pub fn verify_password(hash: &str, password: &str) -> Result<bool, JsValue> {
+    argon2::verify_encoded(hash, password.as_bytes())
+        .map_err(|e| {
+            console::log_1(&JsValue::from_str(&format!("Verification error: {:?}", e)));
+            AuthError::VerificationError(e.to_string()).into()
+        })
+}
+
+// Credentials structure for login
+#[derive(Serialize, Deserialize)]
+struct LoginCredentials {
+    username: String,
+    password: String,
+}
+
+// Mock or replace with web-sys fetch request to get stored hash from a database
+async fn get_stored_hash(_username: &str) -> Result<String, JsValue> {
+    Ok("some-hash-from-db".to_string()) // Mocked stored hash
+}
+
+// Login function with web-sys support for HTTP interactions
+#[wasm_bindgen]
+pub async fn login(credentials: LoginCredentials) -> Result<JsValue, JsValue> {
+    let stored_hash = get_stored_hash(&credentials.username).await?;
+
+    if verify_password(&stored_hash, &credentials.password)? {
+        Ok(JsValue::from_str("Login success"))
+    } else {
+        Err(AuthError::InvalidCredentials.into())
+    }
 }

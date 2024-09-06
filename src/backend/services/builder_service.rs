@@ -1,44 +1,89 @@
-use crate::models::page::Page;
-use crate::repositories::page_repository::PageRepository;
+use std::env;
 use serde::{Deserialize, Serialize};
-use warp::reject::Reject;
+use wasm_bindgen::JsValue;
+use reqwasm::http::{Request};
+use web_sys::console;
+use yew::Callback;
 
-#[derive(Serialize, Deserialize)]
-pub struct NewPageData {
-    pub title: String,
-    pub content: String,  // JSON or serialized format for the content structure
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CMSComponent {
+    pub id: Option<i32>,
+    pub name: String,
+    pub html: String,
+    pub css: String,
+    pub js: String,
 }
 
-pub struct BuilderService;
+fn get_api_base_url() -> String {
+    env::var("API_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
+}
 
-#[derive(Debug)]
-struct BuilderError;
-impl Reject for BuilderError {}
+pub async fn save_component(component: CMSComponent) -> Result<(), JsValue> {
+    let url = format!("{}/api/components", get_api_base_url());
 
-impl BuilderService {
-    pub async fn create_page(data: NewPageData) -> Result<Page, warp::Rejection> {
-        let new_page = Page {
-            id: 0,  // Auto-incremented by the database
-            title: data.title,
-            content: data.content,
-            created_at: chrono::Utc::now().naive_utc(),
-            updated_at: chrono::Utc::now().naive_utc(),
-        };
-        PageRepository::create(new_page).map_err(|_| warp::reject::custom(BuilderError))
+    let response = Request::post(&url)
+        .header("Content-Type", "application/json")
+        .body(serde_json::to_string(&component).unwrap())
+        .send()
+        .await;
+
+    match response {
+        Ok(res) if res.ok() => {
+            console::log_1(&"Component saved successfully!".into());
+            Ok(())
+        }
+        Ok(res) => {
+            let error_message = format!("Failed to save component: {:?}", res);
+            console::log_1(&error_message.into());
+            Err(JsValue::from_str(&error_message))
+        }
+        Err(err) => {
+            let error_message = format!("Request error: {:?}", err);
+            console::log_1(&error_message.into());
+            Err(JsValue::from_str(&error_message))
+        }
     }
+}
 
-    pub async fn get_page(id: i32) -> Result<Page, warp::Rejection> {
-        PageRepository::find_by_id(id).map_err(|_| warp::reject::custom(BuilderError))
-    }
+pub fn fetch_components(on_success: Callback<Vec<CMSComponent>>, on_failure: Callback<JsValue>) {
+    let url = format!("{}/api/components", get_api_base_url());
+    
+    wasm_bindgen_futures::spawn_local(async move {
+        let response = Request::get(&url).send().await;
+        
+        match response {
+            Ok(res) if res.ok() => {
+                let json = res.json::<Vec<CMSComponent>>().await;
+                match json {
+                    Ok(components) => on_success.emit(components),
+                    Err(err) => on_failure.emit(JsValue::from_str(&format!("Failed to parse components: {:?}", err))),
+                }
+            }
+            Ok(res) => on_failure.emit(JsValue::from_str(&format!("Failed to fetch components: {:?}", res))),
+            Err(err) => on_failure.emit(JsValue::from_str(&format!("Request error: {:?}", err))),
+        }
+    });
+}
 
-    pub async fn update_page(id: i32, data: NewPageData) -> Result<Page, warp::Rejection> {
-        let updated_page = Page {
-            id,
-            title: data.title,
-            content: data.content,
-            created_at: chrono::Utc::now().naive_utc(),  // Fetch original or use updated timestamp logic
-            updated_at: chrono::Utc::now().naive_utc(),
-        };
-        PageRepository::update(id, updated_page).map_err(|_| warp::reject::custom(BuilderError))
+pub async fn delete_component(id: i32) -> Result<(), JsValue> {
+    let url = format!("{}/api/components/{}", get_api_base_url(), id);
+
+    let response = Request::delete(&url).send().await;
+
+    match response {
+        Ok(res) if res.ok() => {
+            console::log_1(&"Component deleted successfully!".into());
+            Ok(())
+        }
+        Ok(res) => {
+            let error_message = format!("Failed to delete component: {:?}", res);
+            console::log_1(&error_message.into());
+            Err(JsValue::from_str(&error_message))
+        }
+        Err(err) => {
+            let error_message = format!("Request error: {:?}", err);
+            console::log_1(&error_message.into());
+            Err(JsValue::from_str(&error_message))
+        }
     }
 }

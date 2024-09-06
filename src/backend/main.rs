@@ -1,25 +1,48 @@
-use warp::Filter;
-use crate::config::Config;
-use crate::controllers::{
-    auth_controller, posts_controller, users_controller, comments_controller,
-    media_controller, settings_controller, builder_controller,
-};
+use yew::prelude::*;
+use yew_router::prelude::*;
 
-#[tokio::main]
-async fn main() {
-    let config = Config::from_env();
+#[derive(Clone, Routable, PartialEq)]
+enum Route {
+    #[at("/")]
+    Home,
+    #[at("/posts")]
+    Posts,
+    #[not_found]
+    #[at("/404")]
+    NotFound,
+}
 
-    // Combine all route configurations into one.
-    let routes = auth_controller::init_routes()
-        .or(posts_controller::init_routes())
-        .or(users_controller::init_routes())
-        .or(comments_controller::init_routes())
-        .or(media_controller::init_routes())
-        .or(settings_controller::init_routes())
-        .or(builder_controller::init_routes());
+#[function_component(Home)]
+fn home() -> Html {
+    html! { <h1>{ "Home Page" }</h1> }
+}
 
-    // Serve the combined routes.
-    warp::serve(routes)
-        .run(([127, 0, 0, 1], 8080))
-        .await;
+#[function_component(Posts)]
+fn posts() -> Html {
+    html! { <h1>{ "Posts Page" }</h1> }
+}
+
+fn switch(routes: &Route) -> Html {
+    match routes {
+        Route::Home => html! { <Home /> },
+        Route::Posts => html! { <Posts /> },
+        Route::NotFound => html! { <h1>{ "404 - Page not found" }</h1> },
+    }
+}
+
+#[function_component(App)]
+fn app() -> Html {
+    html! {
+        <BrowserRouter>
+            <nav>
+                <Link<Route> to={Route::Home}>{ "Home" }</Link<Route>>
+                <Link<Route> to={Route::Posts}>{ "Posts" }</Link<Route>>
+            </nav>
+            <Switch<Route> render={Switch::render(switch)} />
+        </BrowserRouter>
+    }
+}
+
+fn main() {
+    yew::start_app::<App>();
 }
