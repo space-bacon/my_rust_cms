@@ -1,31 +1,29 @@
-use warp::Filter;
+use axum::{
+    routing::{get, put},
+    extract::Json,
+    http::StatusCode,
+    response::IntoResponse,
+    Router,
+};
 use crate::services::settings_service::SettingsService;
 use crate::models::settings::Settings;
-use warp::http::StatusCode;
 
-async fn get_settings_handler() -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_settings_handler() -> impl IntoResponse {
     match SettingsService::get_settings() {
-        Ok(settings) => Ok(warp::reply::json(&settings)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
+        Ok(settings) => (StatusCode::OK, Json(settings)),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, Json(err)),
     }
 }
 
-async fn update_settings_handler(settings_data: Settings) -> Result<impl warp::Reply, warp::Rejection> {
+async fn update_settings_handler(Json(settings_data): Json<Settings>) -> impl IntoResponse {
     match SettingsService::update_settings(settings_data) {
-        Ok(settings) => Ok(warp::reply::json(&settings)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
+        Ok(settings) => (StatusCode::OK, Json(settings)),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(err)),
     }
 }
 
-pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    let get_settings_route = warp::path!("api" / "settings")
-        .and(warp::get())
-        .and_then(get_settings_handler);
-
-    let update_settings_route = warp::path!("api" / "settings")
-        .and(warp::put())
-        .and(warp::body::json())
-        .and_then(update_settings_handler);
-
-    warp::any().and(get_settings_route.or(update_settings_route))
+pub fn init_routes() -> Router {
+    Router::new()
+        .route("/api/settings", get(get_settings_handler))
+        .route("/api/settings", put(update_settings_handler))
 }

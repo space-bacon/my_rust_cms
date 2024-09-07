@@ -1,53 +1,45 @@
-use warp::Filter;
+use axum::{
+    routing::{get, post, delete},
+    extract::{Path, Json},
+    http::StatusCode,
+    response::IntoResponse,
+    Router,
+};
 use crate::services::media_service::MediaService;
 use crate::models::media::Media;
-use warp::http::StatusCode;
 
-async fn upload_media_handler(media_data: Media) -> Result<impl warp::Reply, warp::Rejection> {
+async fn upload_media_handler(Json(media_data): Json<Media>) -> impl IntoResponse {
     match MediaService::upload_media(media_data) {
-        Ok(media) => Ok(warp::reply::with_status(warp::reply::json(&media), StatusCode::CREATED)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
+        Ok(media) => (StatusCode::CREATED, Json(media)),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(err)),
     }
 }
 
-async fn get_all_media_handler() -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_all_media_handler() -> impl IntoResponse {
     match MediaService::list_media() {
-        Ok(media) => Ok(warp::reply::json(&media)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
+        Ok(media) => (StatusCode::OK, Json(media)),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, Json(err)),
     }
 }
 
-async fn get_media_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_media_handler(Path(id): Path<i32>) -> impl IntoResponse {
     match MediaService::get_media(id) {
-        Ok(media) => Ok(warp::reply::json(&media)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::NOT_FOUND)),
+        Ok(media) => (StatusCode::OK, Json(media)),
+        Err(err) => (StatusCode::NOT_FOUND, Json(err)),
     }
 }
 
-async fn delete_media_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+async fn delete_media_handler(Path(id): Path<i32>) -> impl IntoResponse {
     match MediaService::delete_media(id) {
-        Ok(_) => Ok(warp::reply::with_status(warp::reply::json(&"Media deleted"), StatusCode::OK)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
+        Ok(_) => (StatusCode::OK, Json("Media deleted")),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, Json(err)),
     }
 }
 
-pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    let upload_media_route = warp::path!("api" / "media")
-        .and(warp::post())
-        .and(warp::body::json())
-        .and_then(upload_media_handler);
-
-    let get_all_media_route = warp::path!("api" / "media")
-        .and(warp::get())
-        .and_then(get_all_media_handler);
-
-    let get_media_route = warp::path!("api" / "media" / i32)
-        .and(warp::get())
-        .and_then(get_media_handler);
-
-    let delete_media_route = warp::path!("api" / "media" / i32)
-        .and(warp::delete())
-        .and_then(delete_media_handler);
-
-    warp::any().and(upload_media_route.or(get_all_media_route).or(get_media_route).or(delete_media_route))
+pub fn init_routes() -> Router {
+    Router::new()
+        .route("/api/media", post(upload_media_handler))
+        .route("/api/media", get(get_all_media_handler))
+        .route("/api/media/:id", get(get_media_handler))
+        .route("/api/media/:id", delete(delete_media_handler))
 }

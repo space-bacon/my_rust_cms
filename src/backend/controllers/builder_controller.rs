@@ -1,42 +1,36 @@
-use warp::Filter;
+use axum::{
+    routing::{get, post, put},
+    extract::{Path, Json},
+    http::StatusCode,
+    response::IntoResponse,
+    Router,
+};
 use crate::services::builder_service::{BuilderService, NewPageData};
-use warp::http::StatusCode;
 
-async fn create_page_handler(new_page: NewPageData) -> Result<impl warp::Reply, warp::Rejection> {
+async fn create_page_handler(Json(new_page): Json<NewPageData>) -> impl IntoResponse {
     match BuilderService::create_page(new_page) {
-        Ok(page) => Ok(warp::reply::with_status(warp::reply::json(&page), StatusCode::CREATED)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
+        Ok(page) => (StatusCode::CREATED, Json(page)),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(err)),
     }
 }
 
-async fn get_page_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_page_handler(Path(id): Path<i32>) -> impl IntoResponse {
     match BuilderService::get_page(id) {
-        Ok(page) => Ok(warp::reply::json(&page)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::NOT_FOUND)),
+        Ok(page) => (StatusCode::OK, Json(page)),
+        Err(err) => (StatusCode::NOT_FOUND, Json(err)),
     }
 }
 
-async fn update_page_handler(id: i32, updated_page: NewPageData) -> Result<impl warp::Reply, warp::Rejection> {
+async fn update_page_handler(Path(id): Path<i32>, Json(updated_page): Json<NewPageData>) -> impl IntoResponse {
     match BuilderService::update_page(id, updated_page) {
-        Ok(page) => Ok(warp::reply::json(&page)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
+        Ok(page) => (StatusCode::OK, Json(page)),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(err)),
     }
 }
 
-pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    let create_page_route = warp::path!("api" / "builder" / "pages")
-        .and(warp::post())
-        .and(warp::body::json())
-        .and_then(create_page_handler);
-
-    let get_page_route = warp::path!("api" / "builder" / "pages" / i32)
-        .and(warp::get())
-        .and_then(get_page_handler);
-
-    let update_page_route = warp::path!("api" / "builder" / "pages" / i32)
-        .and(warp::put())
-        .and(warp::body::json())
-        .and_then(update_page_handler);
-
-    warp::any().and(create_page_route.or(get_page_route).or(update_page_route))
+pub fn init_routes() -> Router {
+    Router::new()
+        .route("/api/builder/pages", post(create_page_handler))
+        .route("/api/builder/pages/:id", get(get_page_handler))
+        .route("/api/builder/pages/:id", put(update_page_handler))
 }

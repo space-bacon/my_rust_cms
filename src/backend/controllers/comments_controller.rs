@@ -1,65 +1,53 @@
-use warp::Filter;
+use axum::{
+    routing::{get, post, put, delete},
+    extract::{Path, Json},
+    http::StatusCode,
+    response::IntoResponse,
+    Router,
+};
 use crate::services::comment_service::CommentService;
 use crate::models::comment::Comment;
-use warp::http::StatusCode;
 
-async fn create_comment_handler(comment_data: Comment) -> Result<impl warp::Reply, warp::Rejection> {
+async fn create_comment_handler(Json(comment_data): Json<Comment>) -> impl IntoResponse {
     match CommentService::create_comment(comment_data) {
-        Ok(comment) => Ok(warp::reply::with_status(warp::reply::json(&comment), StatusCode::CREATED)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
+        Ok(comment) => (StatusCode::CREATED, Json(comment)),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(err)),
     }
 }
 
-async fn get_all_comments_handler() -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_all_comments_handler() -> impl IntoResponse {
     match CommentService::list_comments() {
-        Ok(comments) => Ok(warp::reply::json(&comments)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
+        Ok(comments) => (StatusCode::OK, Json(comments)),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, Json(err)),
     }
 }
 
-async fn get_comment_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+async fn get_comment_handler(Path(id): Path<i32>) -> impl IntoResponse {
     match CommentService::get_comment(id) {
-        Ok(comment) => Ok(warp::reply::json(&comment)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::NOT_FOUND)),
+        Ok(comment) => (StatusCode::OK, Json(comment)),
+        Err(err) => (StatusCode::NOT_FOUND, Json(err)),
     }
 }
 
-async fn update_comment_handler(id: i32, comment_data: Comment) -> Result<impl warp::Reply, warp::Rejection> {
+async fn update_comment_handler(Path(id): Path<i32>, Json(comment_data): Json<Comment>) -> impl IntoResponse {
     match CommentService::update_comment(id, comment_data) {
-        Ok(comment) => Ok(warp::reply::json(&comment)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::BAD_REQUEST)),
+        Ok(comment) => (StatusCode::OK, Json(comment)),
+        Err(err) => (StatusCode::BAD_REQUEST, Json(err)),
     }
 }
 
-async fn delete_comment_handler(id: i32) -> Result<impl warp::Reply, warp::Rejection> {
+async fn delete_comment_handler(Path(id): Path<i32>) -> impl IntoResponse {
     match CommentService::delete_comment(id) {
-        Ok(_) => Ok(warp::reply::with_status(warp::reply::json(&"Comment deleted"), StatusCode::OK)),
-        Err(err) => Ok(warp::reply::with_status(warp::reply::json(&err), StatusCode::INTERNAL_SERVER_ERROR)),
+        Ok(_) => (StatusCode::OK, Json("Comment deleted")),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, Json(err)),
     }
 }
 
-pub fn init_routes() -> impl warp::Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    let create_comment_route = warp::path!("api" / "comments")
-        .and(warp::post())
-        .and(warp::body::json())
-        .and_then(create_comment_handler);
-
-    let get_all_comments_route = warp::path!("api" / "comments")
-        .and(warp::get())
-        .and_then(get_all_comments_handler);
-
-    let get_comment_route = warp::path!("api" / "comments" / i32)
-        .and(warp::get())
-        .and_then(get_comment_handler);
-
-    let update_comment_route = warp::path!("api" / "comments" / i32)
-        .and(warp::put())
-        .and(warp::body::json())
-        .and_then(update_comment_handler);
-
-    let delete_comment_route = warp::path!("api" / "comments" / i32)
-        .and(warp::delete())
-        .and_then(delete_comment_handler);
-
-    warp::any().and(create_comment_route.or(get_all_comments_route).or(get_comment_route).or(update_comment_route).or(delete_comment_route))
+pub fn init_routes() -> Router {
+    Router::new()
+        .route("/api/comments", post(create_comment_handler))
+        .route("/api/comments", get(get_all_comments_handler))
+        .route("/api/comments/:id", get(get_comment_handler))
+        .route("/api/comments/:id", put(update_comment_handler))
+        .route("/api/comments/:id", delete(delete_comment_handler))
 }
