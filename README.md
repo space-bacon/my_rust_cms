@@ -1,7 +1,5 @@
 
-Sure, here’s the updated README with some appropriate emoticons added:
-
----
+l🦀l
 
 # My Rust CMS 🦀🖥️
 
