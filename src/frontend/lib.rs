@@ -6,6 +6,7 @@ pub mod services {
     pub mod media_service;
     pub mod post_service;
     pub mod user_service;
+    pub mod frontend;
 }
 
 #[cfg(test)]

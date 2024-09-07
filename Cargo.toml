@@ -17,11 +17,24 @@ serde-wasm-bindgen = "0.2"
 wasm-bindgen = "0.2"
 thiserror = "1.0"
 
-# Other utilities for your CMS (optional)
+# WebAssembly utilities
+web-sys = "0.3"
+js-sys = "0.3"
+
+# Gloo for networking and console utilities
+gloo = { version = "0.8", features = ["net", "console"] }
+gloo-net = "0.3"
+
+# Async utilities and logging
 async-trait = "0.1"
+log = "0.4"
+
+# JSON Web Token and bcrypt for authentication
 jsonwebtoken = "8.1"
-dotenv = { version = "0.15", optional = true }
 bcrypt = { version = "0.9", optional = true }
+
+# wasm-bindgen-futures for async in WASM
+wasm-bindgen-futures = "0.4"
 
 [features]
 default = []

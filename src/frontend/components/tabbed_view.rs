@@ -1,8 +1,8 @@
-// src/frontend/components/tabbed_view.rs
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{window, HtmlDivElement};
-use crate::services::api_service::{update_post, Post};
+use wasm_bindgen::{JsValue, closure::Closure};
+use web_sys::{window, HtmlElement};
+use crate::frontend::services::api_service::{update_post, Post};
 use yew::functional::{use_state, use_effect_with_deps};
 use js_sys::{Object, Array};
 
@@ -19,8 +19,8 @@ pub fn tabbed_view(props: &Props) -> Html {
         use_effect_with_deps(
             move |_| {
                 let window = window().unwrap();
-                let editor = editor_ref.cast::<HtmlDivElement>().unwrap();
-
+                let editor = editor_ref.cast::<HtmlElement>().unwrap();
+                
                 let quill_options = Object::new();
                 let toolbar_options = Array::new();
 
@@ -48,14 +48,15 @@ pub fn tabbed_view(props: &Props) -> Html {
                 let quill_instance = quill
                     .dyn_into::<js_sys::Function>()
                     .unwrap()
-                    .call2(&JsValue::NULL, &editor.into(), &quill_options)
+                    .call2(&JsValue::NULL, &editor.clone().into(), &quill_options)
                     .unwrap();
 
+                let editor_cloned = editor.clone();  // Cloning editor for closure
                 let content_cloned = content.clone();
 
                 // Set up listener for Quill content updates
                 let callback = Closure::wrap(Box::new(move || {
-                    let inner_html = editor.inner_html();
+                    let inner_html = editor_cloned.inner_html();
                     content_cloned.set(inner_html);
                 }) as Box<dyn Fn()>);
                 

@@ -1,17 +1,6 @@
-// src/frontend/components/post_explorer.rs
-use gloo_net::http::Request;
 use yew::prelude::*;
-use serde::Deserialize;
-use crate::services::api_service::fetch_posts;
-use crate::components::tabbed_view::TabbedView;
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Post {
-    id: i32,
-    title: String,
-    category: String,
-    content: String,
-}
+use crate::frontend::services::api_service::{get_posts, Post};
+use crate::frontend::components::tabbed_view::TabbedView;
 
 #[function_component(PostExplorer)]
 pub fn post_explorer() -> Html {
@@ -22,9 +11,9 @@ pub fn post_explorer() -> Html {
         let posts = posts.clone();
         use_effect_with_deps(move |_| {
             wasm_bindgen_futures::spawn_local(async move {
-                match fetch_posts().await {
+                match get_posts().await {
                     Ok(fetched_posts) => posts.set(fetched_posts),
-                    Err(err) => log::error!("Error fetching posts: {:?}", err),
+                    Err(err) => log::error!("Error getting posts: {:?}", err),
                 }
             });
             || ()
@@ -44,10 +33,12 @@ pub fn post_explorer() -> Html {
             <ul>
                 {
                     for posts.iter().cloned().map(|post| {
+                        let post_display = post.clone(); // Clone for display
+                        let post_clone = post.clone(); // Clone for closure
                         let on_post_click = on_post_click.clone();
                         html! {
-                            <li onclick={move |_| on_post_click.emit(post.clone())}>
-                                { format!("{} ({})", post.title, post.category) }
+                            <li onclick={move |_| on_post_click.emit(post_clone.clone())}>
+                                { format!("{} ({})", post_display.title, post_display.category) }
                             </li>
                         }
                     })

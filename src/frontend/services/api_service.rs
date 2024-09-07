@@ -1,12 +1,20 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+// Post structure
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Post {
     pub id: i32,
     pub title: String,
+    pub category: String,
     pub content: String,
+}
+
+// AuthData structure for login
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AuthData {
+    pub username: String,
+    pub password: String,
 }
 
 // Error Handling
@@ -46,7 +54,7 @@ pub async fn create_post(new_post: &Post) -> Result<Post, ApiServiceError> {
     let body = serde_json::to_string(new_post)?;
     let response = Request::post("/api/posts")
         .header("Content-Type", "application/json")
-        .body(body)
+        .body(body)?
         .send()
         .await?;
 
@@ -63,7 +71,7 @@ pub async fn update_post(post_id: i32, updated_post: &Post) -> Result<Post, ApiS
     let url = format!("/api/posts/{}", post_id);
     let response = Request::put(&url)
         .header("Content-Type", "application/json")
-        .body(body)
+        .body(body)?
         .send()
         .await?;
 
@@ -81,6 +89,22 @@ pub async fn delete_post(post_id: i32) -> Result<(), ApiServiceError> {
 
     if response.ok() {
         Ok(())
+    } else {
+        Err(ApiServiceError::ServerError(response.status()))
+    }
+}
+
+// Login API call
+pub async fn login(auth_data: AuthData) -> Result<String, ApiServiceError> {
+    let body = serde_json::to_string(&auth_data)?;
+    let response = Request::post("/api/auth/login")
+        .header("Content-Type", "application/json")
+        .body(body)?
+        .send()
+        .await?;
+
+    if response.ok() {
+        response.text().await.map_err(ApiServiceError::from)
     } else {
         Err(ApiServiceError::ServerError(response.status()))
     }
