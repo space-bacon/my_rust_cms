@@ -1,6 +1,4 @@
 
-l🦀l
-
 # My Rust CMS 🦀🖥️
 
 My Rust CMS is a scalable and modular content management system (CMS) built in Rust. It uses modern web technologies like **Axum** for the backend and **Yew** for the frontend, providing a secure and high-performance platform for content creation. This CMS offers a hybrid experience similar to WordPress and Elementor, enabling users to build and manage content visually. 🚀
