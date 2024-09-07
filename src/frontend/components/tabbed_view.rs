@@ -4,27 +4,28 @@ use wasm_bindgen::JsCast;
 use web_sys::{window, HtmlDivElement};
 use crate::services::api_service::{update_post, Post};
 use yew::functional::{use_state, use_effect_with_deps};
+use js_sys::{Object, Array};
 
 #[function_component(TabbedView)]
-pub fn tabbed_view() -> Html {
+pub fn tabbed_view(props: &Props) -> Html {
+    let Props { post } = props.clone();
     let editor_ref = use_node_ref();
-    let selected_post = use_state(|| None::<Post>);
-    let content = use_state(|| String::new());
+    let content = use_state(|| post.content.clone());
 
     // Initialize Quill editor
     {
         let editor_ref = editor_ref.clone();
+        let content = content.clone();
         use_effect_with_deps(
             move |_| {
                 let window = window().unwrap();
-                let document = window.document().unwrap();
                 let editor = editor_ref.cast::<HtmlDivElement>().unwrap();
 
-                let quill_options = js_sys::Object::new();
-                let toolbar_options = js_sys::Array::new();
-                
-                // Full toolbar options (bold, italic, etc.)
-                let formats = js_sys::Array::new();
+                let quill_options = Object::new();
+                let toolbar_options = Array::new();
+
+                // Full toolbar options
+                let formats = Array::new();
                 formats.push(&JsValue::from_str("bold"));
                 formats.push(&JsValue::from_str("italic"));
                 formats.push(&JsValue::from_str("underline"));
@@ -42,15 +43,26 @@ pub fn tabbed_view() -> Html {
                     &JsValue::from_str("modules"),
                     &formats.into()
                 ).unwrap();
-                
+
                 let quill = js_sys::Reflect::get(&window, &JsValue::from_str("Quill")).unwrap();
-                let _quill = quill
+                let quill_instance = quill
                     .dyn_into::<js_sys::Function>()
                     .unwrap()
-                    .new_with_args_and_this(
-                        &editor.into(),
-                        &quill_options
-                    );
+                    .call2(&JsValue::NULL, &editor.into(), &quill_options)
+                    .unwrap();
+
+                let content_cloned = content.clone();
+
+                // Set up listener for Quill content updates
+                let callback = Closure::wrap(Box::new(move || {
+                    let inner_html = editor.inner_html();
+                    content_cloned.set(inner_html);
+                }) as Box<dyn Fn()>);
+                
+                quill_instance
+                    .unchecked_ref::<js_sys::Function>()
+                    .call1(&JsValue::NULL, &callback.into_js_value())
+                    .unwrap();
 
                 || ()
             },
@@ -60,24 +72,22 @@ pub fn tabbed_view() -> Html {
 
     // Save function using post updates
     let save_post = {
-        let selected_post = selected_post.clone();
+        let post = post.clone();
         let content = content.clone();
         Callback::from(move |_| {
-            if let Some(mut post) = (*selected_post).clone() {
-                post.content = (*content).clone();
-                wasm_bindgen_futures::spawn_local(async move {
-                    if let Err(err) = update_post(post.id, &post).await {
-                        log::error!("Failed to update post: {:?}", err);
-                    }
-                });
-            }
+            let mut updated_post = post.clone();
+            updated_post.content = (*content).clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Err(err) = update_post(updated_post.id, &updated_post).await {
+                    log::error!("Failed to update post: {:?}", err);
+                }
+            });
         })
     };
 
     html! {
         <div class="tabbed-view">
             <div class="toolbar">
-                // Define toolbar buttons (bold, italic, etc.)
                 <button>{ "B" }</button>
                 <button>{ "I" }</button>
                 <button>{ "U" }</button>
@@ -87,4 +97,9 @@ pub fn tabbed_view() -> Html {
             <button onclick={save_post}>{ "Save" }</button>
         </div>
     }
+}
+
+#[derive(Properties, PartialEq, Clone)]
+pub struct Props {
+    pub post: Post,
 }
