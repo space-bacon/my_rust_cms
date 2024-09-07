@@ -178,7 +178,3 @@ Contributions are welcome! Please open issues or pull requests if you find bugs 
 ## License
 
 This project is licensed under the MIT License.
-
----
-
-This version reflects the recent transition to **Axum**, adjusts the directory and dependencies, and maintains a consistent structure for clarity. Let me know if this is aligned with your expectations!
