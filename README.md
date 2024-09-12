@@ -1,4 +1,7 @@
 
+Here is the full updated `README.md` file with the Visual Studio Code-like frontend description and all necessary details:
+
+```md
 # My Rust CMS 🦀🖥️
 
 My Rust CMS is a scalable and modular content management system (CMS) built in Rust. It uses modern web technologies like **Axum** for the backend and **Yew** for the frontend, providing a secure and high-performance platform for content creation. This CMS offers a hybrid experience similar to WordPress and Elementor, enabling users to build and manage content visually. 🚀
@@ -7,12 +10,13 @@ My Rust CMS is a scalable and modular content management system (CMS) built in R
 
 1. [Features](#features)
 2. [Project Structure](#project-structure)
-3. [Dependencies and Libraries](#dependencies-and-libraries)
-4. [Getting Started](#getting-started)
-5. [Development](#development)
-6. [Building and Running](#building-and-running)
-7. [Contributing](#contributing)
-8. [License](#license)
+3. [Frontend User Interface](#frontend-user-interface)
+4. [Dependencies and Libraries](#dependencies-and-libraries)
+5. [Getting Started](#getting-started)
+6. [Development](#development)
+7. [Building and Running](#building-and-running)
+8. [Contributing](#contributing)
+9. [License](#license)
 
 ## Features ✨
 
@@ -136,8 +140,25 @@ my_rust_cms/
 ├── README.md                               # Project documentation
 ├── LICENSE                                 # License information
 └── Dockerfile                              # Docker configuration for the project
-
 ```
+
+## Frontend User Interface 🎨
+
+The **My Rust CMS** frontend interface is designed to resemble **Visual Studio Code** (VS Code) for an intuitive and familiar user experience. The layout features:
+
+- **Slim Vertical Sidebar**: Located on the left-hand side, this sidebar houses icons representing various key sections such as **Posts**, **Media**, and **Settings**. These icons make it
+
+ easy to navigate between the major content management features.
+
+- **Explorer Panel**: When clicking on an icon, an **Explorer** panel slides out from the left, displaying content such as posts and categories. This is organized similarly to a file explorer, where categories are shown as folders and posts as file types, making navigation seamless.
+
+- **Tabbed Interface**: Upon selecting a post or media item, it opens in a new tab within the main content area. This mimics the tab system of VS Code, where multiple items can be edited simultaneously.
+
+- **Editor and Components**: The right side of the interface consists of the post editor or media manager, allowing users to work on content while having easy access to other posts or media files in the tabs. This dynamic and modern interface allows for flexibility in content creation and management.
+
+Overall, the user interface is streamlined for developers and content creators alike, combining the familiarity of VS Code’s design with powerful content management tools.
+
+---
 
 ## Dependencies and Libraries 📦
 
@@ -173,6 +194,8 @@ my_rust_cms/
 
 ### 11. **Thiserror**
    - **Usage**: Provides error handling throughout the project ⚠️.
+
+---
 
 ## Getting Started 🚀
 
@@ -250,3 +273,4 @@ Contributions are welcome! Please open issues or pull requests if you find bugs 
 ## License 📄
 
 This project is licensed under the MIT License.
+```
