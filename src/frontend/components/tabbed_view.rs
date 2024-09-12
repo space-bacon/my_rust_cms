@@ -22,7 +22,7 @@ pub fn tabbed_view(props: &Props) -> Html {
                 let editor = editor_ref.cast::<HtmlElement>().unwrap();
                 
                 let quill_options = Object::new();
-                let toolbar_options = Array::new();
+                let _toolbar_options = Array::new();
 
                 // Full toolbar options
                 let formats = Array::new();

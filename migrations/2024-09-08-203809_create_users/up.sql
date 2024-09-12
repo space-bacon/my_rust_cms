@@ -5,3 +5,5 @@ CREATE TABLE users (
     email VARCHAR UNIQUE,
     created_at TIMESTAMP DEFAULT NOW()
 );
+
+

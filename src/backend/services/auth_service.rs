@@ -1,7 +1,10 @@
 use argon2::{self, Config};
-use wasm_bindgen::prelude::*;
+use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 use web_sys::console;
+use crate::schema::users::dsl::{users, username as db_username, password_hash as db_password};
+use diesel::PgConnection;
 use js_sys::Error;
 
 /// Fetch the salt from environment variables or fallback to a static value.
@@ -37,7 +40,7 @@ impl From<AuthError> for JsValue {
 pub fn hash_password(password: &str) -> Result<String, JsValue> {
     let config = Config::default();
     let salt = get_salt();
-    
+
     argon2::hash_encoded(password.as_bytes(), &salt, &config)
         .map_err(|e| {
             console::log_1(&JsValue::from_str(&format!("Hashing error: {:?}", e)));
@@ -56,20 +59,23 @@ pub fn verify_password(hash: &str, password: &str) -> Result<bool, JsValue> {
 
 // Credentials structure for login
 #[derive(Serialize, Deserialize)]
-struct LoginCredentials {
-    username: String,
-    password: String,
+pub struct LoginCredentials {
+    pub username: String,
+    pub password: String,
 }
 
-// Mock or replace with web-sys fetch request to get stored hash from a database
-async fn get_stored_hash(_username: &str) -> Result<String, JsValue> {
-    Ok("some-hash-from-db".to_string()) // Mocked stored hash
+// Function to fetch the password hash from the database using Diesel
+pub fn get_stored_hash(username_input: &str, conn: &PgConnection) -> Result<String, JsValue> {
+    users.filter(db_username.eq(username_input))
+        .select(db_password)
+        .first::<String>(conn)
+        .map_err(|_| AuthError::InvalidCredentials.into())
 }
 
 // Login function with web-sys support for HTTP interactions
 #[wasm_bindgen]
-pub async fn login(credentials: LoginCredentials) -> Result<JsValue, JsValue> {
-    let stored_hash = get_stored_hash(&credentials.username).await?;
+pub async fn login(credentials: LoginCredentials, conn: PgConnection) -> Result<JsValue, JsValue> {
+    let stored_hash = get_stored_hash(&credentials.username, &conn)?;
 
     if verify_password(&stored_hash, &credentials.password)? {
         Ok(JsValue::from_str("Login success"))

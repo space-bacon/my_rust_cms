@@ -1,3 +1,14 @@
+CREATE TABLE IF NOT EXISTS categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR NOT NULL,
+    password VARCHAR NOT NULL
+);
+
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
     title VARCHAR NOT NULL,
