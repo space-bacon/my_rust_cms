@@ -143,9 +143,7 @@ my_rust_cms/
 
 The **My Rust CMS** frontend interface is designed to resemble **Visual Studio Code** (VS Code) for an intuitive and familiar user experience. The layout features:
 
-- **Slim Vertical Sidebar**: Located on the left-hand side, this sidebar houses icons representing various key sections such as **Posts**, **Media**, and **Settings**. These icons make it
-
- easy to navigate between the major content management features.
+- **Slim Vertical Sidebar**: Located on the left-hand side, this sidebar houses icons representing various key sections such as **Posts**, **Media**, and **Settings**. These icons make it easy to navigate between the major content management features.
 
 - **Explorer Panel**: When clicking on an icon, an **Explorer** panel slides out from the left, displaying content such as posts and categories. This is organized similarly to a file explorer, where categories are shown as folders and posts as file types, making navigation seamless.
 
