@@ -270,4 +270,3 @@ Contributions are welcome! Please open issues or pull requests if you find bugs 
 ## License 📄
 
 This project is licensed under the MIT License.
-```
