@@ -28,43 +28,115 @@ My Rust CMS is a scalable and modular content management system (CMS) built in R
 
 ```plaintext
 my_rust_cms/
-├── Cargo.toml
-├── Trunk.toml
-├── .env
-├── .gitignore
-├── README.md
-├── Dockerfile
-├── docker-compose.yml
-├── migrations/
-├── src/
-│   ├── backend/
+│
+├── backend/
+│   ├── src/
 │   │   ├── controllers/
+│   │   │   ├── mod.rs                      # Re-exports all controllers
+│   │   │   ├── auth_controller.rs           # Handles user login, signup, etc.
+│   │   │   ├── post_controller.rs           # Handles post CRUD operations
+│   │   │   ├── media_controller.rs          # Handles media management
+│   │   │   ├── category_controller.rs       # Handles categories for posts
+│   │   │   ├── builder_controller.rs        # Manages page builder content
+│   │   │   ├── settings_controller.rs       # Manages CMS settings
 │   │   ├── models/
-│   │   ├── services/
-│   │   ├── repositories/
-│   │   ├── config/
-│   │   ├── middlewares/
-│   │   ├── main.rs
-│   │   └── lib.rs
-│   ├── frontend/
+│   │   │   ├── mod.rs                      # Re-exports all models
+│   │   │   ├── user.rs                     # User data model
+│   │   │   ├── post.rs                     # Post data model
+│   │   │   ├── media.rs                    # Media data model
+│   │   │   ├── category.rs                 # Category model
+│   │   │   ├── settings.rs                 # CMS settings model
+│   │   │   ├── builder.rs                  # Page builder model
+│   │   ├── views/
+│   │   │   ├── mod.rs                      # Re-exports all views
+│   │   │   ├── auth_view.rs                # Authentication-related views (login, signup, etc.)
+│   │   │   ├── post_view.rs                # Post views (create, edit, delete)
+│   │   │   ├── media_view.rs               # Media views (upload, delete)
+│   │   │   ├── category_view.rs            # Category views (add, delete, edit)
+│   │   │   ├── settings_view.rs            # Settings views (edit settings)
+│   │   │   ├── builder_view.rs             # Builder view for page creation
+│   │   ├── utils/
+│   │   │   ├── mod.rs                      # Re-exports all utility modules
+│   │   │   ├── db.rs                       # Database connection and pooling
+│   │   │   ├── errors.rs                   # Error handling utilities
+│   │   │   ├── validation.rs               # Input validation helpers
+│   │   │   ├── auth.rs                     # Authentication-related utilities (JWT, hashing, etc.)
+│   │   ├── schema.rs                       # Diesel schema generated for database tables
+│   │   ├── main.rs                         # Entry point for the backend application
+│   ├── Cargo.toml                          # Rust dependencies and configurations for backend
+│   ├── Diesel.toml                         # Diesel setup for managing migrations
+│   └── .env                                # Environment variables (DB URL, JWT secret, etc.)
+│
+├── frontend/
+│   ├── src/
 │   │   ├── components/
+│   │   │   ├── mod.rs                      # Re-exports all components
+│   │   │   ├── editor.rs                   # Post/page editor component
+│   │   │   ├── media_manager.rs            # Media manager component (upload, delete)
+│   │   │   ├── sidebar.rs                  # Sidebar with navigation (posts, media, settings)
+│   │   │   ├── tab_view.rs                 # Tabbed interface for post/media editing
+│   │   │   ├── category_manager.rs         # Category manager component
+│   │   │   ├── settings_panel.rs           # Settings panel component
 │   │   ├── pages/
-│   │   ├── templates/
-│   │   ├── styles/
-│   │   ├── lib.rs
-│   │   └── main.rs
-│   ├── shared/
-│   │   ├── types.rs
-│   │   ├── utils.rs
-│   │   └── constants.rs
-│   └── main.rs
-├── static/
-│   ├── images/
-│   ├── css/
-│   └── js/
-└── tests/
-    ├── integration_tests.rs
-    └── unit_tests.rs
+│   │   │   ├── mod.rs                      # Re-exports all pages
+│   │   │   ├── login.rs                    # Login page component
+│   │   │   ├── dashboard.rs                # Main dashboard page after login
+│   │   │   ├── post_editor.rs              # Page for editing or creating posts
+│   │   │   ├── media_dashboard.rs          # Media management dashboard
+│   │   │   ├── settings_page.rs            # Settings page
+│   │   ├── app.rs                          # Main app component
+│   │   ├── main.rs                         # Entry point for the frontend application
+│   ├── static/
+│   │   ├── css/
+│   │   │   ├── style.css                   # Custom styles for the CMS frontend
+│   │   ├── images/
+│   │   │   ├── logo.png                    # CMS logo
+│   │   ├── js/
+│   │   │   ├── custom.js                   # Any custom JS if needed
+│   ├── Trunk.toml                          # Trunk config for building the frontend
+│   ├── index.html                          # Frontend entry point for the browser
+│   └── assets/
+│       ├── favicon.ico                     # Favicon for the frontend
+│       ├── manifest.json                   # Web app manifest
+│
+├── migrations/
+│   ├── 2024-09-10-120000_create_users_table/
+│   │   ├── up.sql                          # SQL to create users table
+│   │   ├── down.sql                        # SQL to drop users table
+│   ├── 2024-09-10-120100_create_posts_table/
+│   │   ├── up.sql                          # SQL to create posts table
+│   │   ├── down.sql                        # SQL to drop posts table
+│   ├── 2024-09-10-120200_create_media_table/
+│   │   ├── up.sql                          # SQL to create media table
+│   │   ├── down.sql                        # SQL to drop media table
+│   ├── 2024-09-10-120300_create_categories_table/
+│   │   ├── up.sql                          # SQL to create categories table
+│   │   ├── down.sql                        # SQL to drop categories table
+│   ├── 2024-09-10-120400_create_builder_table/
+│   │   ├── up.sql                          # SQL to create builder table for page builder
+│   │   ├── down.sql                        # SQL to drop builder table
+│   ├── 2024-09-10-120500_create_settings_table/
+│   │   ├── up.sql                          # SQL to create settings table for CMS configuration
+│   │   ├── down.sql                        # SQL to drop settings table
+│
+├── config/
+│   ├── dev.toml                            # Development environment configuration
+│   ├── prod.toml                           # Production environment configuration
+│
+├── tests/
+│   ├── integration_tests.rs                # Integration tests for various controllers
+│   ├── unit_tests.rs                       # Unit tests for utility functions, models
+│
+├── scripts/
+│   ├── build_frontend.sh                   # Script to build the frontend using Trunk
+│   ├── run_migrations.sh                   # Script to run Diesel migrations
+│   ├── start_dev_backend.sh                # Script to run the backend in development mode
+│
+├── .gitignore                              # Files to ignore in Git
+├── README.md                               # Project documentation
+├── LICENSE                                 # License information
+└── Dockerfile                              # Docker configuration for the project
+
 ```
 
 ## Dependencies and Libraries 📦
