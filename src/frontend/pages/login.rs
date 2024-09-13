@@ -6,10 +6,15 @@ pub fn login() -> Html {
     let username = use_state(|| String::new());
     let password = use_state(|| String::new());
 
-    let on_submit = Callback::from(move |e: SubmitEvent| {
-        e.prevent_default(); // Prevent the default form submission behavior
-        log::info!("Username: {}, Password: {}", *username, *password);
-    });
+    let on_submit = {
+        let username = username.clone();
+        let password = password.clone();
+
+        Callback::from(move |e: SubmitEvent| {
+            e.prevent_default();
+            log::info!("Username: {}, Password: {}", *username, *password);
+        })
+    };
 
     html! {
         <div class="login">

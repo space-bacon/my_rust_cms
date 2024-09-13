@@ -45,8 +45,8 @@ async fn delete_user_handler(Path(id): Path<i32>) -> impl IntoResponse {
 
 pub fn init_routes() -> Router {
     Router::new()
-        .route("/api/users", post(create_user_handler))
         .route("/api/users", get(get_all_users_handler))
+        .route("/api/users", post(create_user_handler))
         .route("/api/users/:id", get(get_user_handler))
         .route("/api/users/:id", put(update_user_handler))
         .route("/api/users/:id", delete(delete_user_handler))

@@ -15,7 +15,7 @@ fn get_salt() -> Vec<u8> {
         .into_bytes()
 }
 
-/// Custom error handling to manage different failure cases in authentication.
+/// Custom error handling for authentication.
 #[derive(Debug)]
 enum AuthError {
     HashingError(String),
@@ -64,7 +64,7 @@ pub struct LoginCredentials {
     pub password: String,
 }
 
-// Function to fetch the password hash from the database using Diesel
+// Fetch password hash from the database
 pub fn get_stored_hash(username_input: &str, conn: &PgConnection) -> Result<String, JsValue> {
     users.filter(db_username.eq(username_input))
         .select(db_password)
@@ -72,7 +72,7 @@ pub fn get_stored_hash(username_input: &str, conn: &PgConnection) -> Result<Stri
         .map_err(|_| AuthError::InvalidCredentials.into())
 }
 
-// Login function with web-sys support for HTTP interactions
+// Login function
 #[wasm_bindgen]
 pub async fn login(credentials: LoginCredentials, conn: PgConnection) -> Result<JsValue, JsValue> {
     let stored_hash = get_stored_hash(&credentials.username, &conn)?;
