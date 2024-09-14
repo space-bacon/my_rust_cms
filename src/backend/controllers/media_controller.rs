@@ -1,66 +1,127 @@
 use axum::{
     routing::{get, post, delete},
-    extract::{Path, Json, Extension},
+    extract::{Path, Json, State},
     http::StatusCode,
     response::IntoResponse,
     Router,
 };
-use std::sync::Arc;
-use crate::services::media_service::MediaService;
-use crate::models::media::{Media, MediaError};
+use crate::backend::services::media_service::MediaServiceError;
+use crate::backend::models::media::{Media, CreateMedia};
+use crate::backend::AppState;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
+}
+
+#[derive(Serialize)]
+struct SuccessResponse<T> {
+    data: T,
+}
 
 /// Handler for uploading media
 async fn upload_media_handler(
-    Json(media_data): Json<Media>,
-    Extension(media_service): Extension<Arc<MediaService>>,
+    State(state): State<AppState>,
+    Json(media_data): Json<CreateMedia>,
 ) -> impl IntoResponse {
+    let media_service = &state.media_service;
     match media_service.upload_media(media_data).await {
-        Ok(media) => (StatusCode::CREATED, Json(media)),
-        Err(MediaError::InvalidData) => (StatusCode::BAD_REQUEST, Json("Invalid media data")),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("Failed to upload media")),
+        Ok(media) => (
+            StatusCode::CREATED,
+            Json(SuccessResponse { data: media }),
+        ),
+        Err(MediaServiceError::InvalidData) => (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "Invalid media data".to_string(),
+            }),
+        ),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Failed to upload media".to_string(),
+            }),
+        ),
     }
 }
 
 /// Handler for fetching all media
 async fn get_all_media_handler(
-    Extension(media_service): Extension<Arc<MediaService>>,
+    State(state): State<AppState>,
 ) -> impl IntoResponse {
+    let media_service = &state.media_service;
     match media_service.list_media().await {
-        Ok(media) => (StatusCode::OK, Json(media)),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("Failed to retrieve media")),
+        Ok(media_list) => (
+            StatusCode::OK,
+            Json(SuccessResponse { data: media_list }),
+        ),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Failed to retrieve media".to_string(),
+            }),
+        ),
     }
 }
 
 /// Handler for fetching a specific media by ID
 async fn get_media_handler(
+    State(state): State<AppState>,
     Path(id): Path<i32>,
-    Extension(media_service): Extension<Arc<MediaService>>,
 ) -> impl IntoResponse {
+    let media_service = &state.media_service;
     match media_service.get_media(id).await {
-        Ok(media) => (StatusCode::OK, Json(media)),
-        Err(MediaError::NotFound) => (StatusCode::NOT_FOUND, Json("Media not found")),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("Failed to retrieve media")),
+        Ok(media) => (
+            StatusCode::OK,
+            Json(SuccessResponse { data: media }),
+        ),
+        Err(MediaServiceError::NotFound) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "Media not found".to_string(),
+            }),
+        ),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Failed to retrieve media".to_string(),
+            }),
+        ),
     }
 }
 
 /// Handler for deleting media by ID
 async fn delete_media_handler(
+    State(state): State<AppState>,
     Path(id): Path<i32>,
-    Extension(media_service): Extension<Arc<MediaService>>,
 ) -> impl IntoResponse {
+    let media_service = &state.media_service;
     match media_service.delete_media(id).await {
-        Ok(_) => (StatusCode::OK, Json("Media deleted")),
-        Err(MediaError::NotFound) => (StatusCode::NOT_FOUND, Json("Media not found")),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json("Failed to delete media")),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(json!({"message": "Media deleted"})),
+        ),
+        Err(MediaServiceError::NotFound) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "Media not found".to_string(),
+            }),
+        ),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "Failed to delete media".to_string(),
+            }),
+        ),
     }
 }
 
 /// Initialize the media routes
-pub fn init_routes(media_service: Arc<MediaService>) -> Router {
+pub fn routes() -> Router {
     Router::new()
-        .route("/api/media", post(upload_media_handler))
-        .route("/api/media", get(get_all_media_handler))
-        .route("/api/media/:id", get(get_media_handler))
-        .route("/api/media/:id", delete(delete_media_handler))
-        .layer(Extension(media_service))
+        .route("/", post(upload_media_handler))
+        .route("/", get(get_all_media_handler))
+        .route("/:id", get(get_media_handler))
+        .route("/:id", delete(delete_media_handler))
 }
