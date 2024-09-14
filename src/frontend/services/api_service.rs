@@ -50,7 +50,7 @@ pub async fn get_posts() -> Result<Vec<Post>, ApiServiceError> {
 }
 
 // Create a new post
-pub async fn _create_post(new_post: &Post) -> Result<Post, ApiServiceError> {
+pub async fn create_post(new_post: &Post) -> Result<Post, ApiServiceError> {
     let body = serde_json::to_string(new_post)?;
     let response = Request::post("/api/posts")
         .header("Content-Type", "application/json")
@@ -83,7 +83,7 @@ pub async fn update_post(post_id: i32, updated_post: &Post) -> Result<Post, ApiS
 }
 
 // Delete a post
-pub async fn _delete_post(post_id: i32) -> Result<(), ApiServiceError> {
+pub async fn delete_post(post_id: i32) -> Result<(), ApiServiceError> {
     let url = format!("/api/posts/{}", post_id);
     let response = Request::delete(&url).send().await?;
 

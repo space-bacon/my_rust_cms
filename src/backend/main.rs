@@ -43,6 +43,12 @@ fn app() -> Html {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 fn main() {
     yew::start_app::<App>();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn main() {
+    println!("This app is intended to run as a WebAssembly app.");
 }
