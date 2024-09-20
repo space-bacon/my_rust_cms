@@ -8,40 +8,40 @@ edition = "2021"
 yew = { version = "0.20", features = ["csr"] }
 
 # Yew Router for client-side routing
-yew-router = "0.17"
+yew-router = { version = "0.18" }
 
 # Serialization and WebAssembly bindings
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-wasm-bindgen = "0.2"
-wasm-bindgen = "0.2"
-thiserror = "1.0"
 
 # WebAssembly utilities
-web-sys = "0.3"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["Window", "Document"] }
 js-sys = "0.3"
 
-# Gloo for networking and console utilities
-gloo = { version = "0.8", features = ["net", "console"] }
+# Gloo for networking, console, and storage utilities
 gloo-net = "0.3"
+gloo-storage = "0.3"
+gloo = { version = "0.8", features = ["utils", "net", "storage"] }
 
 # Async utilities and logging
-async-trait = "0.1"
 log = "0.4"
-
-# JSON Web Token and bcrypt for authentication
-jsonwebtoken = "8.1"
-bcrypt = { version = "0.9", optional = true }
 
 # wasm-bindgen-futures for async in WASM
 wasm-bindgen-futures = "0.4"
+
+# Error handling
+thiserror = "1.0"
 
 [features]
 default = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-dotenv = { version = "0.15" }
-bcrypt = { version = "0.9" }
+dotenv = "0.15"
+bcrypt = "0.9"
+jsonwebtoken = "8.1"
+async-trait = "0.1"
 
 [dev-dependencies]
 trunk = "0.15.0"

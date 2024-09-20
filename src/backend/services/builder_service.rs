@@ -1,9 +1,10 @@
-use std::env;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use reqwasm::http::Request;
+use std::fmt;
+use thiserror::Error;
 use web_sys::console;
-use yew::Callback;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CMSComponent {
@@ -14,76 +15,132 @@ pub struct CMSComponent {
     pub js: String,
 }
 
-fn get_api_base_url() -> String {
-    env::var("API_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = API_BASE_URL)]
+    static API_BASE_URL: JsValue;
 }
 
-pub async fn save_component(component: CMSComponent) -> Result<(), JsValue> {
-    let url = format!("{}/api/components", get_api_base_url());
+fn get_api_base_url() -> String {
+    API_BASE_URL
+        .as_string()
+        .unwrap_or_else(|| "http://localhost:8080".to_string())
+}
 
-    let response = Request::post(&url)
-        .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&component).unwrap())
-        .send()
-        .await;
+#[derive(Debug, Error)]
+pub enum BuilderError {
+    #[error("Request error: {0}")]
+    RequestError(String),
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    #[error("Unknown error occurred")]
+    UnknownError,
+}
 
-    match response {
-        Ok(res) if res.ok() => {
-            console::log_1(&"Component saved successfully!".into());
-            Ok(())
-        }
-        Ok(res) => {
-            let error_message = format!("Failed to save component: {:?}", res);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
-        }
-        Err(err) => {
-            let error_message = format!("Request error: {:?}", err);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
+impl From<reqwasm::Error> for BuilderError {
+    fn from(err: reqwasm::Error) -> Self {
+        BuilderError::RequestError(err.to_string())
+    }
+}
+
+impl From<JsValue> for BuilderError {
+    fn from(_: JsValue) -> Self {
+        BuilderError::UnknownError
+    }
+}
+
+enum HttpMethod {
+    GET,
+    POST,
+    DELETE,
+    PUT,
+    PATCH,
+}
+
+impl HttpMethod {
+    fn as_str(&self) -> &'static str {
+        match self {
+            HttpMethod::GET => "GET",
+            HttpMethod::POST => "POST",
+            HttpMethod::DELETE => "DELETE",
+            HttpMethod::PUT => "PUT",
+            HttpMethod::PATCH => "PATCH",
         }
     }
 }
 
-pub fn fetch_components(on_success: Callback<Vec<CMSComponent>>, on_failure: Callback<JsValue>) {
-    let url = format!("{}/api/components", get_api_base_url());
-    
-    wasm_bindgen_futures::spawn_local(async move {
-        let response = Request::get(&url).send().await;
-        
-        match response {
-            Ok(res) if res.ok() => {
-                let json = res.json::<Vec<CMSComponent>>().await;
-                match json {
-                    Ok(components) => on_success.emit(components),
-                    Err(err) => on_failure.emit(JsValue::from_str(&format!("Failed to parse components: {:?}", err))),
-                }
-            }
-            Ok(res) => on_failure.emit(JsValue::from_str(&format!("Failed to fetch components: {:?}", res))),
-            Err(err) => on_failure.emit(JsValue::from_str(&format!("Request error: {:?}", err))),
-        }
-    });
+async fn make_request(
+    method: HttpMethod,
+    url: &str,
+    body: Option<impl Into<JsValue>>,
+) -> Result<reqwasm::Response, BuilderError> {
+    let mut request = Request::new(url).method(method.as_str());
+
+    if let Some(body) = body {
+        request = request
+            .header("Content-Type", "application/json")
+            .body(body);
+    }
+
+    let response = request.send().await.map_err(BuilderError::from)?;
+
+    if response.ok() {
+        Ok(response)
+    } else {
+        Err(BuilderError::RequestError(format!(
+            "Failed with status: {}",
+            response.status()
+        )))
+    }
 }
 
-pub async fn delete_component(id: i32) -> Result<(), JsValue> {
+/// Saves a CMS component
+pub async fn save_component(component: CMSComponent) -> Result<(), BuilderError> {
+    let url = format!("{}/api/components", get_api_base_url());
+    let body = serde_json::to_string(&component)
+        .map_err(|e| BuilderError::ParseError(e.to_string()))?;
+
+    let result = make_request(HttpMethod::POST, &url, Some(body)).await;
+
+    match result {
+        Ok(_) => {
+            console::log_1(&"Component saved successfully!".into());
+            Ok(())
+        }
+        Err(e) => {
+            console::error_1(&format!("Failed to save component: {}", e).into());
+            Err(e)
+        }
+    }
+}
+
+/// Fetches all CMS components
+pub async fn fetch_components() -> Result<Vec<CMSComponent>, BuilderError> {
+    let url = format!("{}/api/components", get_api_base_url());
+
+    let response = make_request(HttpMethod::GET, &url, None::<JsValue>).await?;
+    let components = response
+        .json::<Vec<CMSComponent>>()
+        .await
+        .map_err(|e| BuilderError::ParseError(e.to_string()))?;
+
+    Ok(components)
+}
+
+/// Deletes a CMS component by ID
+pub async fn delete_component(id: i32) -> Result<(), BuilderError> {
     let url = format!("{}/api/components/{}", get_api_base_url(), id);
 
-    let response = Request::delete(&url).send().await;
+    let result = make_request(HttpMethod::DELETE, &url, None::<JsValue>).await;
 
-    match response {
-        Ok(res) if res.ok() => {
+    match result {
+        Ok(_) => {
             console::log_1(&"Component deleted successfully!".into());
             Ok(())
         }
-        Ok(res) => {
-            let error_message = format!("Failed to delete component: {:?}", res);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
-        }
-        Err(err) => {
-            let error_message = format!("Request error: {:?}", err);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
+        Err(e) => {
+            console::error_1(&format!("Failed to delete component: {}", e).into());
+            Err(e)
         }
     }
 }

@@ -7,6 +7,10 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+        // Define the API_BASE_URL as a string
+        window.API_BASE_URL = 'http://localhost:8080'; // Replace with your actual API base URL
+    </script>
     <script type="module">
         import init from "./pkg/my_rust_cms.js";
         init();

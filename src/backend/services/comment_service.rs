@@ -1,9 +1,10 @@
-use std::env;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use reqwasm::http::Request;
+use std::fmt;
+use thiserror::Error;
 use web_sys::console;
-use yew::Callback;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Comment {
@@ -14,96 +15,132 @@ pub struct Comment {
     pub created_at: String,
 }
 
-/// Retrieves the API base URL from the environment, with a fallback to localhost.
-fn get_api_base_url() -> String {
-    env::var("API_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_name = API_BASE_URL)]
+    static API_BASE_URL: JsValue;
 }
 
-/// Sends a POST request to save a new comment on the server.
-pub async fn save_comment(comment: Comment) -> Result<(), JsValue> {
-    let url = format!("{}/api/comments", get_api_base_url());
+fn get_api_base_url() -> String {
+    API_BASE_URL
+        .as_string()
+        .unwrap_or_else(|| "http://localhost:8080".to_string())
+}
 
-    let response = Request::post(&url)
-        .header("Content-Type", "application/json")
-        .body(serde_json::to_string(&comment).unwrap())
-        .send()
-        .await;
+#[derive(Debug, Error)]
+pub enum CommentError {
+    #[error("Request error: {0}")]
+    RequestError(String),
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    #[error("Unknown error occurred")]
+    UnknownError,
+}
 
-    match response {
-        Ok(res) if res.ok() => {
-            console::log_1(&"Comment saved successfully!".into());
-            Ok(())
-        }
-        Ok(res) => {
-            let error_message = format!("Failed to save comment: {:?}", res);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
-        }
-        Err(err) => {
-            let error_message = format!("Request error: {:?}", err);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
+impl From<reqwasm::Error> for CommentError {
+    fn from(err: reqwasm::Error) -> Self {
+        CommentError::RequestError(err.to_string())
+    }
+}
+
+impl From<JsValue> for CommentError {
+    fn from(_: JsValue) -> Self {
+        CommentError::UnknownError
+    }
+}
+
+enum HttpMethod {
+    GET,
+    POST,
+    DELETE,
+    PUT,
+    PATCH,
+}
+
+impl HttpMethod {
+    fn as_str(&self) -> &'static str {
+        match self {
+            HttpMethod::GET => "GET",
+            HttpMethod::POST => "POST",
+            HttpMethod::DELETE => "DELETE",
+            HttpMethod::PUT => "PUT",
+            HttpMethod::PATCH => "PATCH",
         }
     }
 }
 
-/// Fetches all comments related to a specific post by sending a GET request.
-pub fn fetch_comments(
-    post_id: i32,
-    on_success: Callback<Vec<Comment>>,
-    on_failure: Callback<JsValue>,
-) {
+async fn make_request(
+    method: HttpMethod,
+    url: &str,
+    body: Option<impl Into<JsValue>>,
+) -> Result<reqwasm::Response, CommentError> {
+    let mut request = Request::new(url).method(method.as_str());
+
+    if let Some(body) = body {
+        request = request
+            .header("Content-Type", "application/json")
+            .body(body);
+    }
+
+    let response = request.send().await.map_err(CommentError::from)?;
+
+    if response.ok() {
+        Ok(response)
+    } else {
+        Err(CommentError::RequestError(format!(
+            "Failed with status: {}",
+            response.status()
+        )))
+    }
+}
+
+/// Sends a POST request to save a new comment on the server.
+pub async fn save_comment(comment: Comment) -> Result<(), CommentError> {
+    let url = format!("{}/api/comments", get_api_base_url());
+    let body = serde_json::to_string(&comment)
+        .map_err(|e| CommentError::ParseError(e.to_string()))?;
+
+    let result = make_request(HttpMethod::POST, &url, Some(body)).await;
+
+    match result {
+        Ok(_) => {
+            console::log_1(&"Comment saved successfully!".into());
+            Ok(())
+        }
+        Err(e) => {
+            console::error_1(&format!("Failed to save comment: {}", e).into());
+            Err(e)
+        }
+    }
+}
+
+/// Fetches all comments related to a specific post.
+pub async fn fetch_comments(post_id: i32) -> Result<Vec<Comment>, CommentError> {
     let url = format!("{}/api/comments?post_id={}", get_api_base_url(), post_id);
 
-    wasm_bindgen_futures::spawn_local(async move {
-        let response = Request::get(&url).send().await;
+    let response = make_request(HttpMethod::GET, &url, None::<JsValue>).await?;
+    let comments = response
+        .json::<Vec<Comment>>()
+        .await
+        .map_err(|e| CommentError::ParseError(e.to_string()))?;
 
-        match response {
-            Ok(res) if res.ok() => {
-                let json_result = res.json::<Vec<Comment>>().await;
-                match json_result {
-                    Ok(comments) => on_success.emit(comments),
-                    Err(err) => {
-                        let error_message = format!("Failed to parse comments: {:?}", err);
-                        console::log_1(&error_message.into());
-                        on_failure.emit(JsValue::from_str(&error_message));
-                    }
-                }
-            }
-            Ok(res) => {
-                let error_message = format!("Failed to fetch comments: {:?}", res);
-                console::log_1(&error_message.into());
-                on_failure.emit(JsValue::from_str(&error_message));
-            }
-            Err(err) => {
-                let error_message = format!("Request error: {:?}", err);
-                console::log_1(&error_message.into());
-                on_failure.emit(JsValue::from_str(&error_message));
-            }
-        }
-    });
+    Ok(comments)
 }
 
 /// Deletes a comment by sending a DELETE request to the server.
-pub async fn delete_comment(id: i32) -> Result<(), JsValue> {
+pub async fn delete_comment(id: i32) -> Result<(), CommentError> {
     let url = format!("{}/api/comments/{}", get_api_base_url(), id);
 
-    let response = Request::delete(&url).send().await;
+    let result = make_request(HttpMethod::DELETE, &url, None::<JsValue>).await;
 
-    match response {
-        Ok(res) if res.ok() => {
+    match result {
+        Ok(_) => {
             console::log_1(&"Comment deleted successfully!".into());
             Ok(())
         }
-        Ok(res) => {
-            let error_message = format!("Failed to delete comment: {:?}", res);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
-        }
-        Err(err) => {
-            let error_message = format!("Request error: {:?}", err);
-            console::log_1(&error_message.into());
-            Err(JsValue::from_str(&error_message))
+        Err(e) => {
+            console::error_1(&format!("Failed to delete comment: {}", e).into());
+            Err(e)
         }
     }
 }
