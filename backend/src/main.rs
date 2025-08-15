@@ -539,6 +539,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/auth/sessions", get(controllers::sessions::get_user_sessions))
         .route("/api/auth/sessions/logout-all", post(controllers::sessions::logout_all_sessions))
         .route("/api/comments/create", post(controllers::comments::create_public_comment))
+        .route("/api/pages/:id/content", put(controllers::pages::update_page_content))
         .layer(axum_middleware::from_fn_with_state(app_services.clone(), auth_middleware_with_services));
 
     // Admin-only routes (requires admin role)

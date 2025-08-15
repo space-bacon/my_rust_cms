@@ -88,6 +88,36 @@ pub async fn update_page(id: i32, page: &Page) -> Result<Page, PageServiceError>
 }
 
 #[allow(dead_code)]
+pub async fn update_page_content(id: i32, content: &str) -> Result<Page, PageServiceError> {
+    let token = get_auth_token().map_err(|_| PageServiceError::NetworkError("Not authenticated".to_string()))?;
+    
+    let request_body = serde_json::json!({
+        "content": content
+    });
+    
+    let request = gloo_net::http::Request::put(&format!("http://localhost:8081/api/pages/{}/content", id))
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .map_err(|e| PageServiceError::NetworkError(e.to_string()))?;
+    
+    match request.send().await {
+        Ok(response) => {
+            if response.status() == 200 {
+                match response.json::<Page>().await {
+                    Ok(page) => Ok(page),
+                    Err(e) => Err(PageServiceError::ParseError(e.to_string())),
+                }
+            } else {
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(PageServiceError::NetworkError(format!("HTTP {}: {}", response.status(), error_text)))
+            }
+        }
+        Err(e) => Err(PageServiceError::NetworkError(e.to_string())),
+    }
+}
+
+#[allow(dead_code)]
 pub async fn delete_page(id: i32) -> Result<(), PageServiceError> {
     let token = get_auth_token().map_err(|_| PageServiceError::NetworkError("Not authenticated".to_string()))?;
     

@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Development
+  postgres:
+    image: postgres:15-alpine
+    container_name: rustcms_dev_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rustcms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-my_rust_cms}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - rustcms-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rustcms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Redis for caching (uncomment if needed)
+  # redis:
+  #   image: redis:alpine
+  #   container_name: rustcms_dev_redis
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - rustcms-dev-network
+  #   restart: unless-stopped
+
+  # Optional: MailHog for email testing (uncomment if needed)
+  # mailhog:
+  #   image: mailhog/mailhog
+  #   container_name: rustcms_dev_mailhog
+  #   ports:
+  #     - "1025:1025"  # SMTP server
+  #     - "8025:8025"  # Web UI
+  #   networks:
+  #     - rustcms-dev-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  rustcms-dev-network:
+    driver: bridge

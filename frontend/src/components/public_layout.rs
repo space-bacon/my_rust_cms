@@ -6,7 +6,7 @@ use crate::pages::public::PublicPage;
 use crate::pages::admin::design_system::{PublicColorScheme, apply_public_css_variables};
 use wasm_bindgen::JsCast;
 use crate::services::auth_context::use_auth;
-use crate::components::LiveEditMode;
+use crate::components::EnhancedLiveEditSystem;
 
 #[derive(Properties, PartialEq)]
 pub struct PublicLayoutProps {
@@ -51,6 +51,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 let footer_nav_result = get_navigation_by_area("footer").await;
                 
                 // Load component templates
+                web_sys::console::log_1(&"🔄 Loading component templates from public endpoint...".into());
                 let templates_result = get_component_templates().await;
                 
                 // Load site and container settings
@@ -79,11 +80,15 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 
                 match templates_result {
                     Ok(templates) => {
-                        web_sys::console::log_1(&format!("Component templates loaded: {:?}", templates).into());
+                        web_sys::console::log_1(&format!("🔄 Loaded {} component templates from public endpoint", templates.len()).into());
+                        for template in &templates {
+                            web_sys::console::log_1(&format!("🔄 Template: ID={}, name='{}', type='{}', active={}", 
+                                template.id, template.name, template.component_type, template.is_active).into());
+                        }
                         component_templates.set(templates);
                     }
                     Err(e) => {
-                        web_sys::console::log_1(&format!("Component templates error: {:?}", e).into());
+                        web_sys::console::log_1(&format!("❌ Error loading component templates: {:?}", e).into());
                     }
                 }
                 
@@ -404,22 +409,49 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let get_component_style = {
         let component_templates = component_templates.clone();
         move |component_type: &str| -> String {
-            if let Some(template) = component_templates.iter()
-                .find(|t| t.component_type == component_type && t.is_active) {
+                // Debug: Show all templates of this type
+    let matching_templates: Vec<_> = component_templates.iter()
+        .filter(|t| t.component_type == component_type && t.is_active)
+        .collect();
+    
+    web_sys::console::log_1(&format!("🔍 Template Selection Debug for '{}' type:", component_type).into());
+    for template in &matching_templates {
+        web_sys::console::log_1(&format!("  - ID={}, name='{}', is_default={}", 
+            template.id, template.name, template.is_default).into());
+    }
+    
+    // Try to find default template first
+    let default_template = component_templates.iter()
+        .find(|t| t.component_type == component_type && t.is_active && t.is_default);
+    
+    let fallback_template = component_templates.iter()
+        .find(|t| t.component_type == component_type && t.is_active);
+    
+    let selected_template = default_template.or(fallback_template);
+    
+    if let Some(template) = selected_template {
+        web_sys::console::log_1(&format!("🎯 Selected template: ID={}, name='{}', is_default={}", 
+            template.id, template.name, template.is_default).into());
                 let mut styles = Vec::new();
                 
                 if let Some(height) = template.template_data.get("height").and_then(|v| v.as_str()) {
+                    let mut h = height.to_string();
+                    
+                    // Ensure height has px units
+                    if !h.ends_with("px") {
+                        h = format!("{}px", h);
+                    }
+                    
                     if component_type == "header" {
-                        let mut h = height.to_string();
+                        // For header, enforce minimum height of 110px
                         if let Some(stripped) = h.strip_suffix("px") {
                             if let Ok(px) = stripped.trim().parse::<i32>() {
                                 if px < 110 { h = "110px".to_string(); }
                             }
                         }
-                        styles.push(format!("height: {}", h));
-                    } else {
-                        styles.push(format!("height: {}", height));
                     }
+                    
+                    styles.push(format!("height: {}", h));
                 } else if component_type == "header" {
                     styles.push("height: 110px".to_string());
                 }
@@ -431,30 +463,110 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                     }
                 }
                 
-                // Support both background (gradients/images) and background_color
-                if component_type == "header" {
-                    // For header, set background directly; coerce white to black per default theme requirement
-                    if let Some(mut bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
-                        if bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
-                        styles.push(format!("background: {}", bg));
-                    } else if let Some(mut bg) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
-                        if bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
-                        styles.push(format!("background-color: {}", bg));
-                    } else {
-                        // Fallback when no background provided
-                        styles.push("background-color: #000000".to_string());
+                // Enhanced background handling with new properties
+                let bg_type = template.template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("color");
+                
+                match bg_type {
+                    "color" => {
+                        if let Some(mut bg_color) = template.template_data.get("bg_color").and_then(|v| v.as_str()) {
+                            // For header, coerce white to black per default theme requirement
+                            if component_type == "header" && bg_color.trim().eq_ignore_ascii_case("#ffffff") {
+                                bg_color = "#000000";
+                            }
+                            styles.push(format!("background-color: {}", bg_color));
+                        } else {
+                            // Fallback to legacy background/background_color properties
+                            if let Some(mut bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
+                                if component_type == "header" && bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
+                                styles.push(format!("background: {}", bg));
+                            } else if let Some(mut bg) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
+                                if component_type == "header" && bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
+                                styles.push(format!("background-color: {}", bg));
+                            } else if component_type == "header" {
+                                styles.push("background-color: #000000".to_string());
+                            }
+                        }
+                    },
+                    "image" => {
+                        if let Some(bg_image) = template.template_data.get("bg_image").and_then(|v| v.as_str()) {
+                            styles.push(format!("background-image: url({})", bg_image));
+                            styles.push("background-size: cover".to_string());
+                            styles.push("background-position: center".to_string());
+                            styles.push("background-repeat: no-repeat".to_string());
+                        }
+                    },
+                    "gradient" => {
+                        let start_color = template.template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+                        let end_color = template.template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#f0f0f0");
+                        let direction = template.template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("to-right");
+                        styles.push(format!("background: linear-gradient({}, {}, {})", direction, start_color, end_color));
+                    },
+                    "video" => {
+                        if let Some(bg_video) = template.template_data.get("bg_video").and_then(|v| v.as_str()) {
+                            // For video backgrounds, we'll need to add the video element via JavaScript
+                            // For now, add a dark background as fallback
+                            styles.push("background-color: #000000".to_string());
+                            styles.push("position: relative".to_string());
+                            styles.push(format!("--bg-video-url: '{}'", bg_video));
+                        }
+                    },
+                    _ => {
+                        // Default color handling for backwards compatibility
+                        if component_type == "header" {
+                            styles.push("background-color: #000000".to_string());
+                        }
                     }
-                } else if component_type == "footer" {
-                    if let Some(bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
-                        styles.push(format!("--public-footer-bg: {}", bg));
-                    } else if let Some(bg) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
-                        styles.push(format!("--public-footer-bg: {}", bg));
-                    }
-                } else {
-                    if let Some(background) = template.template_data.get("background").and_then(|v| v.as_str()) {
-                        styles.push(format!("background: {}", background));
-                    } else if let Some(background) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
-                        styles.push(format!("background-color: {}", background));
+                }
+                
+                // Shape mask handling - upper and lower
+                let shape_mask_upper = template.template_data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
+                let shape_mask_upper_scale = template.template_data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
+                let shape_mask_lower = template.template_data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none");
+                let shape_mask_lower_scale = template.template_data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100");
+                
+                // Handle shape masks - apply directly for initial load
+                if shape_mask_upper != "none" || shape_mask_lower != "none" {
+                    // Get shape-specific parameters based on shape type
+                    let shape_mask_upper_frequency = if matches!(shape_mask_upper, "wave" | "triangle" | "zigzag") {
+                        template.template_data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2")
+                    } else { "2" };
+                    let shape_mask_upper_direction = if matches!(shape_mask_upper, "curve" | "tilt") {
+                        template.template_data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive")
+                    } else { "positive" };
+                    let shape_mask_upper_amplitude = if shape_mask_upper == "curve" {
+                        template.template_data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50")
+                    } else { "50" };
+                    let shape_mask_upper_degrees = if shape_mask_upper == "tilt" {
+                        template.template_data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15")
+                    } else { "15" };
+                    
+                    let shape_mask_lower_frequency = if matches!(shape_mask_lower, "wave" | "triangle" | "zigzag") {
+                        template.template_data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2")
+                    } else { "2" };
+                    let shape_mask_lower_direction = if matches!(shape_mask_lower, "curve" | "tilt") {
+                        template.template_data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive")
+                    } else { "positive" };
+                    let shape_mask_lower_amplitude = if shape_mask_lower == "curve" {
+                        template.template_data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50")
+                    } else { "50" };
+                    let shape_mask_lower_degrees = if shape_mask_lower == "tilt" {
+                        let degrees = template.template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15");
+                        web_sys::console::log_1(&format!("🔍 PublicLayout: Template ID {} shape_mask_lower_degrees = '{}'", template.id, degrees).into());
+                        degrees
+                    } else { "15" };
+                    
+                    // Generate clip-path for shape masks
+                    let clip_path = generate_clip_path_for_template(
+                        shape_mask_upper, shape_mask_upper_scale, shape_mask_upper_frequency, shape_mask_upper_direction, shape_mask_upper_amplitude, shape_mask_upper_degrees,
+                        shape_mask_lower, shape_mask_lower_scale, shape_mask_lower_frequency, shape_mask_lower_direction, shape_mask_lower_amplitude, shape_mask_lower_degrees
+                    );
+                    
+                    if !clip_path.is_empty() {
+                        web_sys::console::log_1(&format!("🎭 Template Shape Mask - Component: {}", component_type).into());
+                        web_sys::console::log_1(&format!("  Upper: {} (freq: {}, scale: {})", shape_mask_upper, shape_mask_upper_frequency, shape_mask_upper_scale).into());
+                        web_sys::console::log_1(&format!("  Lower: {} (freq: {}, scale: {})", shape_mask_lower, shape_mask_lower_frequency, shape_mask_lower_scale).into());
+                        web_sys::console::log_1(&format!("  Generated clip-path: {}", clip_path).into());
+                        styles.push(format!("clip-path: {}", clip_path));
                     }
                 }
                 
@@ -794,22 +906,442 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                         <button onclick={on_toggle} style="position: fixed; bottom: 16px; right: 16px; z-index: 9999; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); background: #111; color: #fff; opacity: 0.9; pointer-events: auto;">{
                             if *live_edit_enabled { "Disable Live Edit" } else { "Enable Live Edit" }
                         }</button>
-                        <LiveEditMode
+                        <EnhancedLiveEditSystem
                             enabled={*live_edit_enabled}
                             component_templates={(*component_templates).clone()}
                             on_templates_updated={
                                 let component_templates = component_templates.clone();
                                 Callback::from(move |updated: Vec<ComponentTemplate>| {
                                     if updated.is_empty() { return; }
+                                    
+                                    // Update local state first
                                     let mut map: std::collections::HashMap<i32, ComponentTemplate> = component_templates.iter().map(|t| (t.id, t.clone())).collect();
-                                    for u in updated { map.insert(u.id, u); }
+                                    for template in &updated { 
+                                        map.insert(template.id, template.clone()); 
+                                    }
                                     component_templates.set(map.into_values().collect());
+                                    
+                                    // Save each updated template to backend
+                                    for template in updated {
+                                        let template_clone = template.clone();
+                                        wasm_bindgen_futures::spawn_local(async move {
+                                            web_sys::console::log_1(&format!("Saving template {} to backend...", template_clone.id).into());
+                                            match crate::services::navigation_service::update_component_template(template_clone.id, &template_clone).await {
+                                                Ok(_) => {
+                                                    web_sys::console::log_1(&format!("✅ Successfully saved template {} to backend", template_clone.id).into());
+                                                }
+                                                Err(e) => {
+                                                    web_sys::console::log_1(&format!("❌ Failed to save template {} to backend: {:?}", template_clone.id, e).into());
+                                                }
+                                            }
+                                        });
+                                    }
                                 })
                             }
+                            page_components={vec![]} // TODO: Get actual page components
+                            on_page_components_updated={Callback::from(|_| {})} // TODO: Handle page component updates
+                            current_page={None} // TODO: Get current page
                         />
                     </>
                 }
             } else { html!{} }}
         </div>
+    }
+}
+
+// Helper function to generate SVG data URLs for shape masks
+fn generate_shape_svg_data_url(shape_type: &str, scale: f32, is_top: bool) -> String {
+    let width = 1440;
+    let height = (40.0 * scale) as i32;
+    
+    let path = match shape_type {
+        "wave" => {
+            if is_top {
+                format!("M0,{} Q360,{} 720,{} T1440,{} L1440,0 L0,0 Z", height, height - 10, height, height)
+            } else {
+                format!("M0,0 Q360,10 720,0 T1440,0 L1440,{} L0,{} Z", height, height)
+            }
+        },
+        "curve" => {
+            if is_top {
+                format!("M0,{} Q720,{} 1440,{} L1440,0 L0,0 Z", height, height - 20, height)
+            } else {
+                format!("M0,0 Q720,20 1440,0 L1440,{} L0,{} Z", height, height)
+            }
+        },
+        "triangle" => {
+            if is_top {
+                format!("M0,{} L720,{} L1440,{} L1440,0 L0,0 Z", height, height - 15, height)
+            } else {
+                format!("M0,0 L720,15 L1440,0 L1440,{} L0,{} Z", height, height)
+            }
+        },
+        "zigzag" => {
+            if is_top {
+                format!("M0,{} L240,{} L480,{} L720,{} L960,{} L1200,{} L1440,{} L1440,0 L0,0 Z", 
+                    height, height - 8, height, height - 8, height, height - 8, height)
+            } else {
+                format!("M0,0 L240,8 L480,0 L720,8 L960,0 L1200,8 L1440,0 L1440,{} L0,{} Z", height, height)
+            }
+        },
+        "arrow" => {
+            if is_top {
+                format!("M0,{} L720,{} L1440,{} L1080,{} L720,{} L360,{} Z", 
+                    height, height - 15, height, height - 5, height - 10, height - 5)
+            } else {
+                format!("M0,0 L360,5 L720,10 L1080,5 L1440,0 L720,15 Z")
+            }
+        },
+        "tilt" => {
+            if is_top {
+                format!("M0,{} L1440,{} L1440,0 L0,0 Z", height, height - 10)
+            } else {
+                format!("M0,0 L1440,10 L1440,{} L0,{} Z", height, height)
+            }
+        },
+        _ => {
+            if is_top {
+                format!("M0,{} L1440,{} L1440,0 L0,0 Z", height, height)
+            } else {
+                format!("M0,0 L1440,0 L1440,{} L0,{} Z", height, height)
+            }
+        }
+    };
+    
+    format!(
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {} {}' fill='white'%3E%3Cpath d='{}'/%3E%3C/svg%3E",
+        width, height, path
+    )
+}
+
+// Generate clip-path for template rendering (mirrors the logic from enhanced_live_edit_system.rs)
+fn generate_clip_path_for_template(
+    shape_upper: &str, scale_upper: &str, frequency_upper: &str, direction_upper: &str, amplitude_upper: &str, degrees_upper: &str,
+    shape_lower: &str, scale_lower: &str, frequency_lower: &str, direction_lower: &str, amplitude_lower: &str, degrees_lower: &str
+) -> String {
+    // Use the SAME isolated tilt logic as the live edit system
+    if shape_upper == "tilt" || shape_lower == "tilt" {
+        return generate_tilt_only_clip_path_for_template(
+            shape_upper, degrees_upper, direction_upper,
+            shape_lower, degrees_lower, direction_lower
+        );
+    }
+    
+    // Create proper polygon without duplicate points for non-tilt shapes
+    let mut polygon_points = vec!["0% 0%".to_string()]; // Start at top-left
+    
+    // Add upper shape points (left to right along top edge) - but skip tilt shapes
+    if shape_upper != "none" && !shape_upper.is_empty() && shape_upper != "tilt" {
+        let scale_factor = scale_upper.parse::<f32>().unwrap_or(100.0) / 100.0;
+        let frequency = frequency_upper.parse::<f32>().unwrap_or(2.0);
+        let amplitude = amplitude_upper.parse::<f32>().ok();
+        let degrees = degrees_upper.parse::<f32>().unwrap_or(15.0);
+        let upper_points = generate_shape_points_for_template_new(shape_upper, scale_factor, frequency, true, Some(direction_upper), amplitude, Some(degrees));
+        polygon_points.extend(upper_points);
+    }
+    
+    // Add top-right corner
+    polygon_points.push("100% 0%".to_string());
+    
+    // Add right edge to bottom-right
+    polygon_points.push("100% 100%".to_string());
+    
+    // Add lower shape points (right to left along bottom edge) - but skip tilt shapes
+    if shape_lower != "none" && !shape_lower.is_empty() && shape_lower != "tilt" {
+        let scale_factor = scale_lower.parse::<f32>().unwrap_or(100.0) / 100.0;
+        let frequency = frequency_lower.parse::<f32>().unwrap_or(2.0);
+        let amplitude = amplitude_lower.parse::<f32>().ok();
+        let degrees = degrees_lower.parse::<f32>().unwrap_or(15.0);
+        let mut lower_points = generate_shape_points_for_template_new(shape_lower, scale_factor, frequency, false, Some(direction_lower), amplitude, Some(degrees));
+        lower_points.reverse(); // Reverse for right-to-left traversal
+        polygon_points.extend(lower_points);
+    }
+    
+    // Add bottom-left corner to close the polygon
+    polygon_points.push("0% 100%".to_string());
+    
+    if shape_upper != "none" || shape_lower != "none" {
+        format!("polygon({})", polygon_points.join(", "))
+    } else {
+        String::new()
+    }
+}
+
+// Generate tilt-only clip-path for template rendering (mirrors the logic from enhanced_live_edit_system.rs)
+fn generate_tilt_only_clip_path_for_template(
+    shape_upper: &str, degrees_upper: &str, direction_upper: &str,
+    shape_lower: &str, degrees_lower: &str, direction_lower: &str
+) -> String {
+    let mut polygon_points = Vec::new();
+    
+    // Handle upper edge
+    if shape_upper == "tilt" {
+        let degrees = degrees_upper.parse::<f32>().unwrap_or(15.0);
+        let is_left = direction_upper == "left";
+        
+        let tilt_amount = if degrees <= 0.5 {
+            0.0 // Flat line for very small angles
+        } else {
+            degrees.min(45.0) * 0.8
+        };
+        
+        let (left_y, right_y) = if is_left {
+            (tilt_amount, 0.0) // Left corner goes down, right stays at 0
+        } else {
+            (0.0, tilt_amount) // Left stays at 0, right corner goes down
+        };
+        
+        polygon_points.push(format!("0% {}%", left_y)); // Left corner tilted
+        polygon_points.push(format!("100% {}%", right_y)); // Right corner tilted
+    } else {
+        polygon_points.push("0% 0%".to_string()); // Default top-left
+        polygon_points.push("100% 0%".to_string()); // Default top-right
+    }
+    
+    // Handle lower edge
+    if shape_lower == "tilt" {
+        let degrees = degrees_lower.parse::<f32>().unwrap_or(15.0);
+        let is_left = direction_lower == "left";
+        
+        let tilt_amount = if degrees <= 0.5 {
+            0.0 // Flat line for very small angles
+        } else {
+            degrees.min(45.0) * 0.8
+        };
+        
+        let (right_y, left_y) = if is_left {
+            (100.0, 100.0 - tilt_amount) // Right stays at 100%, left goes up
+        } else {
+            (100.0 - tilt_amount, 100.0) // Right goes up, left stays at 100%
+        };
+        
+        // Add right edge to bottom-right corner
+        polygon_points.push(format!("100% {}%", right_y));
+        
+        // Add tilted bottom-left corner
+        polygon_points.push(format!("0% {}%", left_y));
+    } else {
+        // Default bottom-right and bottom-left
+        polygon_points.push("100% 100%".to_string());
+        polygon_points.push("0% 100%".to_string());
+    }
+    
+    format!("polygon({})", polygon_points.join(", "))
+}
+
+// Generate shape points for template rendering (mirrors the logic from enhanced_live_edit_system.rs)
+fn generate_shape_points_for_template(shape_type: &str, scale: f32, frequency: f32, is_top: bool) -> Vec<String> {
+    let depth = (scale * 20.0).min(50.0); // Use scale directly for depth (max 50%)
+    
+    match shape_type {
+        "wave" => {
+            let mut points = Vec::new();
+            let num_points = (frequency * 15.0) as i32 + 30; // More points for smoother waves
+            for i in 0..=num_points {
+                let x = (i as f32 / num_points as f32) * 100.0;
+                // Create proper sine wave with correct phase
+                let wave_input = (x / 100.0) * frequency * 2.0 * std::f32::consts::PI;
+                let wave_value = wave_input.sin();
+                
+                let y = if is_top {
+                    // For top wave: use scale for wave depth
+                    let wave_offset = wave_value * depth * 0.5; // Half depth for wave variation
+                    (depth + wave_offset).max(0.0).min(50.0)
+                } else {
+                    // For bottom wave: use scale for wave depth
+                    let wave_offset = wave_value * depth * 0.5; // Half depth for wave variation
+                    (100.0 - depth - wave_offset).max(50.0).min(100.0)
+                };
+                
+                points.push(format!("{}% {}%", x, y));
+            }
+            points
+        },
+        "curve" => {
+            let mut points = Vec::new();
+            let num_points = (frequency * 5.0) as i32 + 10; // More curves for higher frequency
+            
+            // Generate smooth bezier-like curve using multiple points
+            for i in 0..=num_points {
+                let t = i as f32 / num_points as f32;
+                let x = t * 100.0;
+                
+                // Quadratic curve formula: (1-t)²*P0 + 2(1-t)t*P1 + t²*P2
+                let p0 = if is_top { 0.0 } else { 100.0 };
+                let p1 = if is_top { depth } else { 100.0 - depth };
+                let p2 = if is_top { 0.0 } else { 100.0 };
+                
+                let y = (1.0 - t).powi(2) * p0 + 2.0 * (1.0 - t) * t * p1 + t.powi(2) * p2;
+                points.push(format!("{}% {}%", x, y.max(0.0).min(100.0)));
+            }
+            points
+        },
+        "zigzag" => {
+            let mut points = Vec::new();
+            let segments = (frequency * 2.0) as i32 + 2; // More segments for higher frequency
+            for i in 0..=segments {
+                let x = (i as f32 / segments as f32) * 100.0;
+                let y = if is_top {
+                    if i % 2 == 0 { 0.0 } else { depth }
+                } else {
+                    if i % 2 == 0 { 100.0 } else { 100.0 - depth }
+                };
+                points.push(format!("{}% {}%", x, y.max(0.0).min(100.0)));
+            }
+            points
+        },
+        "arrow" => {
+            let mut points = Vec::new();
+            let segments = (frequency * 2.0) as i32 + 2; // Arrow segments based on frequency
+            for i in 0..=segments {
+                let x = (i as f32 / segments as f32) * 100.0;
+                let y = if is_top {
+                    if i % 2 == 0 { 0.0 } else { depth }
+                } else {
+                    if i % 2 == 0 { 100.0 } else { 100.0 - depth }
+                };
+                points.push(format!("{}% {}%", x, y.max(0.0).min(100.0)));
+            }
+            points
+        },
+        "tilt" => {
+            vec![
+                if is_top {
+                    format!("100% {}%", depth)
+                } else {
+                    format!("100% {}%", 100.0 - depth)
+                }
+            ]
+        },
+        _ => Vec::new(),
+    }
+}
+
+// New shape generation function with enhanced parameters for template rendering
+fn generate_shape_points_for_template_new(
+    shape_type: &str, 
+    scale: f32, 
+    frequency: f32, 
+    is_top: bool, 
+    direction: Option<&str>, 
+    amplitude: Option<f32>, 
+    degrees: Option<f32>
+) -> Vec<String> {
+    let depth = (scale * 20.0).min(50.0); // Use scale directly for depth (max 50%)
+    
+    match shape_type {
+        "wave" => {
+            let mut points = Vec::new();
+            let num_points = (frequency * 15.0) as i32 + 30; // More points for smoother waves
+            
+            for i in 0..=num_points {
+                let x = (i as f32 / num_points as f32) * 100.0;
+                // Create proper sine wave with correct phase
+                let wave_input = (x / 100.0) * frequency * 2.0 * std::f32::consts::PI;
+                let wave_value = wave_input.sin();
+                
+                let y = if is_top {
+                    // For top wave: use scale for wave depth
+                    let wave_offset = wave_value * depth * 0.5; // Half depth for wave variation
+                    (depth + wave_offset).max(0.0).min(50.0)
+                } else {
+                    // For bottom wave: use scale for wave depth
+                    let wave_offset = wave_value * depth * 0.5; // Half depth for wave variation
+                    (100.0 - depth - wave_offset).max(50.0).min(100.0)
+                };
+                
+                points.push(format!("{}% {}%", x, y));
+            }
+            points
+        },
+        "curve" => {
+            let mut points = Vec::new();
+            let curve_amplitude = amplitude.unwrap_or(50.0);
+            let is_positive = direction.unwrap_or("positive") == "positive";
+            let num_points = 30; // Fixed number of points for smooth curve
+            
+            // Generate smooth bezier-like curve using multiple points
+            for i in 0..=num_points {
+                let t = i as f32 / num_points as f32;
+                let x = t * 100.0;
+                
+                // Quadratic curve formula with amplitude control
+                let base_y = if is_top { 0.0 } else { 100.0 };
+                let curve_height = (4.0 * t * (1.0 - t)) * (depth * curve_amplitude / 100.0);
+                let curve_offset = if is_positive { curve_height } else { -curve_height };
+                
+                let y = if is_top { base_y + curve_offset } else { base_y - curve_offset };
+                points.push(format!("{}% {}%", x, y.max(0.0).min(100.0)));
+            }
+            points
+        },
+        "triangle" => {
+            let mut points = Vec::new();
+            let peak_count = frequency.max(1.0) as usize;
+            
+            for peak in 0..peak_count {
+                let start_x = (peak as f32) / (peak_count as f32) * 100.0;
+                let end_x = ((peak + 1) as f32) / (peak_count as f32) * 100.0;
+                let mid_x = (start_x + end_x) / 2.0;
+                
+                let base_y = if is_top { 0.0 } else { 100.0 };
+                let peak_y = if is_top { depth } else { 100.0 - depth };
+                
+                // Add points for this triangle
+                if peak == 0 {
+                    points.push(format!("{}% {}%", start_x, base_y));
+                }
+                points.push(format!("{}% {}%", mid_x, peak_y));
+                if peak == peak_count - 1 {
+                    points.push(format!("{}% {}%", end_x, base_y));
+                }
+            }
+            points
+        },
+        "zigzag" => {
+            let mut points = Vec::new();
+            let segments = (frequency * 2.0) as i32 + 2; // More segments for higher frequency
+            for i in 0..=segments {
+                let x = (i as f32 / segments as f32) * 100.0;
+                let y = if is_top {
+                    if i % 2 == 0 { 0.0 } else { depth }
+                } else {
+                    if i % 2 == 0 { 100.0 } else { 100.0 - depth }
+                };
+                points.push(format!("{}% {}%", x, y.max(0.0).min(100.0)));
+            }
+            points
+        },
+        "tilt" => {
+            // Use the SAME tilt logic as the live edit system for consistency
+            let tilt_degrees = degrees.unwrap_or(15.0);
+            let is_left = direction.unwrap_or("right") == "left";
+            
+            // Use simple percentage mapping (same as live edit system)
+            let tilt_amount = if tilt_degrees <= 0.5 {
+                0.0 // Flat line for very small angles
+            } else {
+                tilt_degrees.min(45.0) * 0.8 // Same formula as live edit
+            };
+            
+            if is_top {
+                // For upper tilt
+                let (left_y, right_y) = if is_left {
+                    (tilt_amount, 0.0) // Left corner goes down, right stays at 0
+                } else {
+                    (0.0, tilt_amount) // Left stays at 0, right corner goes down
+                };
+                vec![format!("100% {}%", right_y)] // Only return the right corner point
+            } else {
+                // For lower tilt
+                let (right_y, left_y) = if is_left {
+                    (100.0, 100.0 - tilt_amount) // Right stays at 100%, left goes up
+                } else {
+                    (100.0 - tilt_amount, 100.0) // Right goes up, left stays at 100%
+                };
+                vec![format!("0% {}%", left_y)] // Only return the left corner point
+            }
+        },
+        _ => Vec::new(),
     }
 } 

@@ -478,6 +478,13 @@ pub async fn get_component_templates(
         .filter(component_templates::is_active.eq(true))
         .load::<ComponentTemplate>(&mut conn)?;
     
+    // Debug: Log what we're returning
+    for template in &templates {
+        if template.component_type == "header" {
+            println!("🔍 Backend: Returning header template ID {} with data: {}", template.id, serde_json::to_string_pretty(&template.template_data).unwrap_or_default());
+        }
+    }
+    
     let frontend_templates: Vec<FrontendComponentTemplate> = templates.into_iter()
         .map(FrontendComponentTemplate::from)
         .collect();
@@ -557,6 +564,9 @@ pub async fn update_component_template(
         .first::<ComponentTemplate>(&mut conn)
         .optional()?
         .ok_or_else(|| AppError::NotFound("Component template not found".to_string()))?;
+    
+    // Debug: Log what we're about to save
+    println!("🔧 Backend: Updating template ID {} with data: {}", id, serde_json::to_string_pretty(&template_data.template_data).unwrap_or_default());
     
     let update_data = UpdateComponentTemplate {
         name: Some(template_data.name),

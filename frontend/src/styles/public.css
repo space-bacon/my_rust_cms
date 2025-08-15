@@ -884,3 +884,72 @@
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
+
+/* Shape Mask Styles for Header and Footer Templates */
+.site-header,
+.site-footer {
+    position: relative;
+    overflow: visible;
+}
+
+/* Shape mask containers - these will hold the actual cutout shapes */
+.site-header[data-shape-top="active"],
+.site-header[data-shape-bottom="active"],
+.site-footer[data-shape-top="active"],
+.site-footer[data-shape-bottom="active"] {
+    /* Clip path will be applied via JavaScript */
+}
+
+/* Ensure shape masks work with different background types */
+.site-header[style*="--bg-video-url"],
+.site-footer[style*="--bg-video-url"] {
+    overflow: hidden;
+}
+
+/* Video background support */
+.site-header[style*="--bg-video-url"]::before,
+.site-footer[style*="--bg-video-url"]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-video-url, none);
+    z-index: -1;
+}
+
+/* Enhanced height control for templates */
+.site-header[style*="height:"],
+.site-footer[style*="height:"] {
+    min-height: var(--template-height, auto);
+}
+
+/* Responsive shape masks */
+@media (max-width: 768px) {
+    .site-header::before,
+    .site-header::after,
+    .site-footer::before,
+    .site-footer::after {
+        height: calc(var(--shape-mask-top-height, 0px) * 0.7);
+    }
+    
+    .site-header::after,
+    .site-footer::after {
+        height: calc(var(--shape-mask-bottom-height, 0px) * 0.7);
+    }
+}
+
+@media (max-width: 480px) {
+    .site-header::before,
+    .site-header::after,
+    .site-footer::before,
+    .site-footer::after {
+        height: calc(var(--shape-mask-top-height, 0px) * 0.5);
+    }
+    
+    .site-header::after,
+    .site-footer::after {
+        height: calc(var(--shape-mask-bottom-height, 0px) * 0.5);
+    }
+}

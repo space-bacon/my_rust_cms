@@ -191,6 +191,45 @@ pub async fn update_page(
     Ok(ResponseJson(FrontendPage::from(updated_page)))
 }
 
+/// Update page content for live editing (authenticated users)
+/// 
+/// Updates only the content field of a page for live editing.
+/// Requires user authentication but not admin privileges.
+/// More restrictive than full page update - only allows content changes.
+pub async fn update_page_content(
+    State(services): State<AppServices>,
+    Path(id): Path<i32>,
+    Json(request): Json<serde_json::Value>
+) -> Result<ResponseJson<FrontendPage>, AppError> {
+    // Extract content from request
+    let content = request.get("content")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::ValidationError("Content field is required".to_string()))?;
+    
+    // Validate content length
+    validate_text_content(content, 200000)?;
+    
+    let mut conn = services.db_pool.get()
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+    
+    // Check if page exists
+    let existing_page = Page::find_by_id(&mut conn, id)?
+        .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
+    
+    // Update only the content field
+    let update_page = UpdatePage {
+        title: None,
+        content: Some(content.to_string()),
+        user_id: None,
+        updated_at: Some(chrono::Utc::now().naive_utc()),
+        slug: None,
+        status: None,
+    };
+    
+    let updated_page = Page::update(&mut conn, id, update_page)?;
+    Ok(ResponseJson(FrontendPage::from(updated_page)))
+}
+
 /// Delete a page (admin only)
 /// 
 /// Permanently deletes a page.
