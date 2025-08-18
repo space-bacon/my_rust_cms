@@ -4,7 +4,7 @@ use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 use crate::services::auth_service::get_auth_token;
 
-const API_BASE_URL: &str = "http://localhost:8081/api";
+const API_BASE_URL: &str = "http://127.0.0.1:8081/api";
 
 // Helper function to create authenticated requests
 fn create_authenticated_request(method: &str, url: &str) -> Result<gloo_net::http::RequestBuilder, ApiServiceError> {
@@ -548,6 +548,47 @@ pub async fn create_media(media: &MediaItem) -> Result<MediaItem, ApiServiceErro
         Ok(created_media)
     } else {
         Err(ApiServiceError::ServerError(format!("HTTP {}", response.status())))
+    }
+}
+
+pub async fn upload_media(file: &web_sys::File) -> Result<MediaItem, ApiServiceError> {
+    use web_sys::FormData;
+    
+    let form_data = FormData::new().map_err(|e| ApiServiceError::NetworkError(format!("Failed to create FormData: {:?}", e)))?;
+    form_data.append_with_blob("file", file).map_err(|e| ApiServiceError::NetworkError(format!("Failed to append file: {:?}", e)))?;
+    
+    let token = get_auth_token().map_err(|_| ApiServiceError::ServerError("Not authenticated".to_string()))?;
+    let response = gloo_net::http::Request::post(&format!("{}/media/upload", API_BASE_URL))
+        .header("Authorization", &format!("Bearer {}", token))
+        .body(form_data)
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| ApiServiceError::NetworkError(e.to_string()))?;
+
+    if response.status() == 201 {
+        let result: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| ApiServiceError::ParseError(e.to_string()))?;
+        
+        if result["success"].as_bool().unwrap_or(false) {
+            let media_data = &result["media"];
+            Ok(MediaItem {
+                id: media_data["id"].as_i64().map(|id| id as i32),
+                name: media_data["name"].as_str().unwrap_or("").to_string(),
+                type_: media_data["type_"].as_str().unwrap_or("").to_string(),
+                size: Some(media_data["size"].as_str().unwrap_or("").to_string()),
+                url: media_data["url"].as_str().unwrap_or("").to_string(),
+                created_at: media_data["created_at"].as_str().map(|s| s.to_string()),
+                user_id: None,
+            })
+        } else {
+            Err(ApiServiceError::ServerError(result["message"].as_str().unwrap_or("Upload failed").to_string()))
+        }
+    } else {
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        Err(ApiServiceError::ServerError(format!("HTTP {} - {}", response.status(), error_text)))
     }
 }
 

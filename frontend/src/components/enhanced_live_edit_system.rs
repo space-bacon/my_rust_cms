@@ -312,6 +312,9 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
         Callback::from(move |updated_template: ComponentTemplate| {
             web_sys::console::log_1(&format!("Template update callback received: ID {}, type {}", updated_template.id, updated_template.component_type).into());
             
+            // Apply live preview immediately
+            apply_template_style_preview(&updated_template.component_type, &updated_template.template_data);
+            
             let mut updated_templates = component_templates.clone();
             
             // Find and update the template in the list
@@ -506,6 +509,9 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                     // Handle background properties
                     let bg_type = template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("color");
                     
+                    web_sys::console::log_1(&format!("🎨 Live Preview: Background type is '{}' for {}", bg_type, component_type).into());
+                    web_sys::console::log_1(&format!("🎨 Live Preview: Template data: {}", serde_json::to_string_pretty(template_data).unwrap_or_else(|_| "Failed to serialize".to_string())).into());
+                    
                     match bg_type {
                         "color" => {
                             if let Some(mut bg_color) = template_data.get("bg_color").and_then(|v| v.as_str()) {
@@ -513,7 +519,7 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                 if component_type == "header" && bg_color.trim().eq_ignore_ascii_case("#ffffff") {
                                     bg_color = "#000000";
                                 }
-                                styles.push(format!("background-color: {}", bg_color));
+                                styles.push(format!("background-color: {} !important", bg_color));
                             }
                         },
                         "image" => {
@@ -525,10 +531,53 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                             }
                         },
                         "gradient" => {
-                            let start_color = template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#ffffff");
-                            let end_color = template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#f0f0f0");
-                            let direction = template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("to-right");
-                            styles.push(format!("background: linear-gradient({}, {}, {})", direction, start_color, end_color));
+                            // Check for custom gradient first
+                            if let Some(custom_gradient) = template_data.get("bg_gradient_custom").and_then(|v| v.as_str()) {
+                                if !custom_gradient.trim().is_empty() {
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Using custom gradient: {}", custom_gradient).into());
+                                    styles.push(format!("background: {} !important", custom_gradient));
+                                } else {
+                                    // Fallback to individual fields if custom is empty
+                                    let start_color = template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#667eea");
+                                    let end_color = template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#764ba2");
+                                    let direction = template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("135deg");
+                                    // Convert hyphenated directions to valid CSS syntax
+                                    let css_direction = match direction {
+                                        "to-top" => "to top",
+                                        "to-bottom" => "to bottom", 
+                                        "to-left" => "to left",
+                                        "to-right" => "to right",
+                                        "to-top-left" => "to top left",
+                                        "to-top-right" => "to top right",
+                                        "to-bottom-left" => "to bottom left",
+                                        "to-bottom-right" => "to bottom right",
+                                        _ => direction // Keep degrees and other valid values as-is
+                                    };
+                                    let gradient = format!("linear-gradient({}, {}, {})", css_direction, start_color, end_color);
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Using individual gradient fields: {}", gradient).into());
+                                    styles.push(format!("background: {} !important", gradient));
+                                }
+                            } else {
+                                // Fallback to individual fields if custom field is not present
+                                let start_color = template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#667eea");
+                                let end_color = template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#764ba2");
+                                let direction = template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("135deg");
+                                // Convert hyphenated directions to valid CSS syntax
+                                let css_direction = match direction {
+                                    "to-top" => "to top",
+                                    "to-bottom" => "to bottom", 
+                                    "to-left" => "to left",
+                                    "to-right" => "to right",
+                                    "to-top-left" => "to top left",
+                                    "to-top-right" => "to top right",
+                                    "to-bottom-left" => "to bottom left",
+                                    "to-bottom-right" => "to bottom right",
+                                    _ => direction // Keep degrees and other valid values as-is
+                                };
+                                let gradient = format!("linear-gradient({}, {}, {})", css_direction, start_color, end_color);
+                                web_sys::console::log_1(&format!("🎨 Live Preview: Using fallback gradient fields: {}", gradient).into());
+                                styles.push(format!("background: {} !important", gradient));
+                            }
                         },
                         "video" => {
                             if let Some(bg_video) = template_data.get("bg_video").and_then(|v| v.as_str()) {
@@ -614,6 +663,13 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                     web_sys::console::log_1(&format!("✅ Live Preview: Final styles for {}: {}", element_id, new_style).into());
                     
                     let _ = html_element.set_attribute("style", &new_style);
+                    
+                    // Verify the styles were applied
+                    if let Some(applied_style) = html_element.get_attribute("style") {
+                        web_sys::console::log_1(&format!("🔍 Live Preview: Verified applied styles: {}", applied_style).into());
+                    } else {
+                        web_sys::console::log_1(&format!("❌ Live Preview: No styles found after application").into());
+                    }
                 }
             }
         }

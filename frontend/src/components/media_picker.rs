@@ -258,7 +258,7 @@ pub fn media_picker(props: &MediaPickerProps) -> Html {
                                                 {if item.type_.starts_with("image") {
                                                     html! {
                                                         <img 
-                                                            src={format!("http://localhost:8081{}", item.url)}
+                                                            src={format!("http://127.0.0.1:8081{}", item.url)}
                                                             alt={item.name.clone()}
                                                             style="
                                                                 width: 100%;

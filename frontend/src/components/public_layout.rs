@@ -17,6 +17,51 @@ pub struct PublicLayoutProps {
     pub current_page: String,
 }
 
+// Helper function to render the site logo based on header template settings
+fn render_site_logo(component_templates: &[ComponentTemplate], site_title: &str) -> Html {
+    let header_template = component_templates.iter()
+        .find(|t| t.component_type == "header" && t.is_active);
+    
+    match header_template {
+        Some(template) => {
+            let logo_type = template.template_data.get("logo_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("text");
+            
+            if logo_type == "image" {
+                if let Some(logo_url) = template.template_data.get("logo_url")
+                    .and_then(|v| v.as_str())
+                    .filter(|url| !url.trim().is_empty()) {
+                    
+                    let logo_height = template.template_data.get("logo_height")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("40px");
+                    
+                    html! {
+                        <div class="site-logo">
+                            <img 
+                                src={logo_url.to_string()} 
+                                alt={site_title.to_string()} 
+                                style={format!("height: {}; max-width: 200px; object-fit: contain;", logo_height)}
+                            />
+                        </div>
+                    }
+                } else {
+                    // Fallback to text if image URL is empty
+                    html! { <h1 class="site-title">{site_title}</h1> }
+                }
+            } else {
+                // Text logo
+                html! { <h1 class="site-title">{site_title}</h1> }
+            }
+        }
+        None => {
+            // No header template, use text
+            html! { <h1 class="site-title">{site_title}</h1> }
+        }
+    }
+}
+
 #[function_component(PublicLayout)]
 pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let auth = use_auth();
@@ -473,17 +518,17 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                             if component_type == "header" && bg_color.trim().eq_ignore_ascii_case("#ffffff") {
                                 bg_color = "#000000";
                             }
-                            styles.push(format!("background-color: {}", bg_color));
+                            styles.push(format!("background-color: {} !important", bg_color));
                         } else {
                             // Fallback to legacy background/background_color properties
                             if let Some(mut bg) = template.template_data.get("background").and_then(|v| v.as_str()) {
                                 if component_type == "header" && bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
-                                styles.push(format!("background: {}", bg));
+                                styles.push(format!("background: {} !important", bg));
                             } else if let Some(mut bg) = template.template_data.get("background_color").and_then(|v| v.as_str()) {
                                 if component_type == "header" && bg.trim().eq_ignore_ascii_case("#ffffff") { bg = "#000000"; }
-                                styles.push(format!("background-color: {}", bg));
+                                styles.push(format!("background-color: {} !important", bg));
                             } else if component_type == "header" {
-                                styles.push("background-color: #000000".to_string());
+                                styles.push("background-color: #000000 !important".to_string());
                             }
                         }
                     },
@@ -496,10 +541,50 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                         }
                     },
                     "gradient" => {
-                        let start_color = template.template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#ffffff");
-                        let end_color = template.template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#f0f0f0");
-                        let direction = template.template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("to-right");
-                        styles.push(format!("background: linear-gradient({}, {}, {})", direction, start_color, end_color));
+                        // Check for custom gradient first
+                        if let Some(custom_gradient) = template.template_data.get("bg_gradient_custom").and_then(|v| v.as_str()) {
+                            if !custom_gradient.trim().is_empty() {
+                                styles.push(format!("background: {} !important", custom_gradient));
+                            } else {
+                                // Fall back to individual color fields
+                                let start_color = template.template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#667eea");
+                                let end_color = template.template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#764ba2");
+                                let direction = template.template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("135deg");
+                                // Convert hyphenated directions to valid CSS syntax
+                                let css_direction = match direction {
+                                    "to-top" => "to top",
+                                    "to-bottom" => "to bottom", 
+                                    "to-left" => "to left",
+                                    "to-right" => "to right",
+                                    "to-top-left" => "to top left",
+                                    "to-top-right" => "to top right",
+                                    "to-bottom-left" => "to bottom left",
+                                    "to-bottom-right" => "to bottom right",
+                                    _ => direction // Keep degrees and other valid values as-is
+                                };
+                                let gradient = format!("linear-gradient({}, {}, {})", css_direction, start_color, end_color);
+                                styles.push(format!("background: {} !important", gradient));
+                            }
+                        } else {
+                            // Fall back to individual color fields
+                            let start_color = template.template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#667eea");
+                            let end_color = template.template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#764ba2");
+                            let direction = template.template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("135deg");
+                            // Convert hyphenated directions to valid CSS syntax
+                            let css_direction = match direction {
+                                "to-top" => "to top",
+                                "to-bottom" => "to bottom", 
+                                "to-left" => "to left",
+                                "to-right" => "to right",
+                                "to-top-left" => "to top left",
+                                "to-top-right" => "to top right",
+                                "to-bottom-left" => "to bottom left",
+                                "to-bottom-right" => "to bottom right",
+                                _ => direction // Keep degrees and other valid values as-is
+                            };
+                            let gradient = format!("linear-gradient({}, {}, {})", css_direction, start_color, end_color);
+                            styles.push(format!("background: {} !important", gradient));
+                        }
                     },
                     "video" => {
                         if let Some(bg_video) = template.template_data.get("bg_video").and_then(|v| v.as_str()) {
@@ -751,7 +836,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 html! {
                     <header id="site-header" class="site-header" style={get_component_style("header")}>
                         <div class="container">
-                            <h1 class="site-title">{(*site_title).clone()}</h1>
+                            {render_site_logo(&component_templates, &site_title)}
                             <nav class="site-nav">
                                 if !*loading {
                                     {{

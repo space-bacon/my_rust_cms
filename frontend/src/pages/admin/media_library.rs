@@ -1,9 +1,7 @@
 use yew::prelude::*;
-use crate::services::api_service::{get_media, delete_media, MediaItem};
+use crate::services::api_service::{get_media, delete_media, upload_media, MediaItem};
 use web_sys::{File, HtmlInputElement, DragEvent, FileList, InputEvent, MouseEvent};
 use wasm_bindgen::JsCast;
-use gloo_net::http::Request;
-use crate::services::auth_service::get_auth_token;
 
 #[derive(Clone, PartialEq)]
 enum ViewMode {
@@ -43,47 +41,20 @@ impl MediaFilter {
     }
 }
 
-async fn upload_file(file: &File) -> Result<MediaItem, String> {
+async fn upload_file_with_logging(file: &File) -> Result<MediaItem, String> {
     use web_sys::console;
     
     console::log_1(&format!("🚀 Uploading: {} ({} bytes)", file.name(), file.size()).into());
     
-    let form_data = web_sys::FormData::new().unwrap();
-    form_data.append_with_blob("file", &file).unwrap();
-    
-    // Attach Authorization header (admin routes require auth)
-    let token = get_auth_token().map_err(|_| "Not authenticated".to_string())?;
-    let response = Request::post("http://localhost:8081/api/media/upload")
-        .header("Authorization", &format!("Bearer {}", token))
-        .body(form_data)
-        .map_err(|e| format!("Failed to create request: {}", e))?
-        .send()
-        .await
-        .map_err(|e| format!("Network error: {}", e))?;
-    
-    console::log_1(&format!("📡 Response status: {}", response.status()).into());
-    
-    if response.status() == 201 {
-        let result: serde_json::Value = response.json().await
-            .map_err(|e| format!("Failed to parse response: {}", e))?;
-        
-        if result["success"].as_bool().unwrap_or(false) {
-            let media_data = &result["media"];
-            Ok(MediaItem {
-                id: media_data["id"].as_i64().map(|id| id as i32),
-                name: media_data["name"].as_str().unwrap_or("").to_string(),
-                type_: media_data["type_"].as_str().unwrap_or("").to_string(),
-                size: Some(media_data["size"].as_str().unwrap_or("").to_string()),
-                url: media_data["url"].as_str().unwrap_or("").to_string(),
-                created_at: media_data["created_at"].as_str().map(|s| s.to_string()),
-                user_id: None,
-            })
-        } else {
-            Err(result["message"].as_str().unwrap_or("Upload failed").to_string())
+    match upload_media(file).await {
+        Ok(media_item) => {
+            console::log_1(&"✅ Upload successful".into());
+            Ok(media_item)
         }
-    } else {
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        Err(format!("HTTP {} - {}", response.status(), error_text))
+        Err(e) => {
+            console::log_1(&format!("❌ Upload failed: {}", e).into());
+            Err(e.to_string())
+        }
     }
 }
 
@@ -182,7 +153,7 @@ pub fn media_library() -> Html {
                 
                 for i in 0..files.length() {
                     if let Some(file) = files.get(i) {
-                        match upload_file(&file).await {
+                        match upload_file_with_logging(&file).await {
                             Ok(new_media) => {
                                 successful_uploads.push(new_media);
                                 
@@ -285,7 +256,7 @@ pub fn media_library() -> Html {
         let lightbox_image_url = lightbox_image_url.clone();
         let lightbox_image_name = lightbox_image_name.clone();
         Callback::from(move |(url, name): (String, String)| {
-            lightbox_image_url.set(format!("http://localhost:8081{}", url));
+            lightbox_image_url.set(format!("http://127.0.0.1:8081{}", url));
             lightbox_image_name.set(name);
             show_lightbox.set(true);
         })
@@ -498,7 +469,7 @@ pub fn media_library() -> Html {
                                     <div class={classes!("media-card", Some(media_class))}>
                                         <div class="media-preview">
                                             {if item.type_.starts_with("image") && !item.url.is_empty() {
-                                                html! { <img src={format!("http://localhost:8081{}", item.url)} alt={item.name.clone()} /> }
+                                                html! { <img src={format!("http://127.0.0.1:8081{}", item.url)} alt={item.name.clone()} /> }
                                             } else {
                                                 html! {
                                                     <div class="file-icon">

@@ -73,6 +73,8 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
         let props_on_template_updated = props.on_template_updated.clone();
         let has_unsaved_changes = has_unsaved_changes.clone();
         let panel_type = props.panel_type.clone();
+        let template_id = props.template_id;
+        let template_name = props.template_name.clone();
         
         Callback::from(move |e: InputEvent| {
             if let Some(target) = e.target() {
@@ -140,8 +142,8 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                     // Apply real-time preview for template properties
                     if let Some(callback) = &props_on_template_updated {
                         let template = ComponentTemplate {
-                            id: 1, // This would be the actual template ID
-                            name: "Header".to_string(), // This would be the actual template name
+                            id: template_id.unwrap_or(1),
+                            name: template_name.clone().unwrap_or_else(|| "Header".to_string()),
                             component_type: "header".to_string(),
                             template_data: data,
                             breakpoints: serde_json::json!({}),
@@ -203,8 +205,8 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                     // Apply real-time preview for template properties
                     if let Some(callback) = &props_on_template_updated {
                         let template = ComponentTemplate {
-                            id: 1, // This would be the actual template ID
-                            name: "Header".to_string(), // This would be the actual template name
+                            id: template_id.unwrap_or(1),
+                            name: template_name.clone().unwrap_or_else(|| "Header".to_string()),
                             component_type: "header".to_string(),
                             template_data: data,
                             breakpoints: serde_json::json!({}),
@@ -642,7 +644,28 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
             <div class="property-section">
                 <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Basic Properties"}</h4>
                 {render_color_field("Text Color", "text_color", text_color, on_change.clone())}
-                {render_input_field("Logo URL", "logo_url", logo_url, on_change.clone())}
+                {render_select_field("Logo Type", "logo_type", 
+                    template_data.get("logo_type").and_then(|v| v.as_str()).unwrap_or("text"), 
+                    vec![("text", "Text Logo"), ("image", "Image Logo")], on_change.clone())}
+                
+                {match template_data.get("logo_type").and_then(|v| v.as_str()).unwrap_or("text") {
+                    "image" => html! {
+                        <>
+                            {render_input_field("Logo Image URL", "logo_url", logo_url, on_change.clone())}
+                            {render_input_field("Logo Height", "logo_height", 
+                                template_data.get("logo_height").and_then(|v| v.as_str()).unwrap_or("40px"), on_change.clone())}
+                        </>
+                    },
+                    _ => html! {
+                        <>
+                            {render_input_field("Logo Text", "logo_text", 
+                                template_data.get("logo_text").and_then(|v| v.as_str()).unwrap_or("My Site"), on_change.clone())}
+                            {render_input_field("Logo Font Size", "logo_size", 
+                                template_data.get("logo_size").and_then(|v| v.as_str()).unwrap_or("1.5rem"), on_change.clone())}
+                        </>
+                    }
+                }}
+                
                 {render_range_field("Height (px)", "height", height, "60", "2600", on_change.clone())}
             </div>
             
@@ -659,10 +682,58 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                 {match bg_type {
                     "color" => render_color_field("Background Color", "bg_color", bg_color, on_change.clone()),
                     "image" => render_input_field("Background Image URL", "bg_image", bg_image, on_change.clone()),
-                    "gradient" => render_input_field("Background Gradient", "bg_gradient", bg_gradient, on_change.clone()),
+                    "gradient" => html! {
+                        <>
+                            {render_color_field("Gradient Start Color", "bg_gradient_start", 
+                                template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#667eea"), on_change.clone())}
+                            {render_color_field("Gradient End Color", "bg_gradient_end", 
+                                template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#764ba2"), on_change.clone())}
+                            {render_select_field("Gradient Direction", "bg_gradient_direction", 
+                                template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("to-right"), 
+                                vec![
+                                    ("to-right", "Left to Right"),
+                                    ("to-left", "Right to Left"),
+                                    ("to-bottom", "Top to Bottom"),
+                                    ("to-top", "Bottom to Top"),
+                                    ("to-bottom-right", "Top-Left to Bottom-Right"),
+                                    ("to-bottom-left", "Top-Right to Bottom-Left"),
+                                    ("to-top-right", "Bottom-Left to Top-Right"),
+                                    ("to-top-left", "Bottom-Right to Top-Left"),
+                                    ("135deg", "Diagonal (135°)"),
+                                    ("45deg", "Diagonal (45°)")
+                                ], on_change.clone())}
+                            {render_input_field("Custom Gradient (CSS)", "bg_gradient_custom", 
+                                template_data.get("bg_gradient_custom").and_then(|v| v.as_str()).unwrap_or(""), on_change.clone())}
+                        </>
+                    },
                     "video" => render_input_field("Background Video URL", "bg_video", bg_video, on_change.clone()),
                     _ => html! {}
                 }}
+            </div>
+            
+            // Navigation Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Navigation"}</h4>
+                {render_color_field("Navigation Hover Color", "nav_hover_color", 
+                    template_data.get("nav_hover_color").and_then(|v| v.as_str()).unwrap_or("#f7fafc"), on_change.clone())}
+                {render_color_field("Underline Color", "nav_underline_color", 
+                    template_data.get("nav_underline_color").and_then(|v| v.as_str()).unwrap_or("#ffffff"), on_change.clone())}
+                {render_input_field("Underline Thickness", "nav_underline_thickness", 
+                    template_data.get("nav_underline_thickness").and_then(|v| v.as_str()).unwrap_or("2px"), on_change.clone())}
+                {render_select_field("Underline Animation", "nav_underline_animation", 
+                    template_data.get("nav_underline_animation").and_then(|v| v.as_str()).unwrap_or("none"), 
+                    vec![("none", "None"), ("slide", "Slide"), ("fade", "Fade")], on_change.clone())}
+            </div>
+
+            // Button Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Buttons"}</h4>
+                {render_input_field("Primary Button Background", "button_primary_bg", 
+                    template_data.get("button_primary_bg").and_then(|v| v.as_str()).unwrap_or("linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))"), on_change.clone())}
+                {render_input_field("Primary Button Hover Background", "button_primary_hover_bg", 
+                    template_data.get("button_primary_hover_bg").and_then(|v| v.as_str()).unwrap_or("linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))"), on_change.clone())}
+                {render_color_field("Primary Button Text Color", "button_primary_text", 
+                    template_data.get("button_primary_text").and_then(|v| v.as_str()).unwrap_or("#ffffff"), on_change.clone())}
             </div>
             
             // Shape Mask Properties

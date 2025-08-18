@@ -1054,13 +1054,13 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                 if let Some(component) = current_components.iter_mut().find(|c| c.id == *component_id) {
                     match component.component_type {
                         ComponentType::Image => {
-                            component.properties.image_url = format!("http://localhost:8081{}", media_item.url);
+                            component.properties.image_url = format!("http://127.0.0.1:8081{}", media_item.url);
                             if component.properties.image_alt.is_empty() {
                                 component.properties.image_alt = media_item.name;
                             }
                         }
                         ComponentType::Video => {
-                            component.properties.video_url = format!("http://localhost:8081{}", media_item.url);
+                            component.properties.video_url = format!("http://127.0.0.1:8081{}", media_item.url);
                         }
                         ComponentType::Sidebar | _ => {}
                     }
