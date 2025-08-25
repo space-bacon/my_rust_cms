@@ -1146,16 +1146,7 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
     let editing_template = use_state(|| None::<ComponentTemplate>);
     let saving = use_state(|| false);
     let save_error = use_state(|| None::<String>);
-    let universal_bg_type = use_state(|| "none".to_string());
-    let universal_bg_color = use_state(|| "#ffffff".to_string());
-    let universal_gradient_from = use_state(|| "#ffffff".to_string());
-    let universal_gradient_to = use_state(|| "#ffffff".to_string());
-    let universal_gradient_angle = use_state(|| "180deg".to_string());
-    let universal_border_radius = use_state(|| "0px".to_string());
-    let universal_border_width = use_state(|| "0px".to_string());
-    let universal_border_color = use_state(|| "#000000".to_string());
-    let universal_box_shadow = use_state(|| "none".to_string());
-    let universal_animation = use_state(|| "none".to_string());
+
     
     // Navigation items for live previews
     let header_navigation = use_state(Vec::<NavigationItem>::new);
@@ -1241,37 +1232,7 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
         })
     };
 
-    // Universal apply to current editing template
-    let apply_universal_styles = {
-        let editing_template = editing_template.clone();
-        let universal_bg_type = universal_bg_type.clone();
-        let universal_bg_color = universal_bg_color.clone();
-        let universal_gradient_from = universal_gradient_from.clone();
-        let universal_gradient_to = universal_gradient_to.clone();
-        let universal_gradient_angle = universal_gradient_angle.clone();
-        let universal_border_radius = universal_border_radius.clone();
-        let universal_border_width = universal_border_width.clone();
-        let universal_border_color = universal_border_color.clone();
-        let universal_box_shadow = universal_box_shadow.clone();
-        let universal_animation = universal_animation.clone();
-        Callback::from(move |_| {
-            if let Some(mut t) = (*editing_template).clone() {
-                if let Some(map) = t.template_data.as_object_mut() {
-                    map.insert("background_type".to_string(), serde_json::Value::String((*universal_bg_type).clone()));
-                    map.insert("background_color".to_string(), serde_json::Value::String((*universal_bg_color).clone()));
-                    map.insert("gradient_from".to_string(), serde_json::Value::String((*universal_gradient_from).clone()));
-                    map.insert("gradient_to".to_string(), serde_json::Value::String((*universal_gradient_to).clone()));
-                    map.insert("gradient_angle".to_string(), serde_json::Value::String((*universal_gradient_angle).clone()));
-                    map.insert("border_radius".to_string(), serde_json::Value::String((*universal_border_radius).clone()));
-                    map.insert("border_width".to_string(), serde_json::Value::String((*universal_border_width).clone()));
-                    map.insert("border_color".to_string(), serde_json::Value::String((*universal_border_color).clone()));
-                    map.insert("box_shadow".to_string(), serde_json::Value::String((*universal_box_shadow).clone()));
-                    map.insert("animation".to_string(), serde_json::Value::String((*universal_animation).clone()));
-                }
-                editing_template.set(Some(t));
-            }
-        })
-    };
+
 
     html! {
         <div class="component-templates-section">
@@ -1289,122 +1250,6 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                             </div>
                             <div class="editor-content">
                                 <div class="editor-sidebar">
-                                    <div class="property-group">
-                                        <h4>{"Universal Styles"}</h4>
-                                        <div class="property-item">
-                                            <label>{"Background Type"}</label>
-                                            <select class="property-select" onchange={{
-                                                let universal_bg_type = universal_bg_type.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let sel: web_sys::HtmlSelectElement = e.target_unchecked_into();
-                                                    universal_bg_type.set(sel.value());
-                                                })
-                                            }}>
-                                                <option value="none">{"None"}</option>
-                                                <option value="color">{"Color"}</option>
-                                                <option value="gradient">{"Gradient"}</option>
-                                            </select>
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Background Color"}</label>
-                                            <input type="text" class="property-input" value={(*universal_bg_color).clone()} onchange={{
-                                                let universal_bg_color = universal_bg_color.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_bg_color.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Gradient From"}</label>
-                                            <input type="text" class="property-input" value={(*universal_gradient_from).clone()} onchange={{
-                                                let universal_gradient_from = universal_gradient_from.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_gradient_from.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Gradient To"}</label>
-                                            <input type="text" class="property-input" value={(*universal_gradient_to).clone()} onchange={{
-                                                let universal_gradient_to = universal_gradient_to.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_gradient_to.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Gradient Angle"}</label>
-                                            <input type="text" class="property-input" value={(*universal_gradient_angle).clone()} onchange={{
-                                                let universal_gradient_angle = universal_gradient_angle.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_gradient_angle.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Border Radius"}</label>
-                                            <input type="text" class="property-input" value={(*universal_border_radius).clone()} onchange={{
-                                                let universal_border_radius = universal_border_radius.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_border_radius.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Border Width"}</label>
-                                            <input type="text" class="property-input" value={(*universal_border_width).clone()} onchange={{
-                                                let universal_border_width = universal_border_width.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_border_width.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Border Color"}</label>
-                                            <input type="text" class="property-input" value={(*universal_border_color).clone()} onchange={{
-                                                let universal_border_color = universal_border_color.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_border_color.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Box Shadow"}</label>
-                                            <input type="text" class="property-input" value={(*universal_box_shadow).clone()} onchange={{
-                                                let universal_box_shadow = universal_box_shadow.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: web_sys::HtmlInputElement = e.target_unchecked_into();
-                                                    universal_box_shadow.set(input.value());
-                                                })
-                                            }} />
-                                        </div>
-                                        <div class="property-item">
-                                            <label>{"Animation"}</label>
-                                            <select class="property-select" onchange={{
-                                                let universal_animation = universal_animation.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let sel: web_sys::HtmlSelectElement = e.target_unchecked_into();
-                                                    universal_animation.set(sel.value());
-                                                })
-                                            }}>
-                                                <option value="none">{"None"}</option>
-                                                <option value="fade-in">{"Fade In"}</option>
-                                                <option value="slide-up">{"Slide Up"}</option>
-                                                <option value="slide-down">{"Slide Down"}</option>
-                                                <option value="zoom-in">{"Zoom In"}</option>
-                                            </select>
-                                        </div>
-                                        <div class="property-item">
-                                            <button class="btn-secondary" onclick={apply_universal_styles.clone()}>{"Apply to Component"}</button>
-                                        </div>
-                                    </div>
                                     {match component_id.as_str() {
                                         "header" => html! {
                                             <>
@@ -1546,6 +1391,15 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                                     false
                                                                 }
                                                             }}>{"Image"}</option>
+                                                            <option value="video" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("bg_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("color") == "video"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Video"}</option>
                                                         </select>
                                                     </div>
                                                     <div class="property-item">
@@ -1693,6 +1547,56 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                                         <small style="color: #666; font-size: 12px;">{"Leave empty to use color pickers above"}</small>
                                                                     </div>
                                                                 </>
+                                                            }
+                                                        } else if bg_type == "image" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Background Image URL"}</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={{
+                                                                            template.template_data.get("bg_image")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-input"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("bg_image".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            }
+                                                        } else if bg_type == "video" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Background Video URL"}</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={{
+                                                                            template.template_data.get("bg_video")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-input"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("bg_video".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
                                                             }
                                                         } else {
                                                             html! {}
@@ -1951,6 +1855,334 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                 </div>
 
                                                 <div class="property-group">
+                                                    <h4>{"Navigation Properties"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Navigation Hover Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("nav_hover_color")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#f7fafc")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#f7fafc".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("nav_hover_color".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Underline Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("nav_underline_color")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#ffffff")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#ffffff".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("nav_underline_color".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Underline Thickness"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("nav_underline_thickness")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("2px")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "2px".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("nav_underline_thickness".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Underline Animation"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("nav_underline_animation".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("nav_underline_animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="slide" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("nav_underline_animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "slide"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Slide"}</option>
+                                                            <option value="fade" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("nav_underline_animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "fade"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Fade"}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-group">
+                                                    <h4>{"Button Properties"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Primary Button Background"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("button_primary_bg")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("button_primary_bg".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Primary Button Hover Background"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("button_primary_hover_bg")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2))".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("button_primary_hover_bg".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Primary Button Text Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("button_primary_text")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#ffffff")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#ffffff".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("button_primary_text".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-group">
+                                                    <h4>{"Scroll Effects"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Scroll Effect"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("scroll_effect".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("scroll_effect")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="shrink" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("scroll_effect")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "shrink"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Shrink"}</option>
+                                                            <option value="fade" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("scroll_effect")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "fade"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Fade"}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Animation Duration (ms)"}</label>
+                                                        <input 
+                                                            type="range" 
+                                                            min="100" 
+                                                            max="2500" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("scroll_duration")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("300")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "300".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-slider"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("scroll_duration".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                        <span class="slider-value">{{
+                                                            if let Some(template) = (*editing_template).as_ref() {
+                                                                format!("{}ms", template.template_data.get("scroll_duration")
+                                                                    .and_then(|v| v.as_str())
+                                                                    .unwrap_or("300"))
+                                                            } else {
+                                                                "300ms".to_string()
+                                                            }
+                                                        }}</span>
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Logo Scale (%)"}</label>
+                                                        <input 
+                                                            type="range" 
+                                                            min="10" 
+                                                            max="100" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shrink_logo_scale")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("80")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "80".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-slider"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("shrink_logo_scale".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                        <span class="slider-value">{{
+                                                            if let Some(template) = (*editing_template).as_ref() {
+                                                                format!("{}%", template.template_data.get("shrink_logo_scale")
+                                                                    .and_then(|v| v.as_str())
+                                                                    .unwrap_or("80"))
+                                                            } else {
+                                                                "80%".to_string()
+                                                            }
+                                                        }}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-group">
                                                     <h4>{"Mobile Behavior"}</h4>
                                                     <div class="property-item">
                                                         <label>{"Mobile Menu Style"}</label>
@@ -1964,6 +2196,90 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                         <label>{"Mobile Breakpoint"}</label>
                                                         <input type="text" value="768px" class="property-input" />
                                                     </div>
+                                                </div>
+
+                                                <div class="property-group">
+                                                    <h4>{"Effects"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Visual Effects"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("effects".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else { true }
+                                                            }}>{"None"}</option>
+                                                            <option value="glassmorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "glassmorphism"
+                                                                } else { false }
+                                                            }}>{"Glassmorphism"}</option>
+                                                            <option value="neumorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "neumorphism"
+                                                                } else { false }
+                                                            }}>{"Neumorphism"}</option>
+                                                            <option value="claymorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "claymorphism"
+                                                                } else { false }
+                                                            }}>{"Claymorphism"}</option>
+                                                            <option value="cybermorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "cybermorphism"
+                                                                } else { false }
+                                                            }}>{"Cybermorphism"}</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    {if let Some(template) = (*editing_template).as_ref() {
+                                                        let effects = template.template_data.get("effects").and_then(|v| v.as_str()).unwrap_or("none");
+                                                        let effects_intensity = template.template_data.get("effects_intensity").and_then(|v| v.as_str()).unwrap_or("50");
+                                                        if effects != "none" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Multiply Intensity (%)"}</label>
+                                                                    <input 
+                                                                        type="range" 
+                                                                        min="0" 
+                                                                        max="100" 
+                                                                        value={effects_intensity.to_string()}
+                                                                        class="property-range"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("effects_intensity".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                    <span class="range-value">{format!("{}%", effects_intensity)}</span>
+                                                                </div>
+                                                            }
+                                                        } else { html! {} }
+                                                    } else { html! {} }}
                                                 </div>
 
                                                 <div class="property-group">
@@ -2076,74 +2392,438 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                         "footer" => html! {
                                             <>
                                                 <div class="property-group">
-                                                    <h4>{"Footer Layout"}</h4>
+                                                    <h4>{"Basic Properties"}</h4>
                                                     <div class="property-item">
-                                                        <label>{"Footer Style"}</label>
-                                                        <select class="property-select">
-                                                            <option value="simple" selected=true>{"Simple"}</option>
-                                                            <option value="multi-column">{"Multi-Column"}</option>
-                                                            <option value="centered">{"Centered"}</option>
-                                                            <option value="minimal">{"Minimal"}</option>
-                                                        </select>
+                                                        <label>{"Background Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("bg_color")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#000000")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#000000".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("bg_color".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
                                                     </div>
                                                     <div class="property-item">
-                                                        <label>{"Container Width"}</label>
-                                                        <select class="property-select">
-                                                            <option value="full" selected=true>{"Full Width"}</option>
-                                                            <option value="contained">{"Container (1200px)"}</option>
-                                                            <option value="fluid">{"Fluid"}</option>
-                                                        </select>
+                                                        <label>{"Text Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("text_color")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#ffffff")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#ffffff".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("text_color".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
                                                     </div>
                                                     <div class="property-item">
-                                                        <label>{"Vertical Padding"}</label>
-                                                        <input type="text" value="3rem 0" class="property-input" />
+                                                        <label>{"Muted Text Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("text_muted")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#e2e8f0")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#e2e8f0".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("text_muted".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Height"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("height")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("auto")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "auto".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("height".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
                                                     </div>
                                                 </div>
 
                                                 <div class="property-group">
-                                                    <h4>{"Footer Navigation"}</h4>
+                                                    <h4>{"Effects"}</h4>
                                                     <div class="property-item">
-                                                        <label>{"Navigation Layout"}</label>
-                                                        <select class="property-select">
-                                                            <option value="horizontal" selected=true>{"Horizontal"}</option>
-                                                            <option value="vertical">{"Vertical"}</option>
-                                                            <option value="grid">{"Grid (2x2)"}</option>
-                                                            <option value="hidden">{"Hidden"}</option>
+                                                        <label>{"Visual Effects"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("effects".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="glassmorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "glassmorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Glassmorphism"}</option>
+                                                            <option value="neumorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "neumorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Neumorphism"}</option>
+                                                            <option value="claymorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "claymorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Claymorphism"}</option>
+                                                            <option value="cybermorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "cybermorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Cybermorphism"}</option>
                                                         </select>
                                                     </div>
-                                                    <div class="property-item">
-                                                        <label>{"Link Spacing"}</label>
-                                                        <input type="text" value="1.5rem" class="property-input" />
-                                                    </div>
-                                                    <div class="property-item">
-                                                        <label>{"Separator"}</label>
-                                                        <select class="property-select">
-                                                            <option value="none" selected=true>{"None"}</option>
-                                                            <option value="pipe">{"Pipe (|)"}</option>
-                                                            <option value="dot">{"Dot (•)"}</option>
-                                                            <option value="line">{"Divider Line"}</option>
-                                                        </select>
-                                                    </div>
+                                                    
+                                                    {if let Some(template) = (*editing_template).as_ref() {
+                                                        let effects = template.template_data.get("effects")
+                                                            .and_then(|v| v.as_str())
+                                                            .unwrap_or("none");
+                                                        
+                                                        if effects != "none" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Effects Intensity (%)"}</label>
+                                                                    <input 
+                                                                        type="range" 
+                                                                        min="0" 
+                                                                        max="100" 
+                                                                        value={{
+                                                                            template.template_data.get("effects_intensity")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("50")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-range"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("effects_intensity".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            }
+                                                        } else {
+                                                            html! {}
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }}
                                                 </div>
 
                                                 <div class="property-group">
-                                                    <h4>{"Copyright & Text"}</h4>
+                                                    <h4>{"Shape Masks"}</h4>
                                                     <div class="property-item">
-                                                        <label>{"Copyright Position"}</label>
-                                                        <select class="property-select">
-                                                            <option value="center" selected=true>{"Center"}</option>
-                                                            <option value="left">{"Left"}</option>
-                                                            <option value="right">{"Right"}</option>
+                                                        <label>{"Upper Shape"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("shape_mask_upper".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_upper")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="wave" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_upper")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "wave"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Wave"}</option>
+                                                            <option value="curve" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_upper")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "curve"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Curve"}</option>
+                                                            <option value="triangle" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_upper")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "triangle"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Triangle"}</option>
+                                                            <option value="tilt" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_upper")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "tilt"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Tilt"}</option>
+                                                            <option value="zigzag" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_upper")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "zigzag"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Zigzag"}</option>
                                                         </select>
                                                     </div>
+                                                    
+                                                    {if let Some(template) = (*editing_template).as_ref() {
+                                                        let shape_mask_upper = template.template_data.get("shape_mask_upper")
+                                                            .and_then(|v| v.as_str())
+                                                            .unwrap_or("none");
+                                                        
+                                                        if shape_mask_upper != "none" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Upper Scale (%)"}</label>
+                                                                    <input 
+                                                                        type="range" 
+                                                                        min="10" 
+                                                                        max="200" 
+                                                                        value={{
+                                                                            template.template_data.get("shape_mask_upper_scale")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("100")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-range"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("shape_mask_upper_scale".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            }
+                                                        } else {
+                                                            html! {}
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }}
+
                                                     <div class="property-item">
-                                                        <label>{"Copyright Text"}</label>
-                                                        <input type="text" value="© 2024 My Rust CMS" class="property-input" />
+                                                        <label>{"Lower Shape"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("shape_mask_lower".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_lower")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="wave" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_lower")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "wave"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Wave"}</option>
+                                                            <option value="curve" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_lower")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "curve"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Curve"}</option>
+                                                            <option value="triangle" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_lower")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "triangle"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Triangle"}</option>
+                                                            <option value="tilt" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_lower")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "tilt"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Tilt"}</option>
+                                                            <option value="zigzag" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("shape_mask_lower")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "zigzag"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Zigzag"}</option>
+                                                        </select>
                                                     </div>
-                                                    <div class="property-item">
-                                                        <label>{"Additional Text"}</label>
-                                                        <input type="text" value="Built with Rust & Yew" class="property-input" />
-                                                    </div>
+                                                    
+                                                    {if let Some(template) = (*editing_template).as_ref() {
+                                                        let shape_mask_lower = template.template_data.get("shape_mask_lower")
+                                                            .and_then(|v| v.as_str())
+                                                            .unwrap_or("none");
+                                                        
+                                                        if shape_mask_lower != "none" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Lower Scale (%)"}</label>
+                                                                    <input 
+                                                                        type="range" 
+                                                                        min="10" 
+                                                                        max="200" 
+                                                                        value={{
+                                                                            template.template_data.get("shape_mask_lower_scale")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("100")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-range"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("shape_mask_lower_scale".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            }
+                                                        } else {
+                                                            html! {}
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }}
                                                 </div>
                                             </>
                                         },
@@ -2409,6 +3089,616 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                 </div>
                                             </>
                                         },
+                                        "main_container" => html! {
+                                            <>
+                                                <div class="property-group">
+                                                    <h4>{"Container Properties"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Width Type"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("width_type".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="fixed" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("width_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("fixed") == "fixed"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"Fixed Width"}</option>
+                                                            <option value="fluid" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("width_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("fixed") == "fluid"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Fluid Width"}</option>
+                                                            <option value="full" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("width_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("fixed") == "full"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Full Width"}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Max Width"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("max_width")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("1200px")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "1200px".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("max_width".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Padding"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("padding")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("1rem")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "1rem".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("padding".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Margin"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("margin")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("0 auto")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "0 auto".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("margin".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-group">
+                                                    <h4>{"Background & Media Overlay"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Background Type"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("bg_type".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="color" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("bg_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("color") == "color"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"Color"}</option>
+                                                            <option value="image" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("bg_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("color") == "image"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Image"}</option>
+                                                            <option value="gradient" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("bg_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("color") == "gradient"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Gradient"}</option>
+                                                            <option value="video" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("bg_type")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("color") == "video"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Video"}</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    {if let Some(template) = (*editing_template).as_ref() {
+                                                        let bg_type = template.template_data.get("bg_type")
+                                                            .and_then(|v| v.as_str())
+                                                            .unwrap_or("color");
+                                                        
+                                                        match bg_type {
+                                                            "color" => html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Background Color"}</label>
+                                                                    <input 
+                                                                        type="color" 
+                                                                        value={{
+                                                                            template.template_data.get("bg_color")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("#ffffff")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-input"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("bg_color".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            },
+                                                            "image" => html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Background Image URL"}</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={{
+                                                                            template.template_data.get("bg_image")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-input"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("bg_image".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            },
+                                                            "gradient" => html! {
+                                                                <>
+                                                                    <div class="property-item">
+                                                                        <label>{"Gradient Start Color"}</label>
+                                                                        <input 
+                                                                            type="color" 
+                                                                            value={{
+                                                                                template.template_data.get("bg_gradient_start")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("#667eea")
+                                                                                    .to_string()
+                                                                            }}
+                                                                            class="property-input"
+                                                                            onchange={{
+                                                                                let update_template_data = update_template_data.clone();
+                                                                                Callback::from(move |e: Event| {
+                                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                        let value = target.value();
+                                                                                        update_template_data.emit(("bg_gradient_start".to_string(), serde_json::Value::String(value)));
+                                                                                    }
+                                                                                })
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <div class="property-item">
+                                                                        <label>{"Gradient End Color"}</label>
+                                                                        <input 
+                                                                            type="color" 
+                                                                            value={{
+                                                                                template.template_data.get("bg_gradient_end")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("#764ba2")
+                                                                                    .to_string()
+                                                                            }}
+                                                                            class="property-input"
+                                                                            onchange={{
+                                                                                let update_template_data = update_template_data.clone();
+                                                                                Callback::from(move |e: Event| {
+                                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                        let value = target.value();
+                                                                                        update_template_data.emit(("bg_gradient_end".to_string(), serde_json::Value::String(value)));
+                                                                                    }
+                                                                                })
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <div class="property-item">
+                                                                        <label>{"Gradient Direction"}</label>
+                                                                        <select 
+                                                                            class="property-select"
+                                                                            onchange={{
+                                                                                let update_template_data = update_template_data.clone();
+                                                                                Callback::from(move |e: Event| {
+                                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                                        let value = target.value();
+                                                                                        update_template_data.emit(("bg_gradient_direction".to_string(), serde_json::Value::String(value)));
+                                                                                    }
+                                                                                })
+                                                                            }}
+                                                                        >
+                                                                            <option value="to-right" selected={{
+                                                                                template.template_data.get("bg_gradient_direction")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("to-right") == "to-right"
+                                                                            }}>{"Left to Right"}</option>
+                                                                            <option value="to-left" selected={{
+                                                                                template.template_data.get("bg_gradient_direction")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("to-right") == "to-left"
+                                                                            }}>{"Right to Left"}</option>
+                                                                            <option value="to-bottom" selected={{
+                                                                                template.template_data.get("bg_gradient_direction")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("to-right") == "to-bottom"
+                                                                            }}>{"Top to Bottom"}</option>
+                                                                            <option value="to-top" selected={{
+                                                                                template.template_data.get("bg_gradient_direction")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("to-right") == "to-top"
+                                                                            }}>{"Bottom to Top"}</option>
+                                                                            <option value="135deg" selected={{
+                                                                                template.template_data.get("bg_gradient_direction")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("to-right") == "135deg"
+                                                                            }}>{"Diagonal (135°)"}</option>
+                                                                            <option value="45deg" selected={{
+                                                                                template.template_data.get("bg_gradient_direction")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("to-right") == "45deg"
+                                                                            }}>{"Diagonal (45°)"}</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div class="property-item">
+                                                                        <label>{"Custom Gradient (CSS)"}</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={{
+                                                                                template.template_data.get("bg_gradient_custom")
+                                                                                    .and_then(|v| v.as_str())
+                                                                                    .unwrap_or("")
+                                                                                    .to_string()
+                                                                            }}
+                                                                            class="property-input"
+                                                                            onchange={{
+                                                                                let update_template_data = update_template_data.clone();
+                                                                                Callback::from(move |e: Event| {
+                                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                        let value = target.value();
+                                                                                        update_template_data.emit(("bg_gradient_custom".to_string(), serde_json::Value::String(value)));
+                                                                                    }
+                                                                                })
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                </>
+                                                            },
+                                                            "video" => html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Background Video URL"}</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={{
+                                                                            template.template_data.get("bg_video")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-input"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("bg_video".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            },
+                                                            _ => html! {}
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }}
+                                                    
+                                                    <div class="property-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                                                        <h5 style="margin: 0 0 8px 0; font-size: 12px; color: #666; font-weight: 600;">{"Media Overlay"}</h5>
+                                                        <label>{"Overlay Color"}</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("overlay_color")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("#000000")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "#000000".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-input"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("overlay_color".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div class="property-item">
+                                                        <label>{"Overlay Opacity"}</label>
+                                                        <input 
+                                                            type="range" 
+                                                            min="0" 
+                                                            max="1" 
+                                                            step="0.1"
+                                                            value={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("overlay_opacity")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("0.3")
+                                                                        .to_string()
+                                                                } else {
+                                                                    "0.3".to_string()
+                                                                }
+                                                            }}
+                                                            class="property-range"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("overlay_opacity".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-group">
+                                                    <h4>{"Animation"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Entrance Animation"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("animation".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="fade-in" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "fade-in"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Fade In"}</option>
+                                                            <option value="slide-up" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "slide-up"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Slide Up"}</option>
+                                                            <option value="slide-down" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "slide-down"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Slide Down"}</option>
+                                                            <option value="zoom-in" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("animation")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "zoom-in"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Zoom In"}</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="property-group">
+                                                    <h4>{"Effects"}</h4>
+                                                    <div class="property-item">
+                                                        <label>{"Visual Effects"}</label>
+                                                        <select 
+                                                            class="property-select"
+                                                            onchange={{
+                                                                let update_template_data = update_template_data.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    if let Some(target) = e.target_dyn_into::<web_sys::HtmlSelectElement>() {
+                                                                        let value = target.value();
+                                                                        update_template_data.emit(("effects".to_string(), serde_json::Value::String(value)));
+                                                                    }
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="none" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "none"
+                                                                } else {
+                                                                    true
+                                                                }
+                                                            }}>{"None"}</option>
+                                                            <option value="glassmorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "glassmorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Glassmorphism"}</option>
+                                                            <option value="neumorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "neumorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Neumorphism"}</option>
+                                                            <option value="claymorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "claymorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Claymorphism"}</option>
+                                                            <option value="cybermorphism" selected={{
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("effects")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("none") == "cybermorphism"
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            }}>{"Cybermorphism"}</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    {if let Some(template) = (*editing_template).as_ref() {
+                                                        let effects = template.template_data.get("effects")
+                                                            .and_then(|v| v.as_str())
+                                                            .unwrap_or("none");
+                                                        
+                                                        if effects != "none" {
+                                                            html! {
+                                                                <div class="property-item">
+                                                                    <label>{"Effects Intensity (%)"}</label>
+                                                                    <input 
+                                                                        type="range" 
+                                                                        min="0" 
+                                                                        max="100" 
+                                                                        value={{
+                                                                            template.template_data.get("effects_intensity")
+                                                                                .and_then(|v| v.as_str())
+                                                                                .unwrap_or("50")
+                                                                                .to_string()
+                                                                        }}
+                                                                        class="property-range"
+                                                                        onchange={{
+                                                                            let update_template_data = update_template_data.clone();
+                                                                            Callback::from(move |e: Event| {
+                                                                                if let Some(target) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                                                                    let value = target.value();
+                                                                                    update_template_data.emit(("effects_intensity".to_string(), serde_json::Value::String(value)));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            }
+                                                        } else {
+                                                            html! {}
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }}
+                                                </div>
+                                            </>
+                                        },
 
                                         _ => html! {
                                             <div class="property-group">
@@ -2476,6 +3766,29 @@ pub fn component_templates_view(props: &ComponentTemplatesViewProps) -> Html {
                                                             }
                                                         </div>
                                                         <p class="preview-footer-text">{"© 2024 My Rust CMS - Built with Rust & Yew"}</p>
+                                                    </div>
+                                                </div>
+                                            },
+                                            "main_container" => html! {
+                                                <div class="preview-container-component">
+                                                    <div class="container-preview-outline" style="border: 2px dashed #ccc; padding: 20px; text-align: center;">
+                                                        <h4 style="margin: 0 0 10px 0; color: #666;">{"📦 Main Container"}</h4>
+                                                        <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 10px 0;">
+                                                            <div style="background: #e0e0e0; padding: 8px; margin: 5px 0; border-radius: 2px;">{"Header Area"}</div>
+                                                            <div style="background: #fff; padding: 20px; margin: 10px 0; border-radius: 2px; min-height: 60px;">{"Main Content Area"}</div>
+                                                            <div style="background: #e0e0e0; padding: 8px; margin: 5px 0; border-radius: 2px;">{"Footer Area"}</div>
+                                                        </div>
+                                                        <small style="color: #999;">
+                                                            {format!("Max Width: {}", 
+                                                                if let Some(template) = (*editing_template).as_ref() {
+                                                                    template.template_data.get("max_width")
+                                                                        .and_then(|v| v.as_str())
+                                                                        .unwrap_or("1200px")
+                                                                } else {
+                                                                    "1200px"
+                                                                }
+                                                            )}
+                                                        </small>
                                                     </div>
                                                 </div>
                                             },
@@ -2963,7 +4276,7 @@ pub fn container_settings_view() -> Html {
         let show_image_picker = show_image_picker.clone();
         Callback::from(move |media: crate::services::api_service::MediaItem| {
             let mut s = (*settings).clone();
-            s.background_image_url = format!("http://127.0.0.1:8081{}", media.url);
+            s.background_image_url = format!("http://localhost:8081{}", media.url);
             settings.set(s);
             show_image_picker.set(false);
         })
@@ -3008,7 +4321,7 @@ pub fn container_settings_view() -> Html {
         let show_video_picker = show_video_picker.clone();
         Callback::from(move |media: crate::services::api_service::MediaItem| {
             let mut s = (*settings).clone();
-            s.background_video_url = format!("http://127.0.0.1:8081{}", media.url);
+            s.background_video_url = format!("http://localhost:8081{}", media.url);
             settings.set(s);
             show_video_picker.set(false);
         })

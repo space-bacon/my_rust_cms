@@ -15,6 +15,7 @@ impl FileSecurityService {
         allowed_types.insert("image/png".to_string(), vec![0x89, 0x50, 0x4E, 0x47]);
         allowed_types.insert("image/gif".to_string(), vec![0x47, 0x49, 0x46, 0x38]);
         allowed_types.insert("image/webp".to_string(), vec![0x52, 0x49, 0x46, 0x46]);
+        allowed_types.insert("image/svg+xml".to_string(), vec![]); // SVG files are XML-based
         
         // Document formats (limited)
         allowed_types.insert("text/plain".to_string(), vec![]); // Text files don't have magic bytes
@@ -43,6 +44,11 @@ impl FileSecurityService {
         // For text files, perform additional validation
         if content_type == "text/plain" {
             return self.validate_text_file(data);
+        }
+        
+        // For SVG files, perform special validation
+        if content_type == "image/svg+xml" {
+            return self.validate_svg_file(data);
         }
         
         // Check magic bytes if they exist for this file type
@@ -81,6 +87,79 @@ impl FileSecurityService {
             if lower_text.contains(pattern) {
                 return Err(FileSecurityError::SuspiciousContent(pattern.to_string()));
             }
+        }
+        
+        Ok(())
+    }
+    
+    /// Validate SVG files for malicious content
+    fn validate_svg_file(&self, data: &[u8]) -> Result<(), FileSecurityError> {
+        // Check if it's valid UTF-8
+        let svg_content = std::str::from_utf8(data)
+            .map_err(|_| FileSecurityError::InvalidTextEncoding)?;
+        
+        // Check if it starts with XML declaration or SVG tag
+        let trimmed = svg_content.trim();
+        if !trimmed.starts_with("<?xml") && !trimmed.starts_with("<svg") {
+            return Err(FileSecurityError::InvalidSvgFormat);
+        }
+        
+        // Check for dangerous SVG elements and attributes
+        let dangerous_patterns = [
+            "<script",           // JavaScript execution
+            "javascript:",       // JavaScript URLs
+            "data:text/html",    // HTML data URLs
+            "data:image/svg+xml", // Nested SVG
+            "<foreignObject",    // Can embed HTML
+            "<iframe",           // Can embed external content
+            "<object",           // Can embed external content
+            "<embed",            // Can embed external content
+            "<link",             // Can load external resources
+            "<meta",             // Can contain redirects
+            "onload=",           // Event handlers
+            "onerror=",
+            "onclick=",
+            "onmouseover=",
+            "onfocus=",
+            "onblur=",
+            "onchange=",
+            "onsubmit=",
+            "xlink:href=\"javascript:", // XLink JavaScript
+            "href=\"javascript:",       // Direct JavaScript
+            "vbscript:",         // VBScript
+            "expression(",       // CSS expressions
+            "eval(",             // JavaScript eval
+            "setTimeout(",       // JavaScript timers
+            "setInterval(",
+            "document.",         // DOM access
+            "window.",           // Window object access
+            "location.",         // Location object access
+        ];
+        
+        let lower_content = svg_content.to_lowercase();
+        for pattern in &dangerous_patterns {
+            if lower_content.contains(pattern) {
+                return Err(FileSecurityError::DangerousSvgContent(pattern.to_string()));
+            }
+        }
+        
+        // Check for external references that could be used for data exfiltration
+        let external_patterns = [
+            "http://",
+            "https://",
+            "ftp://",
+            "file://",
+        ];
+        
+        for pattern in &external_patterns {
+            if lower_content.contains(pattern) {
+                return Err(FileSecurityError::ExternalSvgReference(pattern.to_string()));
+            }
+        }
+        
+        // Ensure the SVG is well-formed by checking for basic structure
+        if !lower_content.contains("<svg") || !lower_content.contains("</svg>") {
+            return Err(FileSecurityError::InvalidSvgStructure);
         }
         
         Ok(())
@@ -136,6 +215,10 @@ pub enum FileSecurityError {
     InvalidTextEncoding,
     SuspiciousContent(String),
     MaliciousContent,
+    InvalidSvgFormat,
+    DangerousSvgContent(String),
+    ExternalSvgReference(String),
+    InvalidSvgStructure,
 }
 
 impl std::fmt::Display for FileSecurityError {
@@ -158,6 +241,18 @@ impl std::fmt::Display for FileSecurityError {
             }
             FileSecurityError::MaliciousContent => {
                 write!(f, "Potentially malicious content detected")
+            }
+            FileSecurityError::InvalidSvgFormat => {
+                write!(f, "Invalid SVG format: file must start with XML declaration or SVG tag")
+            }
+            FileSecurityError::DangerousSvgContent(pattern) => {
+                write!(f, "Dangerous SVG content detected: {}", pattern)
+            }
+            FileSecurityError::ExternalSvgReference(pattern) => {
+                write!(f, "External reference in SVG not allowed: {}", pattern)
+            }
+            FileSecurityError::InvalidSvgStructure => {
+                write!(f, "Invalid SVG structure: missing required SVG tags")
             }
         }
     }

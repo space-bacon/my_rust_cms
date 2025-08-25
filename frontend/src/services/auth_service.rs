@@ -2,7 +2,7 @@ use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 use gloo_storage::{LocalStorage, Storage};
 
-const API_BASE_URL: &str = "http://127.0.0.1:8081/api";
+const API_BASE_URL: &str = "http://localhost:8081/api";
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct LoginCredentials {

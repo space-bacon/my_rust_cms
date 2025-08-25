@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, InputEvent};
-use crate::components::page_builder::drag_drop_builder::{PageComponent, ComponentProperties};
+use crate::components::page_builder::drag_drop_builder::{PageComponent, ComponentProperties, ComponentType};
 use crate::services::navigation_service::ComponentTemplate;
 
 #[derive(Properties, PartialEq)]
@@ -42,54 +42,63 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
             .unwrap_or_default()
     });
 
-    // Track if user has made changes (to prevent overwriting unsaved changes)
     let has_unsaved_changes = use_state(|| false);
-    let has_unsaved_changes_ref = use_node_ref();
     let saving = use_state(|| false);
 
-    // Update working template data when props change, but only if no unsaved changes
+    // Update working template data when props change
     {
         let working_template_data = working_template_data.clone();
         let has_unsaved_changes_state = has_unsaved_changes.clone();
         use_effect_with_deps(move |deps| {
             let (template_data_opt, currently_has_unsaved) = deps;
             
-            // Only sync if no unsaved changes and template data exists
             if !currently_has_unsaved && template_data_opt.is_some() {
                 if let Some(data) = template_data_opt.clone() {
-                    web_sys::console::log_1(&format!("✅ Syncing template data from props (unsaved: {})", currently_has_unsaved).into());
                     working_template_data.set(data);
                 }
-            } else if *currently_has_unsaved {
-                web_sys::console::log_1(&"⚠️ Skipping template data sync - user has unsaved changes".into());
             }
             || ()
         }, (props.template_data.clone(), *has_unsaved_changes));
     }
 
-    // Handle property changes for templates
+    // Handle property changes for both templates and components
     let on_property_change = {
         let working_template_data = working_template_data.clone();
-        let props_on_template_updated = props.on_template_updated.clone();
+        let working_properties = working_properties.clone();
+        let working_content = working_content.clone();
         let has_unsaved_changes = has_unsaved_changes.clone();
         let panel_type = props.panel_type.clone();
-        let template_id = props.template_id;
-        let template_name = props.template_name.clone();
         
         Callback::from(move |e: InputEvent| {
             if let Some(target) = e.target() {
-                if let Ok(input) = target.clone().dyn_into::<HtmlInputElement>() {
-                    let name = input.name();
-                    let value = input.value();
-                    
+                let (name, value, is_checkbox) = if let Ok(input) = target.clone().dyn_into::<HtmlInputElement>() {
+                    (input.name(), input.value(), input.type_() == "checkbox")
+                } else if let Ok(select) = target.clone().dyn_into::<HtmlSelectElement>() {
+                    (select.name(), select.value(), false)
+                } else {
+                    return;
+                };
+                
+                // Handle component properties vs template properties
+                match panel_type {
+                    PanelType::PageComponent => {
+                        // Handle component property updates
+                        if name == "content" {
+                            working_content.set(value.clone());
+                        } else {
+                            // Update component properties
+                            let mut props = (*working_properties).clone();
+                            update_component_property(&mut props, &name, &value, is_checkbox);
+                            working_properties.set(props);
+                        }
+                    }
+                    _ => {
+                        // Handle template property updates
                     let mut data = (*working_template_data).clone();
                     data[&name] = serde_json::Value::String(value.clone());
                     working_template_data.set(data.clone());
                     
-                    // Mark that user has made changes
-                    has_unsaved_changes.set(true);
-                    
-                    // Apply real-time preview for all template properties
+                        // Apply real-time preview for template properties
                     let component_type = match panel_type {
                         PanelType::HeaderTemplate => "header",
                         PanelType::FooterTemplate => "footer",
@@ -98,126 +107,13 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                     };
                     
                     if !component_type.is_empty() {
-                        web_sys::console::log_1(&format!("🔧 Properties Panel: Calling apply_template_style_preview for {} with field '{}' = '{}'", component_type, name, value).into());
                         crate::components::enhanced_live_edit_system::apply_template_style_preview(component_type, &data);
                     }
-                    
-                    // Apply real-time shape mask preview
-                    if name.starts_with("shape_mask") {
-                        // Determine which element to target based on panel type
-                        let element_id = match panel_type {
-                            PanelType::HeaderTemplate => "site-header",
-                            PanelType::FooterTemplate => "site-footer",
-                            _ => "site-header", // Default fallback
-                        };
-                        
-                        if let Some(element) = web_sys::window()
-                            .and_then(|w| w.document())
-                            .and_then(|d| d.get_element_by_id(element_id))
-                            .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
-                        {
-                            let shape_mask_upper = data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
-                            let shape_mask_upper_scale = data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
-                            let shape_mask_upper_frequency = data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2");
-                            let shape_mask_upper_amplitude = data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50");
-                            let shape_mask_upper_curve_depth = data.get("shape_mask_upper_curve_depth").and_then(|v| v.as_str()).unwrap_or("50");
-                            let shape_mask_lower = data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none");
-                            let shape_mask_lower_scale = data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100");
-                            let shape_mask_lower_frequency = data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2");
-                            let shape_mask_lower_amplitude = data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50");
-                            let shape_mask_lower_curve_depth = data.get("shape_mask_lower_curve_depth").and_then(|v| v.as_str()).unwrap_or("50");
-                            
-                            crate::components::enhanced_live_edit_system::apply_shape_masks_to_element(
-                                &element,
-                                shape_mask_upper, shape_mask_upper_scale, shape_mask_upper_frequency, 
-                                &data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"), shape_mask_upper_amplitude, 
-                                &data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"),
-                                shape_mask_lower, shape_mask_lower_scale, shape_mask_lower_frequency, 
-                                &data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"), shape_mask_lower_amplitude, 
-                                &data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15")
-                            );
-                        }
                     }
-                    
-                    // Apply real-time preview for template properties
-                    if let Some(callback) = &props_on_template_updated {
-                        let template = ComponentTemplate {
-                            id: template_id.unwrap_or(1),
-                            name: template_name.clone().unwrap_or_else(|| "Header".to_string()),
-                            component_type: "header".to_string(),
-                            template_data: data,
-                            breakpoints: serde_json::json!({}),
-                            width_setting: None,
-                            max_width: None,
-                            is_default: false,
-                            is_active: true,
-                        };
-                        callback.emit(template);
-                    }
-                } else if let Ok(select) = target.clone().dyn_into::<HtmlSelectElement>() {
-                    let name = select.name();
-                    let value = select.value();
-                    
-                    let mut data = (*working_template_data).clone();
-                    data[&name] = serde_json::Value::String(value);
-                    working_template_data.set(data.clone());
+                }
                     
                     // Mark that user has made changes
                     has_unsaved_changes.set(true);
-                    
-                    // Apply real-time shape mask preview
-                    if name.starts_with("shape_mask") {
-                        // Determine which element to target based on panel type
-                        let element_id = match panel_type {
-                            PanelType::HeaderTemplate => "site-header",
-                            PanelType::FooterTemplate => "site-footer",
-                            _ => "site-header", // Default fallback
-                        };
-                        
-                        if let Some(element) = web_sys::window()
-                            .and_then(|w| w.document())
-                            .and_then(|d| d.get_element_by_id(element_id))
-                            .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
-                        {
-                            let shape_mask_upper = data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
-                            let shape_mask_upper_scale = data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
-                            let shape_mask_upper_frequency = data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2");
-                            let shape_mask_upper_amplitude = data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50");
-                            let shape_mask_upper_curve_depth = data.get("shape_mask_upper_curve_depth").and_then(|v| v.as_str()).unwrap_or("50");
-                            let shape_mask_lower = data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none");
-                            let shape_mask_lower_scale = data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100");
-                            let shape_mask_lower_frequency = data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2");
-                            let shape_mask_lower_amplitude = data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50");
-                            let shape_mask_lower_curve_depth = data.get("shape_mask_lower_curve_depth").and_then(|v| v.as_str()).unwrap_or("50");
-                            
-                            crate::components::enhanced_live_edit_system::apply_shape_masks_to_element(
-                                &element,
-                                shape_mask_upper, shape_mask_upper_scale, shape_mask_upper_frequency, 
-                                &data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"), shape_mask_upper_amplitude, 
-                                &data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"),
-                                shape_mask_lower, shape_mask_lower_scale, shape_mask_lower_frequency, 
-                                &data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"), shape_mask_lower_amplitude, 
-                                &data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15")
-                            );
-                        }
-                    }
-                    
-                    // Apply real-time preview for template properties
-                    if let Some(callback) = &props_on_template_updated {
-                        let template = ComponentTemplate {
-                            id: template_id.unwrap_or(1),
-                            name: template_name.clone().unwrap_or_else(|| "Header".to_string()),
-                            component_type: "header".to_string(),
-                            template_data: data,
-                            breakpoints: serde_json::json!({}),
-                            width_setting: None,
-                            max_width: None,
-                            is_default: false,
-                            is_active: true,
-                        };
-                        callback.emit(template);
-                    }
-                }
             }
         })
     };
@@ -226,6 +122,7 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
     let on_save = {
         let working_template_data = working_template_data.clone();
         let working_content = working_content.clone();
+        let working_properties = working_properties.clone();
         let props_component = props.component.clone();
         let props_on_component_updated = props.on_component_updated.clone();
         let props_on_template_updated = props.on_template_updated.clone();
@@ -236,7 +133,6 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
         let saving = saving.clone();
         
         Callback::from(move |_| {
-            // Prevent multiple saves
             if *saving {
                 return;
             }
@@ -246,68 +142,13 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                 PanelType::PageComponent => {
                     if let (Some(mut component), Some(callback)) = (props_component.clone(), &props_on_component_updated) {
                         component.content = (*working_content).clone();
+                        component.properties = (*working_properties).clone();
                         callback.emit(component);
                     }
+                    saving.set(false);
                 }
                 PanelType::HeaderTemplate | PanelType::FooterTemplate | PanelType::ContainerTemplate => {
                     if let Some(callback) = &props_on_template_updated {
-                        // Clean up shape mask parameters based on current shape selections
-                        // BUT preserve all settings for non-none shapes to prevent interference
-                        let mut clean_template_data = (*working_template_data).clone();
-                        
-                        web_sys::console::log_1(&format!("🔧 Save: Before cleanup - Upper: {:?}, Lower: {:?}", 
-                            clean_template_data.get("shape_mask_upper"), 
-                            clean_template_data.get("shape_mask_lower")).into());
-                        
-                        // Only clean up parameters if shape is explicitly "none" - preserve all others
-                        if let Some(upper_shape) = clean_template_data.get("shape_mask_upper").and_then(|v| v.as_str()) {
-                            if upper_shape == "none" {
-                                // Remove all upper shape parameters only for "none"
-                                clean_template_data.as_object_mut().map(|obj| {
-                                    obj.remove("shape_mask_upper_frequency");
-                                    obj.remove("shape_mask_upper_scale");
-                                    obj.remove("shape_mask_upper_direction");
-                                    obj.remove("shape_mask_upper_amplitude");
-                                    obj.remove("shape_mask_upper_degrees");
-                                });
-                                web_sys::console::log_1(&"🧹 Cleaned up upper shape parameters (shape was 'none')".into());
-                            } else {
-                                web_sys::console::log_1(&format!("✅ Preserving upper shape '{}' parameters", upper_shape).into());
-                            }
-                        }
-                        
-                        // Only clean up parameters if shape is explicitly "none" - preserve all others
-                        if let Some(lower_shape) = clean_template_data.get("shape_mask_lower").and_then(|v| v.as_str()) {
-                            if lower_shape == "none" {
-                                // Remove all lower shape parameters only for "none"
-                                clean_template_data.as_object_mut().map(|obj| {
-                                    obj.remove("shape_mask_lower_frequency");
-                                    obj.remove("shape_mask_lower_scale");
-                                    obj.remove("shape_mask_lower_direction");
-                                    obj.remove("shape_mask_lower_amplitude");
-                                    obj.remove("shape_mask_lower_degrees");
-                                });
-                                web_sys::console::log_1(&"🧹 Cleaned up lower shape parameters (shape was 'none')".into());
-                            } else {
-                                web_sys::console::log_1(&format!("✅ Preserving lower shape '{}' parameters", lower_shape).into());
-                            }
-                        }
-                        
-                        // Ensure template data includes ALL current working data (including shape masks)
-                        let mut final_template_data = clean_template_data.clone();
-                        
-                        // Merge in any current working template data to ensure nothing is lost
-                        if let Some(current_data) = working_template_data.as_object() {
-                            if let Some(final_data) = final_template_data.as_object_mut() {
-                                for (key, value) in current_data {
-                                    // Only add if not already present (clean_template_data takes precedence)
-                                    if !final_data.contains_key(key) {
-                                        final_data.insert(key.clone(), value.clone());
-                                    }
-                                }
-                            }
-                        }
-                        
                         let template = ComponentTemplate {
                             id: template_id.unwrap_or(1),
                             name: template_name.clone().unwrap_or_else(|| "Template".to_string()),
@@ -317,186 +158,32 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                                 PanelType::ContainerTemplate => "container",
                                 _ => "unknown",
                             }.to_string(),
-                            template_data: final_template_data,
+                            template_data: (*working_template_data).clone(),
                             breakpoints: serde_json::json!({}),
                             width_setting: None,
                             max_width: None,
-                            is_default: true,  // Mark as default so it gets used
-                            is_active: true,   // Ensure it's active so it appears in public endpoint
+                            is_default: true,
+                            is_active: true,
                         };
-                        // Debug logging
-                        web_sys::console::log_1(&format!("💾 Saving template with ID: {}, name: {}", template.id, template.name).into());
-                        web_sys::console::log_1(&format!("💾 Clean template data: {}", serde_json::to_string_pretty(&clean_template_data).unwrap_or_default()).into());
-                        web_sys::console::log_1(&format!("💾 Working template data: {}", serde_json::to_string_pretty(&*working_template_data).unwrap_or_default()).into());
-                        web_sys::console::log_1(&format!("💾 Final template data being saved: {}", serde_json::to_string_pretty(&template.template_data).unwrap_or_default()).into());
                         
-                        // Actually save to database via API
+                        // Save to database
                         let template_for_api = template.clone();
                         let has_unsaved_changes_for_api = has_unsaved_changes.clone();
                         let saving_for_api = saving.clone();
                         let callback_for_api = callback.clone();
                         
                         wasm_bindgen_futures::spawn_local(async move {
-                            web_sys::console::log_1(&format!("💾 Starting API save to database for template ID: {}", template_for_api.id).into());
-                            web_sys::console::log_1(&format!("💾 Template is_active: {}, is_default: {}", template_for_api.is_active, template_for_api.is_default).into());
-                            
-                            // First, clear the default flag from other templates of the same type
-                            let component_type_for_api = template_for_api.component_type.clone();
-                            web_sys::console::log_1(&format!("🔄 Clearing default flag from other {} templates...", component_type_for_api).into());
-                            match crate::services::navigation_service::get_component_templates().await {
-                                Ok(all_templates) => {
-                                    for other_template in all_templates {
-                                        if other_template.component_type == component_type_for_api 
-                                           && other_template.id != template_for_api.id 
-                                           && other_template.is_default {
-                                            web_sys::console::log_1(&format!("🔄 Clearing default flag from template ID: {}", other_template.id).into());
-                                            let mut updated_template = other_template.clone();
-                                            updated_template.is_default = false;
-                                            let _ = crate::services::navigation_service::update_component_template(updated_template.id, &updated_template).await;
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    web_sys::console::log_1(&format!("⚠️ Could not load templates to clear defaults: {:?}", e).into());
-                                }
-                            }
-                            
                             match crate::services::navigation_service::update_component_template(template_for_api.id, &template_for_api).await {
                                 Ok(saved_template) => {
-                                    web_sys::console::log_1(&"✅ Template successfully saved to database!".into());
-                                    
-                                    // Show success notification
-                                    if let Some(window) = web_sys::window() {
-                                        if let Some(document) = window.document() {
-                                            if let Some(body) = document.body() {
-                                                let notification = document.create_element("div").unwrap();
-                                                notification.set_class_name("save-notification success");
-                                                notification.set_inner_html("✅ Changes saved successfully!");
-                                                
-                                                // Style the notification
-                                                let _ = notification.set_attribute("style", 
-                                                    "position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; \
-                                                     padding: 12px 20px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); \
-                                                     z-index: 10000; font-weight: 600; animation: slideInRight 0.3s ease-out;"
-                                                );
-                                                
-                                                let _ = body.append_child(&notification);
-                                                
-                                                // Remove notification after 3 seconds
-                                                let notification_clone = notification.clone();
-                                                wasm_bindgen_futures::spawn_local(async move {
-                                                    gloo_timers::future::TimeoutFuture::new(3000).await;
-                                                    let _ = notification_clone.remove();
-                                                });
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Emit the callback with the saved template
-                                    callback_for_api.emit(saved_template.clone());
-                                    
-                                    // Force reload component templates to ensure changes are visible immediately
-                                    let saved_template_clone = saved_template.clone();
-                                    wasm_bindgen_futures::spawn_local(async move {
-                                        // Small delay to ensure database transaction is committed
-                                        gloo_timers::future::TimeoutFuture::new(500).await;
-                                        
-                                        // Verify the template is now available in the public endpoint
-                                        web_sys::console::log_1(&"🔄 Verifying template is available in public endpoint...".into());
-                                        match crate::services::navigation_service::get_component_templates().await {
-                                            Ok(templates) => {
-                                                let found = templates.iter().find(|t| t.id == saved_template_clone.id);
-                                                if found.is_some() {
-                                                    web_sys::console::log_1(&"✅ Template found in public endpoint - changes should be visible!".into());
-                                                } else {
-                                                    web_sys::console::log_1(&"⚠️ Template not found in public endpoint - may need page refresh".into());
-                                                }
-                                            }
-                                            Err(e) => {
-                                                web_sys::console::log_1(&format!("❌ Error verifying template: {:?}", e).into());
-                                            }
-                                        }
-                                    });
-                                    
-                                    // Reset unsaved changes flag after successful save
+                                    callback_for_api.emit(saved_template);
                                     has_unsaved_changes_for_api.set(false);
-                                    
-                                    // Reset saving state
-                                    saving_for_api.set(false);
                                 }
                                 Err(e) => {
-                                    web_sys::console::log_1(&format!("❌ Failed to save template to database: {:?}", e).into());
-                                    
-                                    // Show error notification
-                                    if let Some(window) = web_sys::window() {
-                                        if let Some(document) = window.document() {
-                                            if let Some(body) = document.body() {
-                                                let notification = document.create_element("div").unwrap();
-                                                notification.set_class_name("save-notification error");
-                                                notification.set_inner_html(&format!("❌ Failed to save changes: {}", e));
-                                                
-                                                // Style the error notification
-                                                let _ = notification.set_attribute("style", 
-                                                    "position: fixed; top: 20px; right: 20px; background: #f44336; color: white; \
-                                                     padding: 12px 20px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); \
-                                                     z-index: 10000; font-weight: 600; animation: slideInRight 0.3s ease-out;"
-                                                );
-                                                
-                                                let _ = body.append_child(&notification);
-                                                
-                                                // Remove error notification after 5 seconds
-                                                let notification_clone = notification.clone();
-                                                wasm_bindgen_futures::spawn_local(async move {
-                                                    gloo_timers::future::TimeoutFuture::new(5000).await;
-                                                    let _ = notification_clone.remove();
-                                                });
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Reset saving state even on error
-                                    saving_for_api.set(false);
+                                    web_sys::console::log_1(&format!("Failed to save template: {:?}", e).into());
                                 }
                             }
+                                    saving_for_api.set(false);
                         });
-                        
-                        // Reapply shape masks after save to ensure visual consistency
-                        if panel_type == PanelType::HeaderTemplate || panel_type == PanelType::FooterTemplate {
-                            let element_id = match panel_type {
-                                PanelType::HeaderTemplate => "site-header",
-                                PanelType::FooterTemplate => "site-footer",
-                                _ => "site-header",
-                            };
-                            
-                            if let Some(element) = web_sys::window()
-                                .and_then(|w| w.document())
-                                .and_then(|d| d.get_element_by_id(element_id))
-                                .and_then(|e| e.dyn_into::<web_sys::HtmlElement>().ok())
-                            {
-                                // Use the clean_template_data that was just saved to ensure consistency
-                                let data = &clean_template_data;
-                                web_sys::console::log_1(&format!("🔄 Reapplying shapes after save - Upper: {:?}, Lower: {:?}", 
-                                    data.get("shape_mask_upper"), data.get("shape_mask_lower")).into());
-                                
-                                crate::components::enhanced_live_edit_system::apply_shape_masks_to_element(
-                                    &element,
-                                    &data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none"),
-                                    &data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100"),
-                                    &data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2"),
-                                    &data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"),
-                                    &data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50"),
-                                    &data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"),
-                                    &data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none"),
-                                    &data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100"),
-                                    &data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2"),
-                                    &data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"),
-                                    &data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50"),
-                                    &data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15")
-                                );
-                                
-                                web_sys::console::log_1(&"🔄 Shape reapplication completed".into());
-                            }
-                        }
                     }
                 }
             }
@@ -553,7 +240,8 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
             <div class="panel-content" style="padding: 16px;">
                 {match props.panel_type {
                     PanelType::PageComponent => {
-                        render_component_properties(&working_content, &working_properties, on_property_change.clone())
+                        let component_type = props.component.as_ref().map(|c| &c.component_type);
+                        render_component_properties(&working_content, &working_properties, component_type, on_property_change.clone())
                     }
                     PanelType::HeaderTemplate => {
                         render_header_properties(&working_template_data, on_property_change.clone())
@@ -595,15 +283,21 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
 
 fn render_component_properties(
     working_content: &UseStateHandle<String>, 
-    _working_properties: &UseStateHandle<ComponentProperties>, 
-    _on_change: Callback<InputEvent>
+    working_properties: &UseStateHandle<ComponentProperties>, 
+    component_type: Option<&ComponentType>,
+    on_change: Callback<InputEvent>
 ) -> Html {
+    let component_properties = &**working_properties;
+    
     html! {
         <div>
+            // Content Section (for most components)
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{"Content"}</label>
                 <textarea 
+                    name="content"
                     value={(**working_content).clone()}
+                    oninput={on_change.clone()}
                     style="
                         width: 100%;
                         min-height: 100px;
@@ -617,6 +311,12 @@ fn render_component_properties(
                     placeholder="Enter content..."
                 />
             </div>
+            
+            // Component-specific properties
+            {render_component_specific_properties(component_properties, component_type, on_change.clone())}
+            
+            // Common styling properties
+            {render_common_styling_properties(component_properties, on_change.clone())}
         </div>
     }
 }
@@ -624,12 +324,10 @@ fn render_component_properties(
 fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, on_change: Callback<InputEvent>) -> Html {
     // Extract current values
     let text_color = template_data.get("text_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
-    let logo_url = template_data.get("logo_url").and_then(|v| v.as_str()).unwrap_or("");
     let height = template_data.get("height").and_then(|v| v.as_str()).unwrap_or("110px").trim_end_matches("px");
     let bg_type = template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("color");
     let bg_color = template_data.get("bg_color").and_then(|v| v.as_str()).unwrap_or("#333333");
     let bg_image = template_data.get("bg_image").and_then(|v| v.as_str()).unwrap_or("");
-    let bg_gradient = template_data.get("bg_gradient").and_then(|v| v.as_str()).unwrap_or("linear-gradient(135deg, #667eea 0%, #764ba2 100%)");
     let bg_video = template_data.get("bg_video").and_then(|v| v.as_str()).unwrap_or("");
     
     // Shape mask properties
@@ -637,6 +335,9 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
     let shape_mask_upper_scale = template_data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
     let shape_mask_lower = template_data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none");
     let shape_mask_lower_scale = template_data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100");
+    
+    // Effects properties
+    let effects = template_data.get("effects").and_then(|v| v.as_str()).unwrap_or("none");
 
     html! {
         <>
@@ -644,6 +345,9 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
             <div class="property-section">
                 <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Basic Properties"}</h4>
                 {render_color_field("Text Color", "text_color", text_color, on_change.clone())}
+                {render_select_field("Position", "position", 
+                    template_data.get("position").and_then(|v| v.as_str()).unwrap_or("sticky"), 
+                    vec![("static", "Static"), ("sticky", "Sticky"), ("fixed", "Fixed")], on_change.clone())}
                 {render_select_field("Logo Type", "logo_type", 
                     template_data.get("logo_type").and_then(|v| v.as_str()).unwrap_or("text"), 
                     vec![("text", "Text Logo"), ("image", "Image Logo")], on_change.clone())}
@@ -651,7 +355,8 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                 {match template_data.get("logo_type").and_then(|v| v.as_str()).unwrap_or("text") {
                     "image" => html! {
                         <>
-                            {render_input_field("Logo Image URL", "logo_url", logo_url, on_change.clone())}
+                            {render_input_field("Logo Image URL", "logo_url", 
+                                template_data.get("logo_url").and_then(|v| v.as_str()).unwrap_or(""), on_change.clone())}
                             {render_input_field("Logo Height", "logo_height", 
                                 template_data.get("logo_height").and_then(|v| v.as_str()).unwrap_or("40px"), on_change.clone())}
                         </>
@@ -736,141 +441,645 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                     template_data.get("button_primary_text").and_then(|v| v.as_str()).unwrap_or("#ffffff"), on_change.clone())}
             </div>
             
+            // Effects Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Effects"}</h4>
+                {render_select_field("Visual Effects", "effects", effects, vec![
+                    ("none", "None"),
+                    ("glassmorphism", "Glassmorphism"),
+                    ("neumorphism", "Neumorphism"),
+                    ("claymorphism", "Claymorphism"),
+                    ("cybermorphism", "Cybermorphism")
+                ], on_change.clone())}
+                
+                {if effects != "none" {
+                    html! {
+                        {render_range_field("Multiply Intensity (%)", "effects_intensity", 
+                            template_data.get("effects_intensity").and_then(|v| v.as_str()).unwrap_or("50"), 
+                            "0", "100", on_change.clone())}
+                    }
+                } else { html! {} }}
+            </div>
+
+            // Scroll Effects Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Scroll Effects"}</h4>
+                {render_select_field("Scroll Effect", "scroll_effect", 
+                    template_data.get("scroll_effect").and_then(|v| v.as_str()).unwrap_or("none"), 
+                    vec![
+                        ("none", "None"),
+                        ("shrink", "Shrink Effect"),
+                        ("fade", "Fade Effect"),
+                        ("slide", "Slide Effect"),
+                        ("blur", "Blur Effect")
+                    ], on_change.clone())}
+                
+                {if template_data.get("scroll_effect").and_then(|v| v.as_str()).unwrap_or("none") != "none" {
+                    html! {
+                        <>
+                            {render_range_field("Scroll Trigger (px)", "scroll_trigger", 
+                                template_data.get("scroll_trigger").and_then(|v| v.as_str()).unwrap_or("100"), 
+                                "50", "500", on_change.clone())}
+                            {render_range_field("Animation Duration (ms)", "scroll_duration", 
+                                template_data.get("scroll_duration").and_then(|v| v.as_str()).unwrap_or("300"), 
+                                "100", "2500", on_change.clone())}
+                            {render_select_field("Easing", "scroll_easing", 
+                                template_data.get("scroll_easing").and_then(|v| v.as_str()).unwrap_or("elastic"), 
+                                vec![
+                                    ("linear", "Linear"),
+                                    ("ease", "Ease"),
+                                    ("ease-in", "Ease In"),
+                                    ("ease-out", "Ease Out"),
+                                    ("ease-in-out", "Ease In Out"),
+                                    ("elastic", "Elastic"),
+                                    ("bounce", "Bounce")
+                                ], on_change.clone())}
+                        </>
+                    }
+                } else { html! {} }}
+                
+                {if template_data.get("scroll_effect").and_then(|v| v.as_str()).unwrap_or("none") == "shrink" {
+                    html! {
+                        <>
+                            {render_range_field("Shrink Height (px)", "shrink_height", 
+                                template_data.get("shrink_height").and_then(|v| v.as_str()).unwrap_or("60"), 
+                                "40", "120", on_change.clone())}
+                            {render_range_field("Logo Scale (%)", "shrink_logo_scale", 
+                                template_data.get("shrink_logo_scale").and_then(|v| v.as_str()).unwrap_or("80"), 
+                                "10", "100", on_change.clone())}
+                        </>
+                    }
+                } else { html! {} }}
+            </div>
+
             // Shape Mask Properties
             <div class="property-section" style="margin-top: 16px;">
-                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Shape Mask"}</h4>
-                
-                // Upper Shape Mask
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{"Upper Shape"}</label>
-                    {render_select_field("", "shape_mask_upper", shape_mask_upper, vec![
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Shape Masks"}</h4>
+                {render_select_field("Upper Shape", "shape_mask_upper", shape_mask_upper, vec![
                         ("none", "None"),
                         ("wave", "Wave"),
                         ("curve", "Curve"),
                         ("triangle", "Triangle"),
-                        ("zigzag", "Zigzag"),
-                        ("tilt", "Tilt")
+                    ("tilt", "Tilt"),
+                    ("zigzag", "Zigzag")
                     ], on_change.clone())}
                     
                     {if shape_mask_upper != "none" {
                         html! {
-                            <div style="margin-top: 8px;">
-                                {match shape_mask_upper {
-                                    "wave" | "triangle" | "zigzag" => html! {
-                                        <>
-                                            {render_range_field("Frequency", "shape_mask_upper_frequency", 
-                                                &template_data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
-                                                "1", "8", on_change.clone())}
-                                            {render_range_field("Scale (%)", "shape_mask_upper_scale", shape_mask_upper_scale, "10", "100", on_change.clone())}
-                                        </>
-                                    },
-                                    "curve" => html! {
-                                        <>
-                                            {render_select_field("Direction", "shape_mask_upper_direction", 
-                                                &template_data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
-                                                vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())}
-                                            {render_range_field("Amplitude (%)", "shape_mask_upper_amplitude", 
-                                                &template_data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
-                                                "10", "100", on_change.clone())}
-                                            {render_range_field("Scale (%)", "shape_mask_upper_scale", shape_mask_upper_scale, "10", "100", on_change.clone())}
-                                        </>
-                                    },
-                                    "tilt" => html! {
-                                        <>
-                                            {render_select_field("Direction", "shape_mask_upper_direction", 
-                                                &template_data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("right"), 
-                                                vec![("left", "Left"), ("right", "Right")], on_change.clone())}
-                                            {render_range_field("Degrees", "shape_mask_upper_degrees", 
-                                                &template_data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
-                                                "0", "45", on_change.clone())}
-                                        </>
-                                    },
-                                    _ => html! {
-                                        {render_range_field("Scale (%)", "shape_mask_upper_scale", shape_mask_upper_scale, "10", "100", on_change.clone())}
-                                    }
-                                }}
-                            </div>
-                        }
-                    } else {
-                        html! {}
-                    }}
-                </div>
+                        <>
+                            {render_range_field("Upper Scale (%)", "shape_mask_upper_scale", shape_mask_upper_scale, "10", "200", on_change.clone())}
+                            {if matches!(shape_mask_upper, "wave" | "triangle" | "zigzag") {
+                                render_range_field("Upper Frequency", "shape_mask_upper_frequency", 
+                                    template_data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                    "1", "10", on_change.clone())
+                            } else { html! {} }}
+                            {if matches!(shape_mask_upper, "curve" | "tilt") {
+                                render_select_field("Upper Direction", "shape_mask_upper_direction", 
+                                    template_data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
+                                    vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_upper == "curve" {
+                                render_range_field("Upper Amplitude", "shape_mask_upper_amplitude", 
+                                    template_data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
+                                    "10", "100", on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_upper == "tilt" {
+                                render_range_field("Upper Degrees", "shape_mask_upper_degrees", 
+                                    template_data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
+                                    "1", "45", on_change.clone())
+                            } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
+
+                {render_select_field("Lower Shape", "shape_mask_lower", shape_mask_lower, vec![
+                    ("none", "None"),
+                    ("wave", "Wave"),
+                    ("curve", "Curve"),
+                    ("triangle", "Triangle"),
+                    ("tilt", "Tilt"),
+                    ("zigzag", "Zigzag")
+                ], on_change.clone())}
                 
-                // Lower Shape Mask
-                <div>
-                    <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{"Lower Shape"}</label>
-                    {render_select_field("", "shape_mask_lower", shape_mask_lower, vec![
-                        ("none", "None"),
-                        ("wave", "Wave"),
-                        ("curve", "Curve"),
-                        ("triangle", "Triangle"),
-                        ("zigzag", "Zigzag"),
-                        ("tilt", "Tilt")
-                    ], on_change.clone())}
-                    
-                    {if shape_mask_lower != "none" {
-                        html! {
-                            <div style="margin-top: 8px;">
-                                {match shape_mask_lower {
-                                    "wave" | "triangle" | "zigzag" => html! {
-                                        <>
-                                            {render_range_field("Frequency", "shape_mask_lower_frequency", 
-                                                &template_data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
-                                                "1", "8", on_change.clone())}
-                                            {render_range_field("Scale (%)", "shape_mask_lower_scale", shape_mask_lower_scale, "10", "100", on_change.clone())}
-                                        </>
-                                    },
-                                    "curve" => html! {
-                                        <>
-                                            {render_select_field("Direction", "shape_mask_lower_direction", 
-                                                &template_data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
-                                                vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())}
-                                            {render_range_field("Amplitude (%)", "shape_mask_lower_amplitude", 
-                                                &template_data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
-                                                "10", "100", on_change.clone())}
-                                            {render_range_field("Scale (%)", "shape_mask_lower_scale", shape_mask_lower_scale, "10", "100", on_change.clone())}
-                                        </>
-                                    },
-                                    "tilt" => html! {
-                                        <>
-                                            {render_select_field("Direction", "shape_mask_lower_direction", 
-                                                &template_data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("right"), 
-                                                vec![("left", "Left"), ("right", "Right")], on_change.clone())}
-                                            {render_range_field("Degrees", "shape_mask_lower_degrees", 
-                                                &template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
-                                                "0", "45", on_change.clone())}
-                                        </>
-                                    },
-                                    _ => html! {
-                                        {render_range_field("Scale (%)", "shape_mask_lower_scale", shape_mask_lower_scale, "10", "100", on_change.clone())}
-                                    }
-                                }}
-                            </div>
-                        }
-                    } else {
-                        html! {}
-                    }}
-                </div>
+                {if shape_mask_lower != "none" {
+                    html! {
+                        <>
+                            {render_range_field("Lower Scale (%)", "shape_mask_lower_scale", shape_mask_lower_scale, "10", "200", on_change.clone())}
+                            {if matches!(shape_mask_lower, "wave" | "triangle" | "zigzag") {
+                                render_range_field("Lower Frequency", "shape_mask_lower_frequency", 
+                                    template_data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                    "1", "10", on_change.clone())
+                            } else { html! {} }}
+                            {if matches!(shape_mask_lower, "curve" | "tilt") {
+                                render_select_field("Lower Direction", "shape_mask_lower_direction", 
+                                    template_data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
+                                    vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_lower == "curve" {
+                                render_range_field("Lower Amplitude", "shape_mask_lower_amplitude", 
+                                    template_data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
+                                    "10", "100", on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_lower == "tilt" {
+                                render_range_field("Lower Degrees", "shape_mask_lower_degrees", 
+                                    template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
+                                    "1", "45", on_change.clone())
+                            } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
             </div>
         </>
     }
 }
 
 fn render_footer_properties(template_data: &UseStateHandle<serde_json::Value>, on_change: Callback<InputEvent>) -> Html {
-    // Same structure as header properties
-    render_header_properties(template_data, on_change)
+    // Footer properties are similar to header but with footer-specific styling
+    let bg_color = template_data.get("bg_color").and_then(|v| v.as_str()).unwrap_or("#000000");
+    let text_color = template_data.get("text_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+    let text_muted = template_data.get("text_muted").and_then(|v| v.as_str()).unwrap_or("#e2e8f0");
+    let height = template_data.get("height").and_then(|v| v.as_str()).unwrap_or("auto");
+    
+    // Shape mask properties
+    let shape_mask_upper = template_data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
+    let shape_mask_upper_scale = template_data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
+    let shape_mask_lower = template_data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none");
+    let shape_mask_lower_scale = template_data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100");
+    
+    // Effects properties
+    let effects = template_data.get("effects").and_then(|v| v.as_str()).unwrap_or("none");
+
+    html! {
+        <>
+            // Basic Properties
+            <div class="property-section">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Basic Properties"}</h4>
+                {render_color_field("Background Color", "bg_color", bg_color, on_change.clone())}
+                {render_color_field("Text Color", "text_color", text_color, on_change.clone())}
+                {render_color_field("Muted Text Color", "text_muted", text_muted, on_change.clone())}
+                {render_input_field("Height", "height", height, on_change.clone())}
+                            </div>
+
+            // Effects Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Effects"}</h4>
+                {render_select_field("Visual Effects", "effects", effects, vec![
+                    ("none", "None"),
+                    ("glassmorphism", "Glassmorphism"),
+                    ("neumorphism", "Neumorphism"),
+                    ("claymorphism", "Claymorphism"),
+                    ("cybermorphism", "Cybermorphism")
+                ], on_change.clone())}
+                
+                {if effects != "none" {
+                    html! {
+                        {render_range_field("Multiply Intensity (%)", "effects_intensity", 
+                            template_data.get("effects_intensity").and_then(|v| v.as_str()).unwrap_or("50"), 
+                            "0", "100", on_change.clone())}
+                    }
+                } else { html! {} }}
+                </div>
+                
+            // Shape Mask Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Shape Masks"}</h4>
+                {render_select_field("Upper Shape", "shape_mask_upper", shape_mask_upper, vec![
+                        ("none", "None"),
+                        ("wave", "Wave"),
+                        ("curve", "Curve"),
+                        ("triangle", "Triangle"),
+                    ("tilt", "Tilt"),
+                    ("zigzag", "Zigzag")
+                ], on_change.clone())}
+                
+                {if shape_mask_upper != "none" {
+                    html! {
+                        <>
+                            {render_range_field("Upper Scale (%)", "shape_mask_upper_scale", shape_mask_upper_scale, "10", "200", on_change.clone())}
+                            {if matches!(shape_mask_upper, "wave" | "triangle" | "zigzag") {
+                                render_range_field("Upper Frequency", "shape_mask_upper_frequency", 
+                                    template_data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                    "1", "10", on_change.clone())
+                            } else { html! {} }}
+                            {if matches!(shape_mask_upper, "curve" | "tilt") {
+                                render_select_field("Upper Direction", "shape_mask_upper_direction", 
+                                    template_data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
+                                    vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_upper == "curve" {
+                                render_range_field("Upper Amplitude", "shape_mask_upper_amplitude", 
+                                    template_data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
+                                    "10", "100", on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_upper == "tilt" {
+                                render_range_field("Upper Degrees", "shape_mask_upper_degrees", 
+                                    template_data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
+                                    "1", "45", on_change.clone())
+                            } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
+
+                {render_select_field("Lower Shape", "shape_mask_lower", shape_mask_lower, vec![
+                    ("none", "None"),
+                    ("wave", "Wave"),
+                    ("curve", "Curve"),
+                    ("triangle", "Triangle"),
+                    ("tilt", "Tilt"),
+                    ("zigzag", "Zigzag")
+                    ], on_change.clone())}
+                    
+                    {if shape_mask_lower != "none" {
+                        html! {
+                        <>
+                            {render_range_field("Lower Scale (%)", "shape_mask_lower_scale", shape_mask_lower_scale, "10", "200", on_change.clone())}
+                            {if matches!(shape_mask_lower, "wave" | "triangle" | "zigzag") {
+                                render_range_field("Lower Frequency", "shape_mask_lower_frequency", 
+                                    template_data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                    "1", "10", on_change.clone())
+                            } else { html! {} }}
+                            {if matches!(shape_mask_lower, "curve" | "tilt") {
+                                render_select_field("Lower Direction", "shape_mask_lower_direction", 
+                                    template_data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
+                                    vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_lower == "curve" {
+                                render_range_field("Lower Amplitude", "shape_mask_lower_amplitude", 
+                                    template_data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
+                                    "10", "100", on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_lower == "tilt" {
+                                render_range_field("Lower Degrees", "shape_mask_lower_degrees", 
+                                    template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
+                                    "1", "45", on_change.clone())
+                            } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
+            </div>
+        </>
+    }
 }
 
 fn render_container_properties(template_data: &UseStateHandle<serde_json::Value>, on_change: Callback<InputEvent>) -> Html {
-    // Basic container properties
-    let bg_color = template_data.get("bg_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
-    let text_color = template_data.get("text_color").and_then(|v| v.as_str()).unwrap_or("#333333");
+    // Container properties
+    let max_width = template_data.get("max_width").and_then(|v| v.as_str()).unwrap_or("1200px");
+    let padding = template_data.get("padding").and_then(|v| v.as_str()).unwrap_or("1rem");
+    let margin = template_data.get("margin").and_then(|v| v.as_str()).unwrap_or("0 auto");
+    let width_type = template_data.get("width_type").and_then(|v| v.as_str()).unwrap_or("fixed");
     
+    // Background & Media Overlay properties
+    let bg_type = template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("color");
+    let bg_color = template_data.get("bg_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+    let bg_image = template_data.get("bg_image").and_then(|v| v.as_str()).unwrap_or("");
+    let bg_video = template_data.get("bg_video").and_then(|v| v.as_str()).unwrap_or("");
+    let overlay_color = template_data.get("overlay_color").and_then(|v| v.as_str()).unwrap_or("#000000");
+    let overlay_opacity = template_data.get("overlay_opacity").and_then(|v| v.as_str()).unwrap_or("0.3");
+    
+    // Animation properties
+    let animation = template_data.get("animation").and_then(|v| v.as_str()).unwrap_or("none");
+    
+    // Shape mask properties
+    let shape_mask_upper = template_data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
+    let shape_mask_upper_scale = template_data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
+    let shape_mask_lower = template_data.get("shape_mask_lower").and_then(|v| v.as_str()).unwrap_or("none");
+    let shape_mask_lower_scale = template_data.get("shape_mask_lower_scale").and_then(|v| v.as_str()).unwrap_or("100");
+    
+    // Effects properties
+    let effects = template_data.get("effects").and_then(|v| v.as_str()).unwrap_or("none");
+
     html! {
-        <div class="property-section">
-            <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Container Properties"}</h4>
-            {render_color_field("Background Color", "bg_color", bg_color, on_change.clone())}
-            {render_color_field("Text Color", "text_color", text_color, on_change.clone())}
+        <>
+            // Basic Properties
+            <div class="property-section">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Container Properties"}</h4>
+                {render_select_field("Width Type", "width_type", width_type, vec![
+                    ("fixed", "Fixed Width"),
+                    ("fluid", "Fluid Width"),
+                    ("full", "Full Width")
+                ], on_change.clone())}
+                {render_input_field("Max Width", "max_width", max_width, on_change.clone())}
+                {render_input_field("Padding", "padding", padding, on_change.clone())}
+                {render_input_field("Margin", "margin", margin, on_change.clone())}
+            </div>
+
+            // Background & Media Overlay Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Background & Media Overlay"}</h4>
+                {render_select_field("Background Type", "bg_type", bg_type, vec![
+                    ("color", "Color"),
+                    ("image", "Image"),
+                    ("gradient", "Gradient"),
+                    ("video", "Video")
+                ], on_change.clone())}
+                
+                {match bg_type {
+                    "color" => render_color_field("Background Color", "bg_color", bg_color, on_change.clone()),
+                    "image" => render_input_field("Background Image URL", "bg_image", bg_image, on_change.clone()),
+                    "gradient" => html! {
+                        <>
+                            {render_color_field("Gradient Start Color", "bg_gradient_start", 
+                                template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#667eea"), on_change.clone())}
+                            {render_color_field("Gradient End Color", "bg_gradient_end", 
+                                template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#764ba2"), on_change.clone())}
+                            {render_select_field("Gradient Direction", "bg_gradient_direction", 
+                                template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("to-right"), 
+                                vec![
+                                    ("to-right", "Left to Right"),
+                                    ("to-left", "Right to Left"),
+                                    ("to-bottom", "Top to Bottom"),
+                                    ("to-top", "Bottom to Top"),
+                                    ("to-bottom-right", "Top-Left to Bottom-Right"),
+                                    ("to-bottom-left", "Top-Right to Bottom-Left"),
+                                    ("to-top-right", "Bottom-Left to Top-Right"),
+                                    ("to-top-left", "Bottom-Right to Top-Left"),
+                                    ("135deg", "Diagonal (135°)"),
+                                    ("45deg", "Diagonal (45°)")
+                                ], on_change.clone())}
+                            {render_input_field("Custom Gradient (CSS)", "bg_gradient_custom", 
+                                template_data.get("bg_gradient_custom").and_then(|v| v.as_str()).unwrap_or(""), on_change.clone())}
+                        </>
+                    },
+                    "video" => render_input_field("Background Video URL", "bg_video", bg_video, on_change.clone()),
+                    _ => html! {}
+                }}
+                
+                // Overlay Properties (shown for all background types, but only applied to image/video)
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <h5 style="margin: 0 0 8px 0; font-size: 12px; color: #666; font-weight: 600;">{"Media Overlay"}</h5>
+                    {render_color_field("Overlay Color", "overlay_color", overlay_color, on_change.clone())}
+                    {render_range_field("Overlay Opacity", "overlay_opacity", overlay_opacity, "0", "1", on_change.clone())}
+                    {if !matches!(bg_type, "image" | "video") {
+                        html! {
+                            <p style="font-size: 11px; color: #999; margin: 4px 0 0 0; font-style: italic;">
+                                {"Note: Overlay only applies to image and video backgrounds"}
+                            </p>
+                        }
+                    } else { html! {} }}
+                </div>
+            </div>
+
+            // Animation Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Animation"}</h4>
+                {render_select_field("Entrance Animation", "animation", animation, vec![
+                    ("none", "None"),
+                    ("fade-in", "Fade In"),
+                    ("slide-up", "Slide Up"),
+                    ("slide-down", "Slide Down"),
+                    ("zoom-in", "Zoom In")
+                ], on_change.clone())}
+            </div>
+
+            // Effects Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Effects"}</h4>
+                {render_select_field("Visual Effects", "effects", effects, vec![
+                    ("none", "None"),
+                    ("glassmorphism", "Glassmorphism"),
+                    ("neumorphism", "Neumorphism"),
+                    ("claymorphism", "Claymorphism"),
+                    ("cybermorphism", "Cybermorphism")
+                ], on_change.clone())}
+                
+                {if effects != "none" {
+                    html! {
+                        {render_range_field("Multiply Intensity (%)", "effects_intensity", 
+                            template_data.get("effects_intensity").and_then(|v| v.as_str()).unwrap_or("50"), 
+                            "0", "100", on_change.clone())}
+                    }
+                } else { html! {} }}
+            </div>
+
+            // Shape Mask Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Shape Masks"}</h4>
+                {render_select_field("Upper Shape", "shape_mask_upper", shape_mask_upper, vec![
+                    ("none", "None"),
+                    ("wave", "Wave"),
+                    ("curve", "Curve"),
+                    ("triangle", "Triangle"),
+                    ("tilt", "Tilt"),
+                    ("zigzag", "Zigzag")
+                ], on_change.clone())}
+                
+                {if shape_mask_upper != "none" {
+                    html! {
+                        <>
+                            {render_range_field("Upper Scale (%)", "shape_mask_upper_scale", shape_mask_upper_scale, "10", "200", on_change.clone())}
+                            {if matches!(shape_mask_upper, "wave" | "triangle" | "zigzag") {
+                                render_range_field("Upper Frequency", "shape_mask_upper_frequency", 
+                                    template_data.get("shape_mask_upper_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                    "1", "10", on_change.clone())
+                            } else { html! {} }}
+                            {if matches!(shape_mask_upper, "curve" | "tilt") {
+                                render_select_field("Upper Direction", "shape_mask_upper_direction", 
+                                    template_data.get("shape_mask_upper_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
+                                    vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_upper == "curve" {
+                                render_range_field("Upper Amplitude", "shape_mask_upper_amplitude", 
+                                    template_data.get("shape_mask_upper_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
+                                    "10", "100", on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_upper == "tilt" {
+                                render_range_field("Upper Degrees", "shape_mask_upper_degrees", 
+                                    template_data.get("shape_mask_upper_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
+                                    "1", "45", on_change.clone())
+                            } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
+
+                {render_select_field("Lower Shape", "shape_mask_lower", shape_mask_lower, vec![
+                    ("none", "None"),
+                    ("wave", "Wave"),
+                    ("curve", "Curve"),
+                    ("triangle", "Triangle"),
+                    ("tilt", "Tilt"),
+                    ("zigzag", "Zigzag")
+                ], on_change.clone())}
+                
+                {if shape_mask_lower != "none" {
+                    html! {
+                        <>
+                            {render_range_field("Lower Scale (%)", "shape_mask_lower_scale", shape_mask_lower_scale, "10", "200", on_change.clone())}
+                            {if matches!(shape_mask_lower, "wave" | "triangle" | "zigzag") {
+                                render_range_field("Lower Frequency", "shape_mask_lower_frequency", 
+                                    template_data.get("shape_mask_lower_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                    "1", "10", on_change.clone())
+                            } else { html! {} }}
+                            {if matches!(shape_mask_lower, "curve" | "tilt") {
+                                render_select_field("Lower Direction", "shape_mask_lower_direction", 
+                                    template_data.get("shape_mask_lower_direction").and_then(|v| v.as_str()).unwrap_or("positive"), 
+                                    vec![("positive", "Positive"), ("negative", "Negative")], on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_lower == "curve" {
+                                render_range_field("Lower Amplitude", "shape_mask_lower_amplitude", 
+                                    template_data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50"), 
+                                    "10", "100", on_change.clone())
+                            } else { html! {} }}
+                            {if shape_mask_lower == "tilt" {
+                                render_range_field("Lower Degrees", "shape_mask_lower_degrees", 
+                                    template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
+                                    "1", "45", on_change.clone())
+                            } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
+            </div>
+        </>
+    }
+}
+
+// Component-specific property rendering functions
+fn render_component_specific_properties(properties: &ComponentProperties, component_type: Option<&ComponentType>, on_change: Callback<InputEvent>) -> Html {
+    html! {
+        <div class="component-specific-properties">
+            // Image Properties - only show for Image components
+            {if matches!(component_type, Some(ComponentType::Image)) {
+                html! {
+                    <div class="property-section" style="margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Image Properties"}</h4>
+                        {render_input_field("Image URL", "image_url", &properties.image_url, on_change.clone())}
+                        {render_input_field("Alt Text", "image_alt", &properties.image_alt, on_change.clone())}
+                        {render_input_field("Title", "image_title", &properties.image_title, on_change.clone())}
+                        {render_checkbox_field("Lazy Load", "image_lazy_load", properties.image_lazy_load, on_change.clone())}
+                    </div>
+                }
+            } else {
+                html! {}
+            }}
+            
+            // Button Properties - only show for Button components
+            {if matches!(component_type, Some(ComponentType::Button)) {
+                html! {
+                    <div class="property-section" style="margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Button Properties"}</h4>
+                        {render_input_field("Button Text", "button_text", &properties.button_text, on_change.clone())}
+                        {render_input_field("Button URL", "button_url", &properties.button_url, on_change.clone())}
+                        {render_select_field("Target", "button_target", &properties.button_target, vec![
+                            ("_self", "Same Window"),
+                            ("_blank", "New Window"),
+                            ("_parent", "Parent Frame"),
+                            ("_top", "Top Frame")
+                        ], on_change.clone())}
+                        {render_select_field("Size", "button_size", &properties.button_size, vec![
+                            ("small", "Small"),
+                            ("medium", "Medium"),
+                            ("large", "Large")
+                        ], on_change.clone())}
+                        {render_select_field("Variant", "button_variant", &properties.button_variant, vec![
+                            ("primary", "Primary"),
+                            ("secondary", "Secondary"),
+                            ("outline", "Outline"),
+                            ("ghost", "Ghost")
+                        ], on_change.clone())}
+                        {render_input_field("Icon", "button_icon", &properties.button_icon, on_change.clone())}
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }}
+            
+            // Video Properties - only show for Video components
+            {if matches!(component_type, Some(ComponentType::Video)) {
+                html! {
+                    <div class="property-section" style="margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Video Properties"}</h4>
+                        {render_input_field("Video URL", "video_url", &properties.video_url, on_change.clone())}
+                        {render_checkbox_field("Autoplay", "video_autoplay", properties.video_autoplay, on_change.clone())}
+                        {render_checkbox_field("Show Controls", "video_controls", properties.video_controls, on_change.clone())}
+                        {render_checkbox_field("Muted", "video_muted", properties.video_muted, on_change.clone())}
+                        {render_checkbox_field("Loop", "video_loop", properties.video_loop, on_change.clone())}
+                </div>
+                }
+            } else {
+                html! {}
+            }}
+            
+            // Hero Properties - only show for Hero components
+            {if matches!(component_type, Some(ComponentType::Hero)) {
+                html! {
+                    <div class="property-section" style="margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Hero Properties"}</h4>
+                        {render_input_field("Badge Text", "hero_badge_text", &properties.hero_badge_text, on_change.clone())}
+                        {render_input_field("Title", "hero_title", &properties.hero_title, on_change.clone())}
+                        {render_input_field("Subtitle", "hero_subtitle", &properties.hero_subtitle, on_change.clone())}
+                        {render_input_field("Description", "hero_description", &properties.hero_description, on_change.clone())}
+                        {render_select_field("Background Type", "hero_background_type", &properties.hero_background_type, vec![
+                            ("solid", "Solid Color"),
+                            ("gradient", "Gradient"),
+                            ("image", "Image")
+                        ], on_change.clone())}
+                        {render_color_field("Background Color", "hero_background_color", &properties.hero_background_color, on_change.clone())}
+                        {render_color_field("Text Color", "hero_text_color", &properties.hero_text_color, on_change.clone())}
+                        {render_select_field("Alignment", "hero_alignment", &properties.hero_alignment, vec![
+                            ("left", "Left"),
+                            ("center", "Center"),
+                            ("right", "Right")
+                        ], on_change.clone())}
+                        {render_input_field("Min Height", "hero_min_height", &properties.hero_min_height, on_change.clone())}
+                        {render_checkbox_field("Show Badge", "hero_show_badge", properties.hero_show_badge, on_change.clone())}
+                        {render_checkbox_field("Show Primary Button", "hero_show_primary_button", properties.hero_show_primary_button, on_change.clone())}
+                        {render_checkbox_field("Show Secondary Button", "hero_show_secondary_button", properties.hero_show_secondary_button, on_change.clone())}
+                        {if properties.hero_show_primary_button {
+                            html! {
+                                <>
+                                    {render_input_field("Primary Button Text", "hero_primary_button_text", &properties.hero_primary_button_text, on_change.clone())}
+                                    {render_input_field("Primary Button URL", "hero_primary_button_url", &properties.hero_primary_button_url, on_change.clone())}
+                                </>
+                            }
+                        } else {
+                            html! {}
+                        }}
+                        {if properties.hero_show_secondary_button {
+                            html! {
+                                <>
+                                    {render_input_field("Secondary Button Text", "hero_secondary_button_text", &properties.hero_secondary_button_text, on_change.clone())}
+                                    {render_input_field("Secondary Button URL", "hero_secondary_button_url", &properties.hero_secondary_button_url, on_change.clone())}
+                                </>
+                            }
+                        } else {
+                            html! {}
+                        }}
+                    </div>
+                }
+            } else {
+                html! {}
+            }}
+        </div>
+    }
+}
+
+fn render_common_styling_properties(properties: &ComponentProperties, on_change: Callback<InputEvent>) -> Html {
+    html! {
+        <div class="common-styling-properties">
+            // Animation Properties
+            <div class="property-section" style="margin-bottom: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Animation & Effects"}</h4>
+                {render_select_field("Animation Type", "animation_type", &properties.animation_type, vec![
+                    ("none", "None"),
+                    ("fade-in", "Fade In"),
+                    ("slide-up", "Slide Up"),
+                    ("slide-down", "Slide Down"),
+                    ("slide-left", "Slide Left"),
+                    ("slide-right", "Slide Right"),
+                    ("zoom-in", "Zoom In"),
+                    ("zoom-out", "Zoom Out")
+                ], on_change.clone())}
+                {render_input_field("Duration", "animation_duration", &properties.animation_duration, on_change.clone())}
+                {render_input_field("Delay", "animation_delay", &properties.animation_delay, on_change.clone())}
+            </div>
+            
+            // SEO Properties
+            <div class="property-section" style="margin-bottom: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"SEO & Accessibility"}</h4>
+                {render_input_field("SEO Title", "seo_title", &properties.seo_title, on_change.clone())}
+                {render_input_field("SEO Description", "seo_description", &properties.seo_description, on_change.clone())}
+                {render_input_field("ARIA Label", "aria_label", &properties.aria_label, on_change.clone())}
+                {render_input_field("ARIA Description", "aria_description", &properties.aria_description, on_change.clone())}
+            </div>
         </div>
     }
 }
@@ -895,32 +1104,6 @@ fn render_input_field(label: &str, name: &str, value: &str, on_change: Callback<
                     border: 1px solid #ddd;
                     border-radius: 4px;
                     font-size: 14px;
-                "
-            />
-        </div>
-    }
-}
-
-fn render_range_field(label: &str, name: &str, value: &str, min: &str, max: &str, on_change: Callback<InputEvent>) -> Html {
-    let label = label.to_string();
-    let name = name.to_string();
-    let value = value.to_string();
-    let min = min.to_string();
-    let max = max.to_string();
-    
-    html! {
-        <div style="margin-bottom: 12px;">
-            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{format!("{} ({})", label, value)}</label>
-            <input 
-                type="range"
-                name={name}
-                value={value}
-                min={min}
-                max={max}
-                oninput={on_change}
-                style="
-                    width: 100%;
-                    margin-bottom: 4px;
                 "
             />
         </div>
@@ -1005,5 +1188,111 @@ fn render_color_field(label: &str, name: &str, value: &str, on_change: Callback<
                 />
             </div>
         </div>
+    }
+}
+
+fn render_checkbox_field(label: &str, name: &str, checked: bool, on_change: Callback<InputEvent>) -> Html {
+    let label = label.to_string();
+    let name = name.to_string();
+    
+    html! {
+        <div style="margin-bottom: 12px;">
+            <label style="display: flex; align-items: center; font-weight: 600; font-size: 12px; color: #555;">
+                <input 
+                    type="checkbox"
+                    name={name}
+                    checked={checked}
+                    oninput={on_change}
+                    style="margin-right: 8px;"
+                />
+                {label}
+            </label>
+        </div>
+    }
+}
+
+fn render_range_field(label: &str, name: &str, value: &str, min: &str, max: &str, on_change: Callback<InputEvent>) -> Html {
+    let label = label.to_string();
+    let name = name.to_string();
+    let value = value.to_string();
+    let min = min.to_string();
+    let max = max.to_string();
+    
+    html! {
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{format!("{} ({})", label, value)}</label>
+            <input 
+                type="range"
+                name={name}
+                value={value}
+                min={min}
+                max={max}
+                oninput={on_change}
+                style="
+                    width: 100%;
+                    margin-bottom: 4px;
+                "
+            />
+        </div>
+    }
+}
+
+// Helper function to update component properties
+fn update_component_property(props: &mut ComponentProperties, name: &str, value: &str, is_checkbox: bool) {
+    match name {
+        // Image properties
+        "image_url" => props.image_url = value.to_string(),
+        "image_alt" => props.image_alt = value.to_string(),
+        "image_title" => props.image_title = value.to_string(),
+        "image_lazy_load" => props.image_lazy_load = is_checkbox,
+        
+        // Button properties
+        "button_text" => props.button_text = value.to_string(),
+        "button_url" => props.button_url = value.to_string(),
+        "button_target" => props.button_target = value.to_string(),
+        "button_size" => props.button_size = value.to_string(),
+        "button_variant" => props.button_variant = value.to_string(),
+        "button_icon" => props.button_icon = value.to_string(),
+        
+        // Video properties
+        "video_url" => props.video_url = value.to_string(),
+        "video_autoplay" => props.video_autoplay = is_checkbox,
+        "video_controls" => props.video_controls = is_checkbox,
+        "video_muted" => props.video_muted = is_checkbox,
+        "video_loop" => props.video_loop = is_checkbox,
+        
+        // Hero properties
+        "hero_badge_text" => props.hero_badge_text = value.to_string(),
+        "hero_title" => props.hero_title = value.to_string(),
+        "hero_subtitle" => props.hero_subtitle = value.to_string(),
+        "hero_description" => props.hero_description = value.to_string(),
+        "hero_background_type" => props.hero_background_type = value.to_string(),
+        "hero_background_color" => props.hero_background_color = value.to_string(),
+        "hero_text_color" => props.hero_text_color = value.to_string(),
+        "hero_alignment" => props.hero_alignment = value.to_string(),
+        "hero_min_height" => props.hero_min_height = value.to_string(),
+        "hero_show_badge" => props.hero_show_badge = is_checkbox,
+        "hero_show_primary_button" => props.hero_show_primary_button = is_checkbox,
+        "hero_show_secondary_button" => props.hero_show_secondary_button = is_checkbox,
+        "hero_primary_button_text" => props.hero_primary_button_text = value.to_string(),
+        "hero_primary_button_url" => props.hero_primary_button_url = value.to_string(),
+        "hero_secondary_button_text" => props.hero_secondary_button_text = value.to_string(),
+        "hero_secondary_button_url" => props.hero_secondary_button_url = value.to_string(),
+        
+        // Animation properties
+        "animation_type" => props.animation_type = value.to_string(),
+        "animation_duration" => props.animation_duration = value.to_string(),
+        "animation_delay" => props.animation_delay = value.to_string(),
+        
+        // SEO properties
+        "seo_title" => props.seo_title = value.to_string(),
+        "seo_description" => props.seo_description = value.to_string(),
+        "aria_label" => props.aria_label = value.to_string(),
+        "aria_description" => props.aria_description = value.to_string(),
+        
+        _ => {
+            // Log unknown property for debugging
+            web_sys::console::log_1(&format!("Unknown component property: {}", name).into());
+        }
     }
 }

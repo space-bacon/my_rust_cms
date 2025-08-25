@@ -72,7 +72,7 @@ impl std::fmt::Display for NavigationServiceError {
 }
 
 pub async fn get_navigation_items() -> Result<Vec<NavigationItem>, NavigationServiceError> {
-    match gloo_net::http::Request::get("http://127.0.0.1:8081/api/navigation")
+    match gloo_net::http::Request::get("http://localhost:8081/api/navigation")
         .send()
         .await
     {
@@ -93,7 +93,7 @@ pub async fn get_navigation_items() -> Result<Vec<NavigationItem>, NavigationSer
 pub async fn create_navigation_item(item: &NavigationItem) -> Result<NavigationItem, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::post("http://127.0.0.1:8081/api/navigation")
+    match gloo_net::http::Request::post("http://localhost:8081/api/navigation")
         .header("Authorization", &format!("Bearer {}", token))
         .json(item)
         .map_err(|e| NavigationServiceError::ParseError(e.to_string()))?
@@ -117,7 +117,7 @@ pub async fn create_navigation_item(item: &NavigationItem) -> Result<NavigationI
 pub async fn update_navigation_item(id: i32, item: &NavigationItem) -> Result<NavigationItem, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::put(&format!("http://127.0.0.1:8081/api/navigation/{}", id))
+    match gloo_net::http::Request::put(&format!("http://localhost:8081/api/navigation/{}", id))
         .header("Authorization", &format!("Bearer {}", token))
         .json(item)
         .map_err(|e| NavigationServiceError::ParseError(e.to_string()))?
@@ -141,7 +141,7 @@ pub async fn update_navigation_item(id: i32, item: &NavigationItem) -> Result<Na
 pub async fn delete_navigation_item(id: i32) -> Result<(), NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::delete(&format!("http://127.0.0.1:8081/api/navigation/{}", id))
+    match gloo_net::http::Request::delete(&format!("http://localhost:8081/api/navigation/{}", id))
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
@@ -160,7 +160,7 @@ pub async fn delete_navigation_item(id: i32) -> Result<(), NavigationServiceErro
 // Enhanced navigation functions
 
 pub async fn get_navigation_by_area(area: &str) -> Result<Vec<NavigationItem>, NavigationServiceError> {
-    match gloo_net::http::Request::get(&format!("http://127.0.0.1:8081/api/navigation/area/{}", area))
+    match gloo_net::http::Request::get(&format!("http://localhost:8081/api/navigation/area/{}", area))
         .send()
         .await
     {
@@ -180,7 +180,7 @@ pub async fn get_navigation_by_area(area: &str) -> Result<Vec<NavigationItem>, N
 
 #[allow(dead_code)]
 pub async fn get_menu_area(name: &str) -> Result<MenuArea, NavigationServiceError> {
-    match gloo_net::http::Request::get(&format!("http://127.0.0.1:8081/api/menu-areas/{}", name))
+    match gloo_net::http::Request::get(&format!("http://localhost:8081/api/menu-areas/{}", name))
         .send()
         .await
     {
@@ -201,7 +201,7 @@ pub async fn get_menu_area(name: &str) -> Result<MenuArea, NavigationServiceErro
 pub async fn get_menu_areas() -> Result<Vec<MenuArea>, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::get("http://127.0.0.1:8081/api/menu-areas")
+    match gloo_net::http::Request::get("http://localhost:8081/api/menu-areas")
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
@@ -223,7 +223,7 @@ pub async fn get_menu_areas() -> Result<Vec<MenuArea>, NavigationServiceError> {
 pub async fn update_menu_area(name: &str, area: &MenuArea) -> Result<MenuArea, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::put(&format!("http://127.0.0.1:8081/api/menu-areas/{}", name))
+    match gloo_net::http::Request::put(&format!("http://localhost:8081/api/menu-areas/{}", name))
         .header("Authorization", &format!("Bearer {}", token))
         .json(area)
         .map_err(|e| NavigationServiceError::ParseError(e.to_string()))?
@@ -248,7 +248,7 @@ pub async fn update_menu_area(name: &str, area: &MenuArea) -> Result<MenuArea, N
 pub async fn get_menu_templates() -> Result<Vec<MenuTemplate>, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::get("http://127.0.0.1:8081/api/menu-templates")
+    match gloo_net::http::Request::get("http://localhost:8081/api/menu-templates")
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
@@ -269,7 +269,7 @@ pub async fn get_menu_templates() -> Result<Vec<MenuTemplate>, NavigationService
 
 pub async fn get_component_templates() -> Result<Vec<ComponentTemplate>, NavigationServiceError> {
     // Public endpoint - no authentication required
-    match gloo_net::http::Request::get("http://127.0.0.1:8081/api/component-templates")
+    match gloo_net::http::Request::get("http://localhost:8081/api/component-templates")
         .send()
         .await
     {
@@ -291,7 +291,7 @@ pub async fn get_component_templates() -> Result<Vec<ComponentTemplate>, Navigat
 pub async fn create_component_template(template: &ComponentTemplate) -> Result<ComponentTemplate, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::post("http://127.0.0.1:8081/api/component-templates")
+    match gloo_net::http::Request::post("http://localhost:8081/api/component-templates")
         .header("Authorization", &format!("Bearer {}", token))
         .json(template)
         .map_err(|e| NavigationServiceError::ParseError(e.to_string()))?
@@ -315,7 +315,7 @@ pub async fn create_component_template(template: &ComponentTemplate) -> Result<C
 pub async fn update_component_template(id: i32, template: &ComponentTemplate) -> Result<ComponentTemplate, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::put(&format!("http://127.0.0.1:8081/api/component-templates/{}", id))
+    match gloo_net::http::Request::put(&format!("http://localhost:8081/api/component-templates/{}", id))
         .header("Authorization", &format!("Bearer {}", token))
         .json(template)
         .map_err(|e| NavigationServiceError::ParseError(e.to_string()))?
@@ -339,7 +339,7 @@ pub async fn update_component_template(id: i32, template: &ComponentTemplate) ->
 pub async fn get_all_component_templates_admin() -> Result<Vec<ComponentTemplate>, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::get("http://127.0.0.1:8081/api/component-templates/admin")
+    match gloo_net::http::Request::get("http://localhost:8081/api/component-templates/admin")
         .header("Authorization", &format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .send()
@@ -362,7 +362,7 @@ pub async fn get_all_component_templates_admin() -> Result<Vec<ComponentTemplate
 pub async fn toggle_component_template(id: i32) -> Result<ComponentTemplate, NavigationServiceError> {
     let token = get_auth_token().map_err(|_| NavigationServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::post(&format!("http://127.0.0.1:8081/api/component-templates/{}/toggle", id))
+    match gloo_net::http::Request::post(&format!("http://localhost:8081/api/component-templates/{}/toggle", id))
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await

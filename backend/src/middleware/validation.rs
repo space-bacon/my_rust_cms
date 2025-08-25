@@ -157,7 +157,7 @@ pub fn validate_file_upload(filename: &str, content_type: &str, size: usize) -> 
     
     // Validate allowed file types
     let allowed_types = [
-        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
         "text/plain", "application/pdf", "text/markdown",
         "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ];

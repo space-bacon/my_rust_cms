@@ -4,7 +4,7 @@ use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 use crate::services::auth_service::get_auth_token;
 
-const API_BASE_URL: &str = "http://127.0.0.1:8081/api";
+const API_BASE_URL: &str = "http://localhost:8081/api";
 
 // Helper function to create authenticated requests
 fn create_authenticated_request(method: &str, url: &str) -> Result<gloo_net::http::RequestBuilder, ApiServiceError> {

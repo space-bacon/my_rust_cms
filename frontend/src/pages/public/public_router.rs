@@ -468,6 +468,24 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
             }
         }
         ComponentType::Hero => {
+            // Skip rendering Hero components that have default/empty properties
+            // This handles the case where a Hero component exists but shouldn't be displayed
+            let has_hero_properties = !component.properties.hero_title.is_empty() || 
+                                    !component.properties.hero_description.is_empty() || 
+                                    !component.properties.hero_subtitle.is_empty();
+            
+            let has_meaningful_content = !component.content.trim().is_empty() && 
+                                       component.content.trim() != "# Welcome to Rust CMS\n\nExperience the power of WebAssembly and Rust in a clean, minimalist CMS designed for modern web development.";
+            
+            // Only render if it has meaningful hero properties OR non-default content
+            if !has_hero_properties && !has_meaningful_content {
+                web_sys::console::log_1(&format!("Live Edit: Skipping Hero component '{}' - no meaningful content or properties", component.id).into());
+                return html! { <></> };
+            }
+            
+            web_sys::console::log_1(&format!("Live Edit: Rendering Hero component '{}' - has_props: {}, has_content: {}", 
+                component.id, has_hero_properties, has_meaningful_content).into());
+            
             // Dynamic hero using component properties
             let background_style = match component.properties.hero_background_type.as_str() {
                 "gradient" => format!(
@@ -494,7 +512,7 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
             };
             
             let hero_style = format!(
-                "{} {}; color: {}; padding: {}; text-align: {}; border-radius: 12px; position: relative; overflow: hidden; min-height: {};",
+                "{} {}; color: {}; padding: {}; text-align: {}; border-radius: 12px; position: relative; overflow: hidden; min-height: {}; z-index: 1;",
                 background_style,
                 format_component_styles(&component.styles),
                 component.properties.hero_text_color,
@@ -696,8 +714,22 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
                 if align == "center" { "auto" } else if align == "right" { "0 0 0 auto" } else { "0 auto 0 0" }
             );
             
+            let effects_class = if component.properties.effects != "none" {
+                format!("effect-{}", component.properties.effects)
+            } else {
+                String::new()
+            };
+            
+            let effects_style = if component.properties.effects != "none" {
+                format!("--multiply-intensity: {};", component.properties.effects_intensity)
+            } else {
+                String::new()
+            };
+            
             html! {
-                <div class="component container-component" style={container_style}>
+                <div class={format!("component container-component container {}", effects_class)} 
+                     style={format!("{}; {}", container_style, effects_style)} 
+                     data-opacity={if component.properties.effects != "none" { "true" } else { "false" }}>
                     {if !component.properties.nested_components.is_empty() {
                         html! {
                             <div class="nested-components">
@@ -856,13 +888,24 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
             let image_alt = &component.properties.image_alt;
             let image_title = &component.properties.image_title;
             
+            // Check if this is an SVG file
+            let is_svg = image_url.to_lowercase().ends_with(".svg") || 
+                        image_url.to_lowercase().contains("image/svg+xml");
+            
             html! {
                 <div class="component image-component" style={format_component_styles(&component.styles)}>
                     <img 
                         src={image_url.clone()} 
                         alt={image_alt.clone()} 
                         title={image_title.clone()}
-                        style="max-width: 100%; height: auto; display: block;"
+                        style={format!(
+                            "max-width: 100%; height: auto; display: block;{}",
+                            if is_svg { " vector-effect: non-scaling-stroke;" } else { "" }
+                        )}
+                        // Add loading attribute for better performance
+                        loading="lazy"
+                        // Add decoding attribute for better rendering
+                        decoding="async"
                     />
                     if !component.content.is_empty() {
                         <figcaption style="margin-top: 8px; font-style: italic; color: #666;">

@@ -94,6 +94,8 @@ fn default_properties() -> ComponentProperties {
         animation_type: "none".to_string(),
         animation_duration: "0.3s".to_string(),
         animation_delay: "0s".to_string(),
+                        effects: "none".to_string(),
+                effects_intensity: "50".to_string(),
         seo_title: "".to_string(),
         seo_description: "".to_string(),
         seo_keywords: vec![],

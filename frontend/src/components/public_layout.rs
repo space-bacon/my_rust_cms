@@ -5,8 +5,11 @@ use std::collections::HashMap;
 use crate::pages::public::PublicPage;
 use crate::pages::admin::design_system::{PublicColorScheme, apply_public_css_variables};
 use wasm_bindgen::JsCast;
+use wasm_bindgen::closure::Closure;
 use crate::services::auth_context::use_auth;
 use crate::components::EnhancedLiveEditSystem;
+use crate::services::page_service::{get_page_by_slug, Page};
+use crate::components::page_builder::PageComponent;
 
 #[derive(Properties, PartialEq)]
 pub struct PublicLayoutProps {
@@ -37,12 +40,23 @@ fn render_site_logo(component_templates: &[ComponentTemplate], site_title: &str)
                         .and_then(|v| v.as_str())
                         .unwrap_or("40px");
                     
+                    // Check if this is an SVG file for optimized rendering
+                    let is_svg = logo_url.to_lowercase().ends_with(".svg") || 
+                                logo_url.to_lowercase().contains("image/svg+xml");
+                    
                     html! {
                         <div class="site-logo">
                             <img 
                                 src={logo_url.to_string()} 
                                 alt={site_title.to_string()} 
-                                style={format!("height: {}; max-width: 200px; object-fit: contain;", logo_height)}
+                                style={format!(
+                                    "height: {}; max-width: 200px; object-fit: contain;{}",
+                                    logo_height,
+                                    if is_svg { " vector-effect: non-scaling-stroke;" } else { "" }
+                                )}
+                                // Add loading and decoding attributes for better performance
+                                loading="eager"  // Logo should load immediately
+                                decoding={if is_svg { "sync" } else { "async" }}
                             />
                         </div>
                     }
@@ -74,7 +88,59 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let acid_mode = use_state(|| false);
     let site_style = use_state(|| String::new());
     let inner_container_style = use_state(|| String::new());
+    let container_animation = use_state(|| "none".to_string());
     let live_edit_enabled = use_state(|| false);
+    let current_page_data = use_state(|| None::<Page>);
+    let current_page_components = use_state(Vec::new);
+
+    // Load current page data for live editing
+    {
+        let current_page_data = current_page_data.clone();
+        let current_page_components = current_page_components.clone();
+        let current_page = props.current_page.clone();
+        
+        use_effect_with_deps(move |page_name| {
+            let current_page_data = current_page_data.clone();
+            let current_page_components = current_page_components.clone();
+            let page_name = page_name.clone();
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                web_sys::console::log_1(&format!("PublicLayout: Loading page data for: {}", page_name).into());
+                
+                match get_page_by_slug(&page_name).await {
+                    Ok(page) => {
+                        web_sys::console::log_1(&format!("PublicLayout: Page loaded: {}", page.title).into());
+                        
+                        // Parse page components from content
+                        let components = if !page.content.is_empty() {
+                            match serde_json::from_str::<Vec<PageComponent>>(&page.content) {
+                                Ok(comps) => {
+                                    web_sys::console::log_1(&format!("PublicLayout: Parsed {} page components", comps.len()).into());
+                                    comps
+                                }
+                                Err(e) => {
+                                    web_sys::console::log_1(&format!("PublicLayout: Failed to parse page components: {:?}", e).into());
+                                    vec![]
+                                }
+                            }
+                        } else {
+                            web_sys::console::log_1(&"PublicLayout: Page has no content".into());
+                            vec![]
+                        };
+                        
+                        current_page_data.set(Some(page));
+                        current_page_components.set(components);
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&format!("PublicLayout: Failed to load page: {:?}", e).into());
+                        current_page_data.set(None);
+                        current_page_components.set(vec![]);
+                    }
+                }
+            });
+            || ()
+        }, current_page);
+    }
 
     // Load navigation items, component templates, and admin button setting
     {
@@ -87,6 +153,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         let acid_mode = acid_mode.clone();
         let site_style = site_style.clone();
         let inner_container_style = inner_container_style.clone();
+        let container_animation = container_animation.clone();
 
         use_effect_with_deps(move |_| {
             web_sys::console::log_1(&"PublicLayout: Starting to fetch navigation items, templates, and settings".into());
@@ -180,6 +247,14 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                 let enabled = value.trim().eq_ignore_ascii_case("true");
                                 acid_mode.set(enabled);
                                 web_sys::console::log_1(&format!("Acid mode set to: {}", enabled).into());
+                            }
+                        }
+
+                        if let Some(setting) = settings.iter().find(|s| s.setting_key == "container_animation") {
+                            if let Some(ref value) = setting.setting_value {
+                                let animation_type = value.trim().to_string();
+                                container_animation.set(animation_type.clone());
+                                web_sys::console::log_1(&format!("Container animation set to: {}", animation_type).into());
                             }
                         }
 
@@ -298,6 +373,39 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     }
                                     let _ = body.set_attribute("data-overlay-color", &overlay_color_raw);
                                     let _ = body.set_attribute("data-overlay-opacity", &overlay_opacity_raw);
+                                    
+                                    // Also set CSS variables on the site-container element for overlay
+                                    if let Some(container) = document.get_element_by_id("site-container") {
+                                        let mut container_styles = Vec::new();
+                                        
+                                        // Only show overlay if we have a background image or video AND overlay settings
+                                        let has_background_media = matches!(background_type, "image" | "video");
+                                        let has_overlay_settings = !overlay_color_raw.is_empty() && overlay_alpha > 0.0;
+                                        
+                                        if has_overlay_settings {
+                                            container_styles.push(format!("--container-overlay-color: {}", overlay_color_raw));
+                                            container_styles.push(format!("--container-overlay-opacity: {}", overlay_alpha));
+                                            
+                                            // Only display overlay if we have background media
+                                            if has_background_media {
+                                                container_styles.push("--container-overlay-display: block".to_string());
+                                            } else {
+                                                container_styles.push("--container-overlay-display: none".to_string());
+                                            }
+                                        } else {
+                                            container_styles.push("--container-overlay-display: none".to_string());
+                                        }
+                                        
+                                        if !container_styles.is_empty() {
+                                            let existing_style = container.get_attribute("style").unwrap_or_default();
+                                            let new_style = if existing_style.is_empty() {
+                                                container_styles.join("; ")
+                                            } else {
+                                                format!("{}; {}", existing_style, container_styles.join("; "))
+                                            };
+                                            let _ = container.set_attribute("style", &new_style);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -319,7 +427,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                             let container = document.get_element_by_id("bg-video-layer").unwrap_or_else(|| {
                                                 let div = document.create_element("div").unwrap();
                                                 div.set_attribute("id", "bg-video-layer").ok();
-                                                div.set_attribute("style", "position: fixed; inset: 0; width: 100%; height: 100%; z-index: -2; pointer-events: none; overflow: hidden;").ok();
+                                                div.set_attribute("style", "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -9999; pointer-events: none; overflow: hidden;").ok();
                                                 document.body().unwrap().append_child(&div).ok();
                                                 div
                                             });
@@ -345,13 +453,13 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         id
                                                     );
                                                     container.set_inner_html(&format!(
-                                                        "<iframe src=\"{}\" style=\"position:absolute; inset:0; width:100%; height:100%; border:0; pointer-events:none;\" allow=\"autoplay; encrypted-media; picture-in-picture\"></iframe>",
+                                                        "<iframe src=\"{}\" style=\"position:absolute; top:0; left:0; width:100%; height:100%; border:0; pointer-events:none; z-index:-9999 !important;\" allow=\"autoplay; encrypted-media; picture-in-picture\"></iframe>",
                                                         embed_src
                                                     ));
                                                 }
                                             } else {
                                                 container.set_inner_html(&format!(
-                                                    "<video src=\"{}\" {} {} {} playsinline style=\"position:absolute; inset:0; width:100%; height:100%; object-fit:cover;\"></video>",
+                                                    "<video src=\"{}\" {} {} {} playsinline style=\"position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:-9999 !important;\"></video>",
                                                     url,
                                                     if autoplay == "true" { "autoplay" } else { "" },
                                                     if looping == "true" { "loop" } else { "" },
@@ -501,10 +609,81 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                     styles.push("height: 110px".to_string());
                 }
                 
-                // Only allow position overrides for non-header components to avoid layout breaks
-                if component_type != "header" {
-                    if let Some(position) = template.template_data.get("position").and_then(|v| v.as_str()) {
-                        styles.push(format!("position: {}", position));
+                // Handle position property for all components
+                if let Some(position) = template.template_data.get("position").and_then(|v| v.as_str()) {
+                    styles.push(format!("position: {} !important", position));
+                    
+                    // For header, ensure proper positioning with enhanced properties
+                    if component_type == "header" {
+                        match position {
+                            "fixed" | "sticky" => {
+                                styles.push("top: 0 !important".to_string());
+                            }
+                            "static" => {
+                                styles.push("top: auto !important".to_string());
+                                styles.push("position: static !important".to_string()); // Ensure static overrides
+                            }
+                            _ => {}
+                        }
+                        
+                        // Add additional properties to ensure position works correctly
+                        match position {
+                            "static" => {
+                                // For static positioning, remove any transforms or z-index that might interfere
+                                styles.push("transform: none !important".to_string());
+                                styles.push("z-index: auto !important".to_string());
+                                // Remove any margin that might create gaps
+                                styles.push("margin-bottom: 0 !important".to_string());
+                            }
+                            "sticky" => {
+                                // Ensure sticky has proper z-index and no conflicting transforms
+                                styles.push("z-index: 100 !important".to_string());
+                                styles.push("transform: none !important".to_string());
+                            }
+                            "fixed" => {
+                                // Fixed positioning needs proper z-index and full width
+                                styles.push("z-index: 1000 !important".to_string());
+                                styles.push("left: 0 !important".to_string());
+                                styles.push("right: 0 !important".to_string());
+                                styles.push("width: 100% !important".to_string());
+                            }
+                            _ => {}
+                        }
+                        
+                        // Also adjust the main content area based on header position
+                        if component_type == "header" {
+                            if let Some(window) = web_sys::window() {
+                                if let Some(document) = window.document() {
+                                    if let Some(main_element) = document.get_element_by_id("site-main") {
+                                let main_styles = match position {
+                                    "static" => {
+                                        // For static header, reduce top padding to avoid gap
+                                        vec!["padding-top: 1rem !important".to_string()]
+                                    }
+                                    "sticky" | "fixed" => {
+                                        // For sticky/fixed header, restore normal padding
+                                        vec!["padding-top: 2rem !important".to_string()]
+                                    }
+                                    _ => vec![]
+                                };
+                                
+                                if !main_styles.is_empty() {
+                                    let current_main_style = main_element.get_attribute("style").unwrap_or_default();
+                                    let mut existing_main_styles: Vec<String> = current_main_style
+                                        .split(';')
+                                        .filter(|s| !s.trim().is_empty())
+                                        .filter(|s| !s.trim().starts_with("padding-top:"))
+                                        .map(|s| s.trim().to_string())
+                                        .collect();
+                                    
+                                    existing_main_styles.extend(main_styles);
+                                    let new_main_style = existing_main_styles.join("; ");
+                                    let _ = main_element.set_attribute("style", &new_main_style);
+                                }
+                            }
+                                }
+                            }
+                        }
                     }
                 }
                 
@@ -826,15 +1005,429 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         })
     };
 
+    // Add class to body if header has effects
+    let header_effects_class = get_effects_class("header", &component_templates);
+    let has_header_effects = !header_effects_class.is_empty();
+    
+    // Use effect to add/remove body class for header spacing
+    {
+        let has_effects = has_header_effects;
+        use_effect_with_deps(move |_| {
+            if let Some(window) = web_sys::window() {
+                if let Some(document) = window.document() {
+                    if let Some(body) = document.body() {
+                        if has_effects {
+                            let current_class = body.class_name();
+                            if !current_class.contains("header-has-effects") {
+                                body.set_class_name(&format!("{} header-has-effects", current_class));
+                            }
+                            
+                            // Set dynamic header height with a delay to ensure header is rendered
+                            let window_clone = window.clone();
+                            let timeout_closure = Closure::wrap(Box::new(move || {
+                                if let Some(document) = window_clone.document() {
+                                    if let Some(header) = document.get_element_by_id("site-header") {
+                                        if let Some(body) = document.body() {
+                                            let height = header.client_height();
+                                            let body_element: &web_sys::Element = body.as_ref();
+                                            let current_style = body_element.get_attribute("style").unwrap_or_default();
+                                            let new_style = if current_style.is_empty() {
+                                                format!("--header-height: {}px", height)
+                                            } else {
+                                                format!("{}; --header-height: {}px", current_style, height)
+                                            };
+                                            let _ = body_element.set_attribute("style", &new_style);
+                                        }
+                                    }
+                                }
+                            }) as Box<dyn FnMut()>);
+                            
+                            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                timeout_closure.as_ref().unchecked_ref(),
+                                100
+                            );
+                            timeout_closure.forget();
+                        } else {
+                            let current_class = body.class_name();
+                            let new_class = current_class.replace("header-has-effects", "").trim().to_string();
+                            body.set_class_name(&new_class);
+                            let body_element: &web_sys::Element = body.as_ref();
+                            let _ = body_element.remove_attribute("style");
+                        }
+                    }
+                }
+            }
+            || {
+                // Cleanup: remove class and CSS property when component unmounts
+                if let Some(window) = web_sys::window() {
+                    if let Some(document) = window.document() {
+                        if let Some(body) = document.body() {
+                            let current_class = body.class_name();
+                            let new_class = current_class.replace("header-has-effects", "").trim().to_string();
+                            body.set_class_name(&new_class);
+                            let body_element: &web_sys::Element = body.as_ref();
+                            let _ = body_element.remove_attribute("style");
+                        }
+                    }
+                }
+            }
+        }, has_header_effects);
+    }
+
+            // Add debug function to window for testing and immediate diagnostics
+        {
+            use_effect_with_deps(move |_| {
+                if let Some(window) = web_sys::window() {
+                    // Immediate diagnostic - check if header exists
+                    web_sys::console::log_1(&"🔍 IMMEDIATE DIAGNOSTIC: Checking header element...".into());
+                    if let Some(document) = window.document() {
+                        if let Some(header) = document.get_element_by_id("site-header") {
+                            web_sys::console::log_1(&format!("✅ Header found: ID={}, tagName={}", 
+                                header.id(), header.tag_name()).into());
+                            
+                            // Test if we can add a scroll listener immediately
+                            let test_closure = wasm_bindgen::closure::Closure::wrap(Box::new(|| {
+                                web_sys::console::log_1(&format!("🎯 TEST SCROLL EVENT: Y={}", 
+                                    web_sys::window().unwrap().scroll_y().unwrap_or(0.0)).into());
+                            }) as Box<dyn Fn()>);
+                            
+                            if let Err(e) = window.add_event_listener_with_callback("scroll", test_closure.as_ref().unchecked_ref()) {
+                                web_sys::console::log_1(&format!("❌ Failed to add test scroll listener: {:?}", e).into());
+                            } else {
+                                web_sys::console::log_1(&"✅ Test scroll listener added - scroll to see events".into());
+                            }
+                            
+                            test_closure.forget();
+                        } else {
+                            web_sys::console::log_1(&"❌ Header element NOT FOUND!".into());
+                        }
+                    }
+                    
+                    // Create a debug function that can be called from browser console
+                    let debug_closure = wasm_bindgen::closure::Closure::wrap(Box::new(|| {
+                        web_sys::console::log_1(&"🔍 DEBUG: Scroll effects debug function called".into());
+                        
+                        if let Some(window) = web_sys::window() {
+                            if let Some(document) = window.document() {
+                                if let Some(header) = document.get_element_by_id("site-header") {
+                                    let has_scroll_attr = header.has_attribute("data-scroll-effect-active");
+                                    let current_style = header.get_attribute("style").unwrap_or_default();
+                                    
+                                    web_sys::console::log_1(&format!("🔍 Header found: ID={}, scroll-active={}, style={}", 
+                                        header.id(), has_scroll_attr, current_style).into());
+                                } else {
+                                    web_sys::console::log_1(&"🔍 Header element not found!".into());
+                                }
+                            }
+                        }
+                    }) as Box<dyn Fn()>);
+                    
+                    let _ = js_sys::Reflect::set(
+                        &window,
+                        &wasm_bindgen::JsValue::from_str("debugScrollEffects"),
+                        debug_closure.as_ref().unchecked_ref()
+                    );
+                    
+                    debug_closure.forget();
+                }
+                || ()
+            }, ());
+        }
+
+        // Scroll Effects Handler - Add scroll effects when header template changes
+        // Create a dependency that changes when template data changes
+        let header_template_data = {
+            let templates = (*component_templates).clone();
+            if let Some(header_template) = templates.iter().find(|t| t.component_type == "header" && t.is_active) {
+                // Create a string representation of the scroll-related template data
+                let scroll_data = format!("{:?}-{:?}-{:?}-{:?}-{:?}-{:?}", 
+                    header_template.template_data.get("scroll_effect"),
+                    header_template.template_data.get("scroll_trigger"),
+                    header_template.template_data.get("scroll_duration"),
+                    header_template.template_data.get("scroll_easing"),
+                    header_template.template_data.get("shrink_height"),
+                    header_template.template_data.get("shrink_logo_scale")
+                );
+                Some(scroll_data)
+            } else {
+                None
+            }
+        };
+        
+        {
+            let component_templates = component_templates.clone();
+            let template_data_for_log = header_template_data.clone();
+            use_effect_with_deps(move |_| {
+                web_sys::console::log_1(&"🔄 Scroll effects handler triggered - checking for updates".into());
+                web_sys::console::log_1(&format!("📊 Template dependency data: {:?}", template_data_for_log).into());
+            // Cleanup function to remove old scroll listeners
+            let cleanup = || {
+                if let Some(window) = web_sys::window() {
+                    web_sys::console::log_1(&"🧹 Cleaning up old scroll listeners".into());
+                    
+                    // Remove any existing scroll listeners by removing the scroll-effect attribute
+                    if let Some(document) = window.document() {
+                        if let Some(header) = document.get_element_by_id("site-header") {
+                            let _ = header.remove_attribute("data-scroll-effect-active");
+                            // Also clear any scroll-related styles to reset state
+                            let current_style = header.get_attribute("style").unwrap_or_default();
+                            let mut style_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                            
+                            // Parse existing styles but remove scroll-related ones
+                            for style_pair in current_style.split(';') {
+                                if let Some((key, value)) = style_pair.split_once(':') {
+                                    let key = key.trim().to_lowercase();
+                                    let value = value.trim();
+                                    if !key.is_empty() && !value.is_empty() {
+                                        // Keep non-scroll related styles
+                                        if !matches!(key.as_str(), "transition" | "--logo-scale" | "height" | "overflow" | "--scroll-duration") {
+                                            style_map.insert(key, value.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Rebuild style without scroll properties
+                            let clean_style: Vec<String> = style_map.iter()
+                                .map(|(key, value)| format!("{}: {}", key, value))
+                                .collect();
+                            let final_style = clean_style.join("; ");
+                            
+                            let _ = header.set_attribute("style", &final_style);
+                            web_sys::console::log_1(&"🧹 Cleaned header styles and attributes".into());
+                        }
+                    }
+                }
+            };
+            
+            // Check if header has scroll effects enabled
+            let templates = (*component_templates).clone();
+            if let Some(header_template) = templates.iter().find(|t| t.component_type == "header" && t.is_active) {
+                // Debug: Log all template data to see what's available
+                web_sys::console::log_1(&format!("🔍 Header template data: {:?}", header_template.template_data).into());
+                
+                if let Some(scroll_effect) = header_template.template_data.get("scroll_effect").and_then(|v| v.as_str()) {
+                    web_sys::console::log_1(&format!("🎯 Found scroll_effect: {}", scroll_effect).into());
+                    if scroll_effect != "none" {
+                        // Clean up any existing listeners first
+                        cleanup();
+                        
+                        web_sys::console::log_1(&format!("🎯 Setting up scroll effect: {}", scroll_effect).into());
+                        
+                        // Extract scroll effect properties
+                        let scroll_trigger = header_template.template_data.get("scroll_trigger")
+                            .and_then(|v| v.as_str()).unwrap_or("100").parse::<f64>().unwrap_or(100.0);
+                        let scroll_duration = header_template.template_data.get("scroll_duration")
+                            .and_then(|v| v.as_str()).unwrap_or("300").parse::<f64>().unwrap_or(300.0);
+                        let scroll_easing = header_template.template_data.get("scroll_easing")
+                            .and_then(|v| v.as_str()).unwrap_or("elastic");
+                        
+                        // Shrink effect specific properties
+                        let shrink_height = if scroll_effect == "shrink" {
+                            header_template.template_data.get("shrink_height")
+                                .and_then(|v| v.as_str()).unwrap_or("60").parse::<f64>().unwrap_or(60.0)
+                        } else { 60.0 };
+                        let shrink_logo_scale = if scroll_effect == "shrink" {
+                            header_template.template_data.get("shrink_logo_scale")
+                                .and_then(|v| v.as_str()).unwrap_or("80").parse::<f64>().unwrap_or(80.0) / 100.0
+                        } else { 0.8 };
+                        
+                        // Get original height for transitions
+                        let original_height = header_template.template_data.get("height")
+                            .and_then(|v| v.as_str()).unwrap_or("80").parse::<f64>().unwrap_or(80.0);
+                        
+                        // Convert easing to CSS easing function
+                        let css_easing = match scroll_easing {
+                            "linear" => "linear",
+                            "ease" => "ease",
+                            "ease-in" => "ease-in", 
+                            "ease-out" => "ease-out",
+                            "ease-in-out" => "ease-in-out",
+                            "elastic" => "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                            "bounce" => "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                            "smooth" => "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                            _ => "cubic-bezier(0.68, -0.55, 0.265, 1.55)" // default to elastic
+                        };
+                        
+                        let effect_type = scroll_effect.to_string();
+                        let scroll_easing_clone = scroll_easing.to_string();
+                        
+                        // Set up scroll listener with proper cleanup and persistence
+                        if let Some(window) = web_sys::window() {
+                            // Create a persistent scroll handler that works on every scroll
+                            let scroll_handler = {
+                                use std::rc::Rc;
+                                use std::cell::RefCell;
+                                
+                                // Use Rc<RefCell<>> for shared mutable state
+                                let last_scroll_time = Rc::new(RefCell::new(0.0));
+                                let throttle_delay = 16.0; // ~60fps
+                                
+                                let last_scroll_time_clone = last_scroll_time.clone();
+                                
+                                wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                                    if let Some(window) = web_sys::window() {
+                                        // Throttle scroll events to prevent excessive calls
+                                        let current_time = js_sys::Date::now();
+                                        {
+                                            let mut last_time = last_scroll_time_clone.borrow_mut();
+                                            if current_time - *last_time < throttle_delay {
+                                                return;
+                                            }
+                                            *last_time = current_time;
+                                        }
+                                        
+                                        let scroll_y = window.scroll_y().unwrap_or(0.0);
+                                        
+                                        if let Some(document) = window.document() {
+                                            if let Some(header) = document.get_element_by_id("site-header") {
+                                                // Get existing style attribute to preserve all existing styles
+                                                let existing_style = header.get_attribute("style").unwrap_or_default();
+                                                
+                                                match effect_type.as_str() {
+                                                    "shrink" => {
+                                                        // Parse existing styles and update only scroll-related properties
+                                                        let mut style_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                                                        
+                                                        // Convert easing to CSS easing function first
+                                                        let css_easing = match scroll_easing_clone.as_str() {
+                                                            "linear" => "linear",
+                                                            "ease" => "ease",
+                                                            "ease-in" => "ease-in", 
+                                                            "ease-out" => "ease-out",
+                                                            "ease-in-out" => "ease-in-out",
+                                                            "elastic" => "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                                                            "bounce" => "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                                                            "smooth" => "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                                                            _ => "cubic-bezier(0.68, -0.55, 0.265, 1.55)" // default to elastic
+                                                        };
+                                                        
+                                                        // Parse existing styles, but filter out scroll-related properties to avoid conflicts
+                                                        for style_pair in existing_style.split(';') {
+                                                            if let Some((key, value)) = style_pair.split_once(':') {
+                                                                let key = key.trim().to_lowercase();
+                                                                let value = value.trim();
+                                                                if !key.is_empty() && !value.is_empty() {
+                                                                    // Skip scroll-related properties to avoid conflicts
+                                                                    if !matches!(key.as_str(), "transition" | "--logo-scale" | "height" | "overflow") {
+                                                                        style_map.insert(key, value.to_string());
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                        
+                                                        // Set CSS variables for transitions (but not inline transition property)
+                                                        style_map.insert("--scroll-duration".to_string(), format!("{}ms", scroll_duration));
+                                                        style_map.insert("--scroll-easing".to_string(), css_easing.to_string());
+                                                        
+                                                        web_sys::console::log_1(&format!("🎭 Scroll handler: duration={}ms, easing={}", scroll_duration, css_easing).into());
+                                                        
+                                                        // Handle logo scaling
+                                                        let logo_scale = if scroll_y > scroll_trigger { 
+                                                            format!("{}", shrink_logo_scale) 
+                                                        } else { 
+                                                            "1".to_string() 
+                                                        };
+                                                        style_map.insert("--logo-scale".to_string(), logo_scale);
+                                                        
+                                                        // Handle height changes with smooth interpolation
+                                                        // Use the original height extracted before the closure
+                                                        
+                                                        if scroll_y > scroll_trigger {
+                                                            // Shrink state
+                                                            style_map.insert("height".to_string(), format!("{}px", shrink_height));
+                                                            style_map.insert("overflow".to_string(), "hidden".to_string());
+                                                            
+                                                            web_sys::console::log_1(&format!("🔽 Shrinking header from {}px to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, shrink_height, scroll_y, scroll_duration, css_easing).into());
+                                                        } else {
+                                                            // Expanded state - set explicit original height for smooth transition
+                                                            style_map.insert("height".to_string(), format!("{}px", original_height));
+                                                            style_map.remove("overflow"); // Remove overflow hidden in expanded state
+                                                            
+                                                            web_sys::console::log_1(&format!("🔼 Expanding header to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, scroll_y, scroll_duration, css_easing).into());
+                                                        }
+                                                        
+                                                        // Rebuild style string
+                                                        let new_style: Vec<String> = style_map.iter()
+                                                            .map(|(key, value)| format!("{}: {}", key, value))
+                                                            .collect();
+                                                        let final_style = new_style.join("; ");
+                                                        
+                                                        web_sys::console::log_1(&format!("🎨 Final style: {}", final_style).into());
+                                                        
+                                                        let _ = header.set_attribute("style", &final_style);
+                                                    }
+                                                    _ => {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }) as Box<dyn FnMut()>)
+                            };
+
+                            // Add the scroll listener
+                            if let Err(e) = window.add_event_listener_with_callback("scroll", scroll_handler.as_ref().unchecked_ref()) {
+                                web_sys::console::log_1(&format!("❌ Failed to add scroll listener: {:?}", e).into());
+                            } else {
+                                web_sys::console::log_1(&"✅ Scroll effect listener added successfully".into());
+                                
+                                                                        // Mark header as having active scroll effect and set CSS variables
+                                        if let Some(document) = window.document() {
+                                            if let Some(header) = document.get_element_by_id("site-header") {
+                                                let _ = header.set_attribute("data-scroll-effect-active", "true");
+                                                
+                                                // Set CSS variables directly on the header element for transitions
+                                                let current_style = header.get_attribute("style").unwrap_or_default();
+                                                let scroll_vars = format!("--scroll-duration: {}ms; --scroll-easing: {}", 
+                                                    scroll_duration, css_easing);
+                                                let new_style = if current_style.is_empty() {
+                                                    scroll_vars
+                                                } else {
+                                                    format!("{}; {}", current_style, scroll_vars)
+                                                };
+                                                let _ = header.set_attribute("style", &new_style);
+                                                
+                                                web_sys::console::log_1(&format!("✅ Set data-scroll-effect-active=true and CSS variables (duration={}ms, easing={}) on header", scroll_duration, css_easing).into());
+                                    }
+                                }
+                            }
+                            
+                            // Store the closure to prevent it from being dropped
+                            // We use forget here because we want the event listener to persist
+                            // The cleanup function will handle removing the listener by clearing the attribute
+                            std::mem::forget(scroll_handler);
+                        }
+                    } else {
+                        // No scroll effect - clean up any existing effects
+                        cleanup();
+                    }
+                } else {
+                    web_sys::console::log_1(&"❌ No scroll_effect found in header template".into());
+                    // No scroll effect - clean up any existing effects
+                    cleanup();
+                }
+            } else {
+                web_sys::console::log_1(&"❌ No active header template found".into());
+                // No header template - clean up any existing effects
+                cleanup();
+            }
+            
+                            // Return cleanup function for use_effect
+                move || {
+                    cleanup();
+                }
+            }, header_template_data);
+    }
+
     html! {
-        <div class={if *acid_mode { "public-site acid-mode" } else { "public-site" }} style={format!("{}{}{}; position: relative; z-index: 1",
+        <div class={if *acid_mode { "public-site acid-mode" } else { "public-site" }} style={format!("{}{}{}; position: relative",
             global_style_vars(),
             if !(*site_style).is_empty() { "; " } else { "" },
             (*site_style).clone()
         )}>
             {if is_component_active("header") {
                 html! {
-                    <header id="site-header" class="site-header" style={get_component_style("header")}>
+                    <header id="site-header" class={format!("site-header header-section {}", get_effects_class("header", &component_templates))} style={format!("{}; {}", get_component_style("header"), get_effects_style("header", &component_templates))}>
                         <div class="container">
                             {render_site_logo(&component_templates, &site_title)}
                             <nav class="site-nav">
@@ -877,74 +1470,10 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
             }}
 
             <main id="site-container" class="site-main">
-                // Background video layer
-                { {
-                    let attrs = || {
-                        if let Some(window) = web_sys::window() {
-                            if let Some(document) = window.document() {
-                                if let Some(body) = document.body() {
-                                    let url = body.get_attribute("data-bg-video-url");
-                                    if let Some(url) = url {
-                                        let looping = body.get_attribute("data-bg-video-loop").unwrap_or_else(|| "true".to_string());
-                                        let autoplay = body.get_attribute("data-bg-video-autoplay").unwrap_or_else(|| "true".to_string());
-                                        let muted = body.get_attribute("data-bg-video-muted").unwrap_or_else(|| "true".to_string());
-                                        return Some((url, looping, autoplay, muted));
-                                    }
-                                }
-                            }
-                        }
-                        None
-                    };
-                    if let Some((url, looping, autoplay, muted)) = attrs() {
-                        // Detect YouTube and render an iframe background if so; otherwise use <video>
-                        let is_youtube = url.contains("youtube.com") || url.contains("youtu.be");
-                        if is_youtube {
-                            let video_id = (|| {
-                                // youtu.be/<id>
-                                if let Some(idx) = url.find("youtu.be/") { return url[idx+9..].split(['?', '&', '#']).next().map(|s| s.to_string()); }
-                                // youtube.com/watch?v=<id>
-                                if let Some(idx) = url.find("watch?v=") { return url[idx+8..].split(['&', '#']).next().map(|s| s.to_string()); }
-                                // youtube.com/shorts/<id>
-                                if let Some(idx) = url.find("/shorts/") { return url[idx+8..].split(['?', '&', '#']).next().map(|s| s.to_string()); }
-                                // youtube.com/embed/<id>
-                                if let Some(idx) = url.find("/embed/") { return url[idx+7..].split(['?', '&', '#']).next().map(|s| s.to_string()); }
-                                None
-                            })();
-                            if let Some(id) = video_id {
-                                let embed_src = format!(
-                                    "https://www.youtube.com/embed/{}?autoplay={}&mute={}&loop={}&playlist={}&controls=0&showinfo=0&modestbranding=1&iv_load_policy=3&rel=0&playsinline=1",
-                                    id,
-                                    if autoplay == "true" { 1 } else { 0 },
-                                    if muted == "true" { 1 } else { 0 },
-                                    if looping == "true" { 1 } else { 0 },
-                                    id
-                                );
-                                return html! {
-                                    <iframe
-                                        class="bg-video-layer"
-                                        src={embed_src}
-                                        style="position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; pointer-events: none; border: 0;"
-                                        allow="autoplay; encrypted-media; picture-in-picture"
-                                        loading="eager"
-                                    />
-                                };
-                            }
-                        }
-                        html!{
-                            <video
-                                class="bg-video-layer"
-                                src={url}
-                                autoplay={autoplay == "true"}
-                                loop={looping == "true"}
-                                muted={muted == "true"}
-                                playsinline=true
-                                style="position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; pointer-events: none;"
-                            />
-                        }
-                    } else { html!{} }
-                } }
-                <div class="site-content" style="position: relative; z-index: 1;">
-                    <div class="container" style={(*inner_container_style).clone()}>
+                // Background video is now handled exclusively by JavaScript implementation
+                // to avoid conflicts between multiple video implementations
+                <div class="site-content" style="position: relative;">
+                    <div class={format!("container {}", if &**container_animation != "none" { &**container_animation } else { "" })} style={(*inner_container_style).clone()}>
                         {props.children.clone()}
                     </div>
                 </div>
@@ -952,7 +1481,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
 
             {if is_component_active("footer") {
                 html! {
-                    <footer id="site-footer" class="site-footer" style={get_component_style("footer")}>
+                    <footer id="site-footer" class={format!("site-footer footer-section {}", get_effects_class("footer", &component_templates))} style={format!("{}; {}", get_component_style("footer"), get_effects_style("footer", &component_templates))} data-opacity="true">
                         <div class="container">
                             {if !footer_navigation_items.is_empty() {
                                 html! {
@@ -1023,9 +1552,33 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     }
                                 })
                             }
-                            page_components={vec![]} // TODO: Get actual page components
-                            on_page_components_updated={Callback::from(|_| {})} // TODO: Handle page component updates
-                            current_page={None} // TODO: Get current page
+                            page_components={(*current_page_components).clone()}
+                            on_page_components_updated={
+                                let current_page_components = current_page_components.clone();
+                                let current_page_data = current_page_data.clone();
+                                Callback::from(move |updated_components: Vec<PageComponent>| {
+                                    web_sys::console::log_1(&format!("PublicLayout: Updating {} page components", updated_components.len()).into());
+                                    current_page_components.set(updated_components.clone());
+                                    
+                                    // TODO: Save updated components to backend
+                                    if let Some(page) = &*current_page_data {
+                                        let page_id = page.id.unwrap_or(0);
+                                        let content = serde_json::to_string(&updated_components).unwrap_or_default();
+                                        web_sys::console::log_1(&format!("PublicLayout: Would save page {} with content length {}", page_id, content.len()).into());
+                                    }
+                                })
+                            }
+                            current_page={
+                                current_page_data.as_ref().map(|page| crate::services::api_service::PageItem {
+                                    id: page.id,
+                                    title: page.title.clone(),
+                                    slug: page.slug.clone(),
+                                    content: page.content.clone(),
+                                    status: page.status.clone(),
+                                    created_at: page.created_at.clone(),
+                                    updated_at: page.updated_at.clone(),
+                                })
+                            }
                         />
                     </>
                 }
@@ -1429,4 +1982,45 @@ fn generate_shape_points_for_template_new(
         },
         _ => Vec::new(),
     }
+}
+
+// Helper function to get effects class for components
+fn get_effects_class(component_type: &str, component_templates: &UseStateHandle<Vec<ComponentTemplate>>) -> String {
+    if let Some(template) = component_templates.iter().find(|t| t.component_type == component_type && t.is_active) {
+        if let Some(effects) = template.template_data.get("effects").and_then(|v| v.as_str()) {
+            if effects != "none" {
+                return format!("effect-{}", effects);
+            }
+        }
+    }
+    String::new()
+}
+
+// Helper function to get effects style with opacity
+fn get_effects_style(component_type: &str, component_templates: &UseStateHandle<Vec<ComponentTemplate>>) -> String {
+    if let Some(template) = component_templates.iter().find(|t| t.component_type == component_type && t.is_active) {
+        if let Some(effects) = template.template_data.get("effects").and_then(|v| v.as_str()) {
+            if effects != "none" {
+                let intensity = template.template_data.get("effects_intensity").and_then(|v| v.as_str()).unwrap_or("50");
+                
+                // Get the original gradient background
+                let bg_type = template.template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("solid");
+                let original_background = if bg_type == "gradient" {
+                    let direction = template.template_data.get("bg_gradient_direction").and_then(|v| v.as_str()).unwrap_or("to-bottom");
+                    let start = template.template_data.get("bg_gradient_start").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+                    let end = template.template_data.get("bg_gradient_end").and_then(|v| v.as_str()).unwrap_or("#000000");
+                    format!("linear-gradient({}, {}, {})", direction, start, end)
+                } else {
+                    let bg_color = template.template_data.get("bg_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+                    bg_color.to_string()
+                };
+                
+                return format!(
+                    "--multiply-intensity: {}; --original-background: {}; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; width: 100%;", 
+                    intensity, original_background
+                );
+            }
+        }
+    }
+    String::new()
 } 

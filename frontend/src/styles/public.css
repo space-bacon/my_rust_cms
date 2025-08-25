@@ -93,6 +93,10 @@
     /* Background animation */
     --bg-animation: none;
 
+    /* Container overlay variables */
+    --container-overlay-color: var(--container-overlay-color, #000000);
+    --container-overlay-opacity: var(--container-overlay-opacity, 0.3);
+
     /* Acid Mode variables */
     --acid-border-width: 2px;
     --acid-border-radius: 10px;
@@ -125,7 +129,6 @@
     color: var(--primary-color);
     line-height: 1.7;
     position: relative;
-    z-index: 1;
     background: transparent !important;
 }
 
@@ -138,7 +141,7 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    transition: var(--transition);
+    /* Transition will be set by scroll effect rules below */
 }
 
 .site-header .container {
@@ -156,18 +159,96 @@
     color: var(--header-text);
     text-decoration: none;
     letter-spacing: -0.02em;
-    transition: var(--transition);
     text-align: left;
+    transform: scale(var(--logo-scale, 1));
+    transform-origin: left center;
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)), color var(--transition);
 }
 
 .site-title:hover {
     color: var(--header-text-hover);
 }
 
+/* Logo image scaling support for scroll effects */
+.site-logo {
+    transform: scale(var(--logo-scale, 1));
+    transform-origin: left center;
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
+}
+
+.site-logo img {
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
+}
+
+
+
+/* Header scroll effects - ensure proper containment during shrinking */
+.site-header {
+    /* Default transition for non-scroll properties */
+    transition: background var(--transition), 
+                backdrop-filter var(--transition),
+                box-shadow var(--transition);
+}
+
+/* When scroll effects are active, add height transition - high specificity */
+.site-header[data-scroll-effect-active="true"] {
+    transition: height var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important,
+                background var(--transition) !important, 
+                backdrop-filter var(--transition) !important,
+                box-shadow var(--transition) !important;
+}
+
+/* Ultra-specific rule to ensure height transitions work */
+header.site-header[data-scroll-effect-active="true"][style*="height"] {
+    transition: height var(--scroll-duration, 814ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
+}
+
+/* Even more specific fallback */
+#site-header[data-scroll-effect-active="true"] {
+    transition: height var(--scroll-duration, 814ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
+}
+
+/* Nuclear option - force transition on any element with site-header ID */
+*[id="site-header"] {
+    transition: height 814ms cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+}
+
+.site-header .container {
+    height: 100%;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    transition: var(--transition);
+    /* Ensure consistent alignment in all states */
+    min-height: inherit;
+}
+
+/* Maintain alignment consistency during scroll effects */
+.site-header[style*="height"] .container {
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+/* Ensure navigation stays properly contained during scroll effects */
 .site-nav {
+    transition: var(--transition);
+    display: flex !important;
+    align-items: center !important;
+    height: 100%;
+    gap: var(--spacing-xl);
+    /* Prevent navigation from wrapping or breaking layout */
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Ensure logo maintains consistent alignment */
+.site-logo,
+.site-title {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xl);
+    flex-shrink: 0;
 }
 
 .site-nav a {
@@ -177,6 +258,7 @@
     font-size: 0.95rem;
     transition: var(--transition);
     position: relative;
+    white-space: nowrap;
 }
 
 .site-nav a:hover {
@@ -242,6 +324,32 @@
     margin: 0 auto;
     padding: 0 var(--spacing-lg);
     background: transparent !important;
+}
+
+/* Site container with overlay support */
+#site-container {
+    position: relative;
+}
+
+/* Container overlay effect - applied when overlay properties are set */
+#site-container::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--container-overlay-color);
+    opacity: var(--container-overlay-opacity);
+    pointer-events: none;
+    z-index: -9998;
+    display: var(--container-overlay-display, none);
+}
+
+/* Ensure content is above overlay and background video */
+#site-container > * {
+    position: relative;
+    z-index: 10;
 }
 
 /* Hero Section */

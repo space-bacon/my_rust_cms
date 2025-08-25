@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Production overrides for docker-compose.yml
 services:
   postgres:

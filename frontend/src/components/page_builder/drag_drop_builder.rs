@@ -81,6 +81,10 @@ pub struct ComponentProperties {
     pub animation_duration: String,
     pub animation_delay: String,
     
+    // Effects
+    pub effects: String,
+    pub effects_intensity: String,
+    
     // SEO
     pub seo_title: String,
     pub seo_description: String,
@@ -436,6 +440,10 @@ impl Default for ComponentProperties {
             animation_type: "none".to_string(),
             animation_duration: "0.3s".to_string(),
             animation_delay: "0s".to_string(),
+            
+            // Effects
+            effects: "none".to_string(),
+            effects_intensity: "50".to_string(),
             
             // SEO
             seo_title: "".to_string(),
@@ -1054,13 +1062,13 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                 if let Some(component) = current_components.iter_mut().find(|c| c.id == *component_id) {
                     match component.component_type {
                         ComponentType::Image => {
-                            component.properties.image_url = format!("http://127.0.0.1:8081{}", media_item.url);
+                            component.properties.image_url = format!("http://localhost:8081{}", media_item.url);
                             if component.properties.image_alt.is_empty() {
                                 component.properties.image_alt = media_item.name;
                             }
                         }
                         ComponentType::Video => {
-                            component.properties.video_url = format!("http://127.0.0.1:8081{}", media_item.url);
+                            component.properties.video_url = format!("http://localhost:8081{}", media_item.url);
                         }
                         ComponentType::Sidebar | _ => {}
                     }
@@ -3095,6 +3103,33 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                             <option value="right">{"Right"}</option>
                                                         </select>
                                                     </div>
+                                                    
+                                                    <div class="property-group">
+                                                        <label>{"Visual Effects"}</label>
+                                                        <select value={component.properties.effects.clone()}>
+                                                            <option value="none">{"None"}</option>
+                                                            <option value="glassmorphism">{"Glassmorphism"}</option>
+                                                            <option value="neumorphism">{"Neumorphism"}</option>
+                                                            <option value="claymorphism">{"Claymorphism"}</option>
+                                                            <option value="cybermorphism">{"Cybermorphism"}</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    {if component.properties.effects != "none" {
+                                                        html! {
+                                                            <div class="property-group">
+                                                                <label>{"Effect Opacity (%)"}</label>
+                                                                <input 
+                                                                    type="range" 
+                                                                    min="10" 
+                                                                    max="100" 
+                                                                    value={component.properties.effects_intensity.clone()}
+                                                                    class="range-input"
+                                                                />
+                                                                <span class="range-value">{format!("{}%", component.properties.effects_intensity)}</span>
+                                                            </div>
+                                                        }
+                                                    } else { html! {} }}
                                                     
                                                     // Nested Components Management
                                                     <div class="property-group">

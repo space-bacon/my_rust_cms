@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose file for development environment
 
 services:
   # PostgreSQL Database for Development
@@ -13,7 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql
     networks:
       - rustcms-dev-network
     restart: unless-stopped

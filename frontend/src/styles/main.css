@@ -4024,12 +4024,57 @@ tr:last-child td {
     to { transform: translateX(0); }
 }
 
+@keyframes slideUp {
+    from { 
+        opacity: 0;
+        transform: translateY(30px); 
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0); 
+    }
+}
+
+@keyframes slideDown {
+    from { 
+        opacity: 0;
+        transform: translateY(-30px); 
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0); 
+    }
+}
+
+@keyframes zoomIn {
+    from { 
+        opacity: 0;
+        transform: scale(0.9); 
+    }
+    to { 
+        opacity: 1;
+        transform: scale(1); 
+    }
+}
+
 .fade-in {
     animation: fadeIn 0.5s ease-out;
 }
 
 .slide-in {
     animation: slideIn 0.3s ease-out;
+}
+
+.slide-up {
+    animation: slideUp 0.6s ease-out;
+}
+
+.slide-down {
+    animation: slideDown 0.6s ease-out;
+}
+
+.zoom-in {
+    animation: zoomIn 0.5s ease-out;
 }
 
 /* Enhanced loading states */
@@ -7547,5 +7592,221 @@ tr:last-child td {
     .comment-textarea {
         font-size: 0.9rem;
         min-height: 80px;
+    }
+}
+
+/* ===========================
+   VISUAL EFFECTS STYLES
+   =========================== */
+
+/* Glassmorphism Effect - Layer system without redundant blur */
+.effect-glassmorphism {
+    position: relative !important;
+    /* Semi-transparent background for the blur to work through */
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Layer the original gradient on top */
+.effect-glassmorphism::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--original-background);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Apply multiply effect on top of gradient */
+.effect-glassmorphism::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Create multiply layer - white at 0% = no effect, darker colors at 100% = strong multiply */
+    background: rgb(
+        calc(255 - (255 - 200) * var(--multiply-intensity, 50) / 100),
+        calc(255 - (255 - 200) * var(--multiply-intensity, 50) / 100),
+        calc(255 - (255 - 200) * var(--multiply-intensity, 50) / 100)
+    );
+    border: 1px solid rgba(255, 255, 255, calc(var(--multiply-intensity, 50) / 100 * 0.4));
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, calc(var(--multiply-intensity, 50) / 100 * 0.3));
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Ensure content stays above all effect layers */
+.effect-glassmorphism > * {
+    position: relative;
+    z-index: 3;
+}
+
+/* Neumorphism Effect */
+.effect-neumorphism {
+    background: linear-gradient(145deg, 
+        rgba(240, 240, 240, calc(var(--effect-opacity, 80) / 100)), 
+        rgba(202, 202, 202, calc(var(--effect-opacity, 80) / 100))) !important;
+    box-shadow: 
+        20px 20px 60px rgba(190, 190, 190, calc(var(--effect-opacity, 80) / 100)),
+        -20px -20px 60px rgba(255, 255, 255, calc(var(--effect-opacity, 80) / 100)) !important;
+    border: none !important;
+    border-radius: 20px !important;
+}
+
+/* Ensure content stays above the effect */
+.effect-neumorphism > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Dark Neumorphism variant */
+.effect-neumorphism.dark-theme {
+    background: linear-gradient(145deg, #2c2c2c, #1a1a1a) !important;
+    box-shadow: 
+        20px 20px 60px #0f0f0f,
+        -20px -20px 60px #3f3f3f !important;
+}
+
+/* Claymorphism Effect */
+.effect-claymorphism {
+    background: rgba(255, 255, 255, calc(var(--effect-opacity, 80) / 400)) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+}
+
+/* Ensure content stays above the effect */
+.effect-claymorphism > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Cybermorphism Effect */
+.effect-cybermorphism {
+    background: linear-gradient(135deg, 
+        rgba(15, 15, 35, calc(var(--effect-opacity, 80) / 100)) 0%, 
+        rgba(26, 26, 46, calc(var(--effect-opacity, 80) / 100)) 50%, 
+        rgba(22, 33, 62, calc(var(--effect-opacity, 80) / 100)) 100%) !important;
+    border: 2px solid rgba(0, 255, 255, calc(var(--effect-opacity, 80) / 100)) !important;
+    box-shadow: 
+        0 0 20px rgba(0, 255, 255, calc(var(--effect-opacity, 80) / 300)),
+        inset 0 0 20px rgba(0, 255, 255, calc(var(--effect-opacity, 80) / 1000)) !important;
+    color: #00ffff !important;
+    position: relative !important;
+}
+
+/* Ensure content stays above the effect */
+.effect-cybermorphism > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Cybermorphism animation overlay */
+.effect-cybermorphism::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(0, 255, 255, 0.1) 50%, transparent 70%);
+    pointer-events: none;
+    animation: cyber-scan 3s linear infinite;
+    z-index: 3;
+}
+
+@keyframes cyber-scan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Header positioning for effects to show content underneath */
+.site-header.effect-glassmorphism,
+.site-header.effect-neumorphism,
+.site-header.effect-claymorphism,
+.site-header.effect-cybermorphism {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+}
+
+/* Mathematical glassmorphism: transparent header with preserved gradient */
+.site-header.effect-glassmorphism {
+    /* Mathematical transparency: (100 - intensity) / 100 gives us inverse transparency */
+    /* At 0% intensity = 100% opaque, at 100% intensity = 0% opaque (fully transparent) */
+    opacity: calc((100 - var(--multiply-intensity, 50)) / 100) !important;
+    backdrop-filter: blur(calc(var(--multiply-intensity, 50) / 100 * 20px)) saturate(calc(100 + var(--multiply-intensity, 50))) !important;
+    -webkit-backdrop-filter: blur(calc(var(--multiply-intensity, 50) / 100 * 20px)) saturate(calc(100 + var(--multiply-intensity, 50))) !important;
+    /* Preserve original gradient background */
+    background: var(--original-background) !important;
+}
+
+/* Fallback blur using filter for better browser support */
+@supports not (backdrop-filter: blur(15px)) {
+    .site-header.effect-glassmorphism {
+        filter: blur(0.5px) !important;
+    }
+}
+
+/* Dynamic spacing for main content based on header height */
+body.header-has-effects main {
+    margin-top: var(--header-height, 120px) !important;
+    padding-top: 20px !important; /* Additional padding for visual separation */
+}
+
+/* Fallback for browsers that don't support CSS custom properties */
+.site-header.effect-glassmorphism ~ main,
+.site-header.effect-neumorphism ~ main,
+.site-header.effect-claymorphism ~ main,
+.site-header.effect-cybermorphism ~ main {
+    margin-top: 120px !important;
+    padding-top: 20px !important;
+}
+
+/* Ensure all page content respects the header spacing */
+body[style*="--header-height"] main {
+    margin-top: var(--header-height, 120px) !important;
+    padding-top: 20px !important;
+}
+
+/* Force spacing even without the class as backup */
+.site-header[class*="effect-"] + main,
+.site-header[class*="effect-"] ~ main {
+    margin-top: var(--header-height, 493px) !important; /* Use header height from template */
+    padding-top: 20px !important;
+}
+
+/* Effects are now handled by ::before pseudo-elements above */
+
+
+
+/* Responsive adjustments for effects */
+@media (max-width: 768px) {
+    .effect-neumorphism {
+        box-shadow: 
+            10px 10px 30px #bebebe,
+            -10px -10px 30px #ffffff !important;
+    }
+    
+    .effect-neumorphism.dark-theme {
+        box-shadow: 
+            10px 10px 30px #0f0f0f,
+            -10px -10px 30px #3f3f3f !important;
+    }
+    
+    .effect-cybermorphism {
+        box-shadow: 
+            0 0 10px rgba(0, 255, 255, 0.3),
+            inset 0 0 10px rgba(0, 255, 255, 0.1) !important;
     }
 }

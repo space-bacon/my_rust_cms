@@ -21,7 +21,7 @@ pub enum PageServiceError {
 }
 
 pub async fn get_pages() -> Result<Vec<Page>, PageServiceError> {
-    match gloo_net::http::Request::get("http://127.0.0.1:8081/api/pages")
+    match gloo_net::http::Request::get("http://localhost:8081/api/pages")
         .send()
         .await
     {
@@ -43,7 +43,7 @@ pub async fn get_pages() -> Result<Vec<Page>, PageServiceError> {
 pub async fn create_page(page: &Page) -> Result<Page, PageServiceError> {
     let token = get_auth_token().map_err(|_| PageServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    let request = gloo_net::http::Request::post("http://127.0.0.1:8081/api/pages")
+    let request = gloo_net::http::Request::post("http://localhost:8081/api/pages")
         .header("Authorization", &format!("Bearer {}", token))
         .json(page)
         .map_err(|e| PageServiceError::NetworkError(e.to_string()))?;
@@ -67,7 +67,7 @@ pub async fn create_page(page: &Page) -> Result<Page, PageServiceError> {
 pub async fn update_page(id: i32, page: &Page) -> Result<Page, PageServiceError> {
     let token = get_auth_token().map_err(|_| PageServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    let request = gloo_net::http::Request::put(&format!("http://127.0.0.1:8081/api/pages/{}", id))
+    let request = gloo_net::http::Request::put(&format!("http://localhost:8081/api/pages/{}", id))
         .header("Authorization", &format!("Bearer {}", token))
         .json(page)
         .map_err(|e| PageServiceError::NetworkError(e.to_string()))?;
@@ -95,7 +95,7 @@ pub async fn update_page_content(id: i32, content: &str) -> Result<Page, PageSer
         "content": content
     });
     
-    let request = gloo_net::http::Request::put(&format!("http://127.0.0.1:8081/api/pages/{}/content", id))
+    let request = gloo_net::http::Request::put(&format!("http://localhost:8081/api/pages/{}/content", id))
         .header("Authorization", &format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&request_body)
@@ -121,7 +121,7 @@ pub async fn update_page_content(id: i32, content: &str) -> Result<Page, PageSer
 pub async fn delete_page(id: i32) -> Result<(), PageServiceError> {
     let token = get_auth_token().map_err(|_| PageServiceError::NetworkError("Not authenticated".to_string()))?;
     
-    match gloo_net::http::Request::delete(&format!("http://127.0.0.1:8081/api/pages/{}", id))
+    match gloo_net::http::Request::delete(&format!("http://localhost:8081/api/pages/{}", id))
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await
@@ -138,7 +138,7 @@ pub async fn delete_page(id: i32) -> Result<(), PageServiceError> {
 }
 
 pub async fn get_page_by_slug(slug: &str) -> Result<Page, PageServiceError> {
-    match gloo_net::http::Request::get(&format!("http://127.0.0.1:8081/api/pages/slug/{}", slug))
+    match gloo_net::http::Request::get(&format!("http://localhost:8081/api/pages/slug/{}", slug))
         .send()
         .await
     {

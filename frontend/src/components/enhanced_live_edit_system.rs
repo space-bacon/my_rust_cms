@@ -74,23 +74,46 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                         }
                     }
 
-                    // Add highlighting to page builder components
+                    // Add highlighting to page builder components, excluding hidden ones
                     let components_with_class = doc.query_selector_all(".component, .canvas-component").unwrap();
+                    web_sys::console::log_1(&format!("Live Edit: Found {} components to make editable", components_with_class.length()).into());
+                    
                     for i in 0..components_with_class.length() {
                         if let Some(node) = components_with_class.item(i) {
                             if let Ok(el) = node.dyn_into::<Element>() {
+                                // Skip hidden elements
+                                if let Some(style) = el.get_attribute("style") {
+                                    if style.contains("display: none") || style.contains("display:none") {
+                                        web_sys::console::log_1(&format!("Live Edit: Skipping hidden component {}", i).into());
+                                        continue;
+                                    }
+                                }
+                                
                                 let _ = el.set_attribute("data-live-component-editable", "true");
                                 
                                 // Apply consistent highlighting style (same as header/footer)
-                                if let Some(existing) = el.get_attribute("style") {
-                                    let _ = el.set_attribute("style", &format!("{}; outline: 2px dashed rgba(0,150,255,0.8); outline-offset: -2px; cursor: pointer;", existing));
+                                // Also add a debug background for Hero components to make them visible
+                                let debug_style = if el.class_name().contains("hero-section") {
+                                    "outline: 2px dashed rgba(255,0,0,0.8); outline-offset: -2px; cursor: pointer; background: rgba(255,0,0,0.1) !important;"
                                 } else {
-                                    let _ = el.set_attribute("style", "outline: 2px dashed rgba(0,150,255,0.8); outline-offset: -2px; cursor: pointer;");
+                                    "outline: 2px dashed rgba(0,150,255,0.8); outline-offset: -2px; cursor: pointer;"
+                                };
+                                
+                                if let Some(existing) = el.get_attribute("style") {
+                                    let _ = el.set_attribute("style", &format!("{}; {}", existing, debug_style));
+                                } else {
+                                    let _ = el.set_attribute("style", debug_style);
                                 }
 
-                                // Add component ID for selection
-                                let component_id = format!("live-component-{}", i);
-                                let _ = el.set_attribute("data-component-id", &component_id);
+                                // Add component index for selection
+                                let component_index = i.to_string();
+                                let _ = el.set_attribute("data-component-index", &component_index);
+                                
+                                // Debug logging for each component
+                                let class_name = el.class_name();
+                                let tag_name = el.tag_name();
+                                web_sys::console::log_1(&format!("Live Edit: Made component {} editable - class: '{}', tag: '{}'", 
+                                    component_index, class_name, tag_name).into());
                                 
                                 // Add click handler for page components
                                 let selected_target_clone = selected_target.clone();
@@ -100,10 +123,59 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                 let closure: Closure<dyn FnMut(MouseEvent)> = Closure::wrap(Box::new(move |e: MouseEvent| {
                                     e.stop_propagation();
                                     
+                                    web_sys::console::log_1(&"Live Edit: Component clicked!".into());
+                                    
                                     if let Some(target_element) = e.target().and_then(|t| t.dyn_into::<Element>().ok()) {
-                                        // Extract actual content from the clicked element
+                                        web_sys::console::log_1(&format!("Live Edit: Click target - class: '{}', tag: '{}'", 
+                                            target_element.class_name(), target_element.tag_name()).into());
+                                        // Try to find the component index from the clicked element or its parents
+                                        let mut current_element = Some(target_element.clone());
+                                        let mut component_index: Option<usize> = None;
+                                        
+                                        while let Some(element) = current_element {
+                                            if let Some(index_str) = element.get_attribute("data-component-index") {
+                                                web_sys::console::log_1(&format!("Live Edit: Found component index: {}", index_str).into());
+                                                if let Ok(index) = index_str.parse::<usize>() {
+                                                    component_index = Some(index);
+                                                    break;
+                                                }
+                                            }
+                                            current_element = element.parent_element();
+                                        }
+                                        
+                                        if component_index.is_none() {
+                                            web_sys::console::log_1(&"Live Edit: No component index found, searching parent elements".into());
+                                        }
+                                        
+                                        // Try to find the actual component from the page components list
+                                        web_sys::console::log_1(&format!("Live Edit: Total page components available: {}", page_components_clone.len()).into());
+                                        
+                                        // Debug: show all available components
+                                        for (idx, comp) in page_components_clone.iter().enumerate() {
+                                            web_sys::console::log_1(&format!("Live Edit: Component {}: {:?} ({}), content: '{}'", 
+                                                idx, comp.component_type, comp.id, comp.content.chars().take(50).collect::<String>()).into());
+                                        }
+                                        
+                                        if let Some(index) = component_index {
+                                            web_sys::console::log_1(&format!("Live Edit: Looking for component at index: {}", index).into());
+                                            if let Some(actual_component) = find_component_by_index(&page_components_clone, index) {
+                                                // Debug logging
+                                                web_sys::console::log_1(&format!("Live Edit: Found actual component at index {}: {:?} ({})", 
+                                                    index, actual_component.component_type, actual_component.id).into());
+                                                selected_target_clone.set(Some(EditTarget::PageComponent(actual_component)));
+                                                show_properties_panel_clone.set(true);
+                                                return;
+                                            }
+                                        }
+                                        
+                                        // Fallback: create a sample component if we can't find the actual one
                                         let component_type = detect_component_type_from_element(&e);
+                                        let component_id = format!("live-component-{}", component_index.unwrap_or(0));
                                         let component = create_sample_component_from_element(component_type, &component_id, &target_element);
+                                        
+                                        // Debug logging for fallback
+                                        web_sys::console::log_1(&format!("Live Edit: Using fallback component: {:?} ({})", 
+                                            component.component_type, component.id).into());
                                         
                                         selected_target_clone.set(Some(EditTarget::PageComponent(component)));
                                         show_properties_panel_clone.set(true);
@@ -141,7 +213,7 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                         if let Some(node) = components_with_class.item(i) {
                             if let Ok(el) = node.dyn_into::<Element>() {
                                 let _ = el.remove_attribute("data-live-component-editable");
-                                let _ = el.remove_attribute("data-component-id");
+                                let _ = el.remove_attribute("data-component-index");
                                 if let Some(existing) = el.get_attribute("style") {
                                     let cleaned = existing
                                         .replace("outline: 2px dashed rgba(0,150,255,0.8);", "")
@@ -432,21 +504,48 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
 // Helper function to detect component type from DOM element
 fn detect_component_type_from_element(event: &MouseEvent) -> ComponentType {
     if let Some(target) = event.target().and_then(|t| t.dyn_into::<Element>().ok()) {
+        // First check for specific component classes that the page builder uses
         if let Some(class_name) = target.get_attribute("class") {
-            if class_name.contains("hero") {
+            // Check for specific component classes
+            if class_name.contains("hero-section") || class_name.contains("hero-component") {
                 return ComponentType::Hero;
-            } else if class_name.contains("card") {
+            } else if class_name.contains("card-component") || class_name.contains("feature-card") {
                 return ComponentType::Card;
-            } else if class_name.contains("button") {
+            } else if class_name.contains("two-column") || class_name.contains("columns-2") {
+                return ComponentType::TwoColumn;
+            } else if class_name.contains("three-column") || class_name.contains("columns-3") {
+                return ComponentType::ThreeColumn;
+            } else if class_name.contains("posts-list") || class_name.contains("post-list") {
+                return ComponentType::PostsList;
+            } else if class_name.contains("quote-component") || class_name.contains("blockquote") {
+                return ComponentType::Quote;
+            } else if class_name.contains("button-component") {
                 return ComponentType::Button;
-            } else if class_name.contains("image") || class_name.contains("img") {
+            } else if class_name.contains("image-component") || class_name.contains("img") {
                 return ComponentType::Image;
-            } else if class_name.contains("video") {
+            } else if class_name.contains("video-component") {
                 return ComponentType::Video;
-            } else if class_name.contains("divider") {
+            } else if class_name.contains("divider-component") {
                 return ComponentType::Divider;
-            } else if class_name.contains("heading") || target.tag_name() == "H1" || target.tag_name() == "H2" {
-                return ComponentType::Heading;
+            }
+        }
+        
+        // Check for data attributes that might indicate component type
+        if let Some(component_type) = target.get_attribute("data-component-type") {
+            match component_type.as_str() {
+                "hero" => return ComponentType::Hero,
+                "card" => return ComponentType::Card,
+                "two-column" => return ComponentType::TwoColumn,
+                "three-column" => return ComponentType::ThreeColumn,
+                "posts-list" => return ComponentType::PostsList,
+                "quote" => return ComponentType::Quote,
+                "button" => return ComponentType::Button,
+                "image" => return ComponentType::Image,
+                "video" => return ComponentType::Video,
+                "divider" => return ComponentType::Divider,
+                "heading" => return ComponentType::Heading,
+                "subheading" => return ComponentType::Subheading,
+                _ => {}
             }
         }
         
@@ -458,7 +557,34 @@ fn detect_component_type_from_element(event: &MouseEvent) -> ComponentType {
             "H1" | "H2" | "H3" => ComponentType::Heading,
             "H4" | "H5" | "H6" => ComponentType::Subheading,
             "HR" => ComponentType::Divider,
-            _ => ComponentType::Text,
+            "BLOCKQUOTE" => ComponentType::Quote,
+            _ => {
+                // Check parent elements for component context
+                let mut current_element = Some(target.clone());
+                while let Some(element) = current_element {
+                    if let Some(class_name) = element.get_attribute("class") {
+                        if class_name.contains("component") || class_name.contains("canvas-component") {
+                            // This is likely a component wrapper, try to determine type from content
+                            if element.query_selector("h1, h2, h3").ok().flatten().is_some() {
+                                return ComponentType::Heading;
+                            } else if element.query_selector("h4, h5, h6").ok().flatten().is_some() {
+                                return ComponentType::Subheading;
+                            } else if element.query_selector("blockquote").ok().flatten().is_some() {
+                                return ComponentType::Quote;
+                            } else if element.query_selector(".card, .feature-card").ok().flatten().is_some() {
+                                return ComponentType::Card;
+                            } else if element.query_selector(".columns, .two-column").ok().flatten().is_some() {
+                                return ComponentType::TwoColumn;
+                            } else if element.query_selector(".posts-list, .post-list").ok().flatten().is_some() {
+                                return ComponentType::PostsList;
+                            }
+                            break;
+                        }
+                    }
+                    current_element = element.parent_element();
+                }
+                ComponentType::Text
+            }
         }
     } else {
         ComponentType::Text
@@ -475,6 +601,7 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
             let element_id = match component_type {
                 "header" => "site-header",
                 "footer" => "site-footer",
+                "container" => "site-container",
                 _ => return,
             };
             
@@ -598,6 +725,150 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                         }
                     }
                     
+                    // Handle header-specific position property
+                    if component_type == "header" {
+                        if let Some(position) = template_data.get("position").and_then(|v| v.as_str()) {
+                            styles.push(format!("position: {} !important", position));
+                            
+                            // Adjust top property based on position
+                            match position {
+                                "fixed" | "sticky" => {
+                                    styles.push("top: 0 !important".to_string());
+                                }
+                                "static" => {
+                                    styles.push("top: auto !important".to_string());
+                                    styles.push("position: static !important".to_string()); // Ensure static overrides
+                                }
+                                _ => {}
+                            }
+                            
+                            // Add additional properties to ensure position works correctly
+                            match position {
+                                "static" => {
+                                    // For static positioning, remove any transforms or z-index that might interfere
+                                    styles.push("transform: none !important".to_string());
+                                    styles.push("z-index: auto !important".to_string());
+                                    // Remove any margin that might create gaps
+                                    styles.push("margin-bottom: 0 !important".to_string());
+                                }
+                                "sticky" => {
+                                    // Ensure sticky has proper z-index and no conflicting transforms
+                                    styles.push("z-index: 100 !important".to_string());
+                                    styles.push("transform: none !important".to_string());
+                                }
+                                "fixed" => {
+                                    // Fixed positioning needs proper z-index and full width
+                                    styles.push("z-index: 1000 !important".to_string());
+                                    styles.push("left: 0 !important".to_string());
+                                    styles.push("right: 0 !important".to_string());
+                                    styles.push("width: 100% !important".to_string());
+                                }
+                                _ => {}
+                            }
+                            
+                            web_sys::console::log_1(&format!("🎯 Live Preview: Setting header position to {} with enhanced properties", position).into());
+                            
+                            // Also adjust the main content area based on header position
+                            if let Some(main_element) = document.get_element_by_id("site-main") {
+                                let main_styles = match position {
+                                    "static" => {
+                                        // For static header, reduce top padding to avoid gap
+                                        vec!["padding-top: 1rem !important".to_string()]
+                                    }
+                                    "sticky" | "fixed" => {
+                                        // For sticky/fixed header, restore normal padding
+                                        vec!["padding-top: 2rem !important".to_string()]
+                                    }
+                                    _ => vec![]
+                                };
+                                
+                                if !main_styles.is_empty() {
+                                    let current_main_style = main_element.get_attribute("style").unwrap_or_default();
+                                    let mut existing_main_styles: Vec<String> = current_main_style
+                                        .split(';')
+                                        .filter(|s| !s.trim().is_empty())
+                                        .filter(|s| !s.trim().starts_with("padding-top:"))
+                                        .map(|s| s.trim().to_string())
+                                        .collect();
+                                    
+                                    existing_main_styles.extend(main_styles);
+                                    let new_main_style = existing_main_styles.join("; ");
+                                    let _ = main_element.set_attribute("style", &new_main_style);
+                                    
+                                    web_sys::console::log_1(&format!("🎯 Live Preview: Adjusted main content padding for {} header", position).into());
+                                }
+                            }
+                        }
+                        
+                        // Handle header scroll effects properties
+                        if let Some(scroll_effect) = template_data.get("scroll_effect").and_then(|v| v.as_str()) {
+                            if scroll_effect != "none" {
+                                // Set CSS variables for scroll effects
+                                if let Some(shrink_logo_scale) = template_data.get("shrink_logo_scale").and_then(|v| v.as_str()) {
+                                    let scale_value = shrink_logo_scale.parse::<f64>().unwrap_or(80.0) / 100.0;
+                                    styles.push(format!("--logo-scale-shrink: {}", scale_value));
+                                }
+                                
+                                // Add scroll effect class for CSS targeting
+                                if let Some(html_element) = document.get_element_by_id("site-header") {
+                                    let current_class = html_element.get_attribute("class").unwrap_or_default();
+                                    if !current_class.contains(&format!("scroll-effect-{}", scroll_effect)) {
+                                        let new_class = format!("{} scroll-effect-{}", current_class, scroll_effect);
+                                        let _ = html_element.set_attribute("class", &new_class);
+                                    }
+                                }
+                                
+                                web_sys::console::log_1(&format!("🎯 Live Preview: Applied scroll effect: {}", scroll_effect).into());
+                            }
+                        }
+                    }
+                    
+                    // Handle container-specific overlay properties
+                    if component_type == "container" {
+                        let mut has_overlay_settings = false;
+                        
+                        // Check for overlay properties
+                        if let Some(overlay_color) = template_data.get("overlay_color").and_then(|v| v.as_str()) {
+                            if !overlay_color.is_empty() {
+                                styles.push(format!("--container-overlay-color: {}", overlay_color));
+                                has_overlay_settings = true;
+                            }
+                        }
+                        if let Some(overlay_opacity) = template_data.get("overlay_opacity").and_then(|v| v.as_str()) {
+                            if !overlay_opacity.is_empty() && overlay_opacity != "0" {
+                                styles.push(format!("--container-overlay-opacity: {}", overlay_opacity));
+                                has_overlay_settings = true;
+                            }
+                        }
+                        
+                        // Check if we have background media (image or video)
+                        let has_background_media = match bg_type {
+                            "image" | "video" => true,
+                            _ => false
+                        };
+                        
+                        // Enable overlay display only if we have both overlay settings and background media
+                        if has_overlay_settings && has_background_media {
+                            styles.push("--container-overlay-display: block".to_string());
+                        } else {
+                            styles.push("--container-overlay-display: none".to_string());
+                        }
+                        
+                        // Handle container width properties
+                        if let Some(width_type) = template_data.get("width_type").and_then(|v| v.as_str()) {
+                            styles.push(format!("--container-width-type: {}", width_type));
+                        }
+                        if let Some(max_width) = template_data.get("max_width").and_then(|v| v.as_str()) {
+                            styles.push(format!("max-width: {}", max_width));
+                        }
+                        if let Some(padding) = template_data.get("padding").and_then(|v| v.as_str()) {
+                            styles.push(format!("padding: {}", padding));
+                        }
+                        if let Some(margin) = template_data.get("margin").and_then(|v| v.as_str()) {
+                            styles.push(format!("margin: {}", margin));
+                        }
+                    }
+                    
                     // Handle shape masks with improved approach
                     let shape_mask_upper = template_data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
                     let shape_mask_upper_scale = template_data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
@@ -633,7 +904,7 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                         .split(';')
                         .filter(|s| !s.trim().is_empty())
                         .filter(|s| {
-                            // Remove existing height, background, color, and shape mask properties to avoid conflicts
+                            // Remove existing properties that might conflict with our new ones
                             let s = s.trim();
                             let should_keep = !s.starts_with("height:") && 
                                 !s.starts_with("background:") && 
@@ -643,7 +914,15 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                 !s.starts_with("background-position:") && 
                                 !s.starts_with("background-repeat:") && 
                                 !s.starts_with("--header-text:") && 
-                                !s.starts_with("--footer-text:");
+                                !s.starts_with("--footer-text:") &&
+                                // Remove position-related properties to avoid conflicts
+                                !s.starts_with("position:") &&
+                                !s.starts_with("top:") &&
+                                !s.starts_with("left:") &&
+                                !s.starts_with("right:") &&
+                                !s.starts_with("z-index:") &&
+                                !s.starts_with("width:") &&
+                                !s.starts_with("transform:");
                             
                             if !should_keep {
                                 web_sys::console::log_1(&format!("🗑️ Live Preview: Removing conflicting style: {}", s).into());
@@ -662,6 +941,21 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                     // Debug logging for applied styles
                     web_sys::console::log_1(&format!("✅ Live Preview: Final styles for {}: {}", element_id, new_style).into());
                     
+                    // For header position changes, temporarily remove effect classes that might override position
+                    if component_type == "header" && template_data.get("position").is_some() {
+                        let current_class = html_element.get_attribute("class").unwrap_or_default();
+                        let mut classes: Vec<&str> = current_class.split_whitespace().collect();
+                        
+                        // Remove effect classes that force position: fixed
+                        classes.retain(|&class| !class.starts_with("effect-"));
+                        
+                        let new_class = classes.join(" ");
+                        if new_class != current_class {
+                            web_sys::console::log_1(&format!("🎯 Live Preview: Removing effect classes to allow position change: {} -> {}", current_class, new_class).into());
+                            let _ = html_element.set_attribute("class", &new_class);
+                        }
+                    }
+                    
                     let _ = html_element.set_attribute("style", &new_style);
                     
                     // Verify the styles were applied
@@ -674,6 +968,11 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
             }
         }
     }
+}
+
+// Helper function to find component by index
+fn find_component_by_index(components: &[PageComponent], index: usize) -> Option<PageComponent> {
+    components.get(index).cloned()
 }
 
 // Helper function to create a sample component for editing

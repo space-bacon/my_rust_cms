@@ -256,7 +256,7 @@ pub fn media_library() -> Html {
         let lightbox_image_url = lightbox_image_url.clone();
         let lightbox_image_name = lightbox_image_name.clone();
         Callback::from(move |(url, name): (String, String)| {
-            lightbox_image_url.set(format!("http://127.0.0.1:8081{}", url));
+            lightbox_image_url.set(format!("http://localhost:8081{}", url));
             lightbox_image_name.set(name);
             show_lightbox.set(true);
         })
@@ -358,10 +358,10 @@ pub fn media_library() -> Html {
                                     multiple=true
                                     style="display: none;" 
                                     onchange={on_file_select}
-                                    accept="image/*,video/*,application/pdf,text/*,.doc,.docx,.xlsx,.zip"
+                                    accept="image/*,image/svg+xml,video/*,application/pdf,text/*,.doc,.docx,.xlsx,.zip,.svg"
                                 />
                                 <div class="supported-formats">
-                                    {"Supports: Images, Videos, Documents, PDFs"}
+                                    {"Supports: Images (including SVG), Videos, Documents, PDFs"}
                                 </div>
                             </div>
                         </>
@@ -456,7 +456,7 @@ pub fn media_library() -> Html {
                                     let url = item.url.clone();
                                     let name = item.name.clone();
                                     Callback::from(move |_| {
-                                        if url.contains("image") || url.ends_with(".jpg") || url.ends_with(".png") || url.ends_with(".gif") || url.ends_with(".jpeg") {
+                                        if url.contains("image") || url.ends_with(".jpg") || url.ends_with(".png") || url.ends_with(".gif") || url.ends_with(".jpeg") || url.ends_with(".svg") {
                                             open_lightbox.emit((url.clone(), name.clone()));
                                         }
                                     })
@@ -469,7 +469,16 @@ pub fn media_library() -> Html {
                                     <div class={classes!("media-card", Some(media_class))}>
                                         <div class="media-preview">
                                             {if item.type_.starts_with("image") && !item.url.is_empty() {
-                                                html! { <img src={format!("http://127.0.0.1:8081{}", item.url)} alt={item.name.clone()} /> }
+                                                let is_svg = item.type_ == "image/svg+xml" || item.url.to_lowercase().ends_with(".svg");
+                                                html! { 
+                                                    <img 
+                                                        src={format!("http://localhost:8081{}", item.url)} 
+                                                        alt={item.name.clone()}
+                                                        loading="lazy"
+                                                        decoding={if is_svg { "sync" } else { "async" }}
+                                                        style={if is_svg { "vector-effect: non-scaling-stroke;" } else { "" }}
+                                                    /> 
+                                                }
                                             } else {
                                                 html! {
                                                     <div class="file-icon">
@@ -513,7 +522,13 @@ pub fn media_library() -> Html {
                     <div class="lightbox-overlay" onclick={close_lightbox.clone()}>
                         <div class="lightbox-content" onclick={|e: MouseEvent| e.stop_propagation()}>
                             <button class="lightbox-close" onclick={close_lightbox.clone()}>{"×"}</button>
-                            <img src={(*lightbox_image_url).clone()} alt={(*lightbox_image_name).clone()} />
+<img 
+                                src={(*lightbox_image_url).clone()} 
+                                alt={(*lightbox_image_name).clone()}
+                                style="max-width: 90vw; max-height: 80vh; object-fit: contain; vector-effect: non-scaling-stroke;"
+                                decoding="sync"
+                                class="lightbox-image"
+                            />
                             <div class="lightbox-caption">{(*lightbox_image_name).clone()}</div>
                         </div>
                     </div>
@@ -526,7 +541,9 @@ pub fn media_library() -> Html {
 }
 
 fn get_media_icon_and_class(media_type: &str) -> (&'static str, &'static str) {
-    if media_type.starts_with("image") {
+    if media_type == "image/svg+xml" {
+        ("🎨", "svg") // Special icon for SVG files
+    } else if media_type.starts_with("image") {
         ("🖼️", "image")
     } else if media_type.starts_with("video") {
         ("🎥", "video")
