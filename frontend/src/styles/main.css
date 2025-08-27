@@ -1,5 +1,9 @@
 /* Main CSS for Rust CMS - Clean Black & White Design */
 
+/* Import component styles */
+@import url('./enhanced_gallery.css');
+@import url('./modern_menu_designer.css');
+
 /* Reset and base styles */
 * {
     margin: 0;
@@ -57,31 +61,7 @@ body {
     gap: 2rem;
 }
 
-.nav-link {
-    color: var(--public-header-text, #fff);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s ease;
-    position: relative;
-}
-
-.nav-link:hover {
-    color: var(--public-header-text-hover, #ccc);
-}
-
-.nav-link.active {
-    color: var(--public-header-text, #fff);
-}
-
-.nav-link.active::after {
-    content: '';
-    position: absolute;
-    bottom: -0.5rem;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--public-header-text, #fff);
-}
+/* Removed hardcoded nav-link styles to allow menu customization */
 
 .nav-button {
     background: none;
@@ -226,7 +206,7 @@ body {
 }
 
 .admin-header-content {
-    max-width: 1200px;
+    max-width: 95%;
     margin: 0 auto;
     padding: 0 1rem;
     display: flex;
@@ -930,6 +910,127 @@ tr:hover {
         transform: translateX(100%) skewX(-15deg);
         opacity: 0;
     }
+}
+
+/* Logo Effects - SVG Ripple Animation */
+@keyframes logo-ripple-1 {
+    0% {
+        transform: scale(1);
+        opacity: var(--logo-pulsate-opacity, 0.7);
+    }
+    100% {
+        transform: scale(calc(2 + var(--logo-pulsate-frequency, 1.5)));
+        opacity: 0;
+    }
+}
+
+@keyframes logo-ripple-2 {
+    0% {
+        transform: scale(1);
+        opacity: calc(var(--logo-pulsate-opacity, 0.7) * var(--logo-pulsate-decay, 0.8));
+    }
+    100% {
+        transform: scale(calc(1.8 + var(--logo-pulsate-frequency, 1.5)));
+        opacity: 0;
+    }
+}
+
+@keyframes logo-ripple-3 {
+    0% {
+        transform: scale(1);
+        opacity: calc(var(--logo-pulsate-opacity, 0.7) * var(--logo-pulsate-decay, 0.8) * var(--logo-pulsate-decay, 0.8));
+    }
+    100% {
+        transform: scale(calc(1.6 + var(--logo-pulsate-frequency, 1.5)));
+        opacity: 0;
+    }
+}
+
+/* Logo Effects Container */
+.logo-effect-pulsate {
+    position: relative;
+    display: inline-block;
+    /* Preserve original logo scaling behavior */
+    transform: scale(var(--logo-scale, 1));
+    transform-origin: left center;
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
+}
+
+/* Original logo - completely untouched */
+.logo-effect-pulsate img {
+    position: relative;
+    z-index: 3;
+    /* No effects applied to the actual logo */
+}
+
+/* SVG Ripple Container - will be populated by JavaScript */
+.logo-effect-pulsate .logo-ripples {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: visible;
+}
+
+/* Individual SVG ripple layers */
+.logo-effect-pulsate .logo-ripple {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Ripple animations for different layers */
+.logo-effect-pulsate .logo-ripple.ripple-1 {
+    animation: logo-ripple-1 
+               calc(var(--logo-pulsate-duration, 3) / var(--logo-pulsate-anim-frequency, 2) * 1s) 
+               ease-out 
+               infinite;
+}
+
+.logo-effect-pulsate .logo-ripple.ripple-2 {
+    animation: logo-ripple-2 
+               calc(var(--logo-pulsate-duration, 3) / var(--logo-pulsate-anim-frequency, 2) * 1s) 
+               ease-out 
+               infinite;
+    animation-delay: calc(var(--logo-pulsate-duration, 3) / var(--logo-pulsate-anim-frequency, 2) * 0.33s);
+}
+
+.logo-effect-pulsate .logo-ripple.ripple-3 {
+    animation: logo-ripple-3 
+               calc(var(--logo-pulsate-duration, 3) / var(--logo-pulsate-anim-frequency, 2) * 1s) 
+               ease-out 
+               infinite;
+    animation-delay: calc(var(--logo-pulsate-duration, 3) / var(--logo-pulsate-anim-frequency, 2) * 0.66s);
+}
+
+/* SVG path styling for ripples */
+.logo-effect-pulsate .logo-ripple svg {
+    width: 100%;
+    height: 100%;
+}
+
+.logo-effect-pulsate .logo-ripple svg path,
+.logo-effect-pulsate .logo-ripple svg circle,
+.logo-effect-pulsate .logo-ripple svg rect,
+.logo-effect-pulsate .logo-ripple svg polygon,
+.logo-effect-pulsate .logo-ripple svg ellipse {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: calc(var(--logo-pulsate-frequency, 1.5) * 1px);
+    stroke-opacity: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+/* Ensure logo effects work with header masked backgrounds */
+.site-header .logo-effect-pulsate {
+    z-index: 2;
 }
 
 /* Unified header text styling */
@@ -3364,10 +3465,7 @@ tr:hover {
         gap: 1rem;
     }
     
-    .site-nav a {
-        margin-left: 1rem;
-        margin-right: 1rem;
-    }
+    /* Removed hardcoded site-nav a margin styles */
     
     .form-row {
         grid-template-columns: 1fr;
@@ -3521,54 +3619,7 @@ tr:hover {
     margin: 0;
 }
 
-.nav-link {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1.5rem;
-    color: #ffffff;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-    cursor: pointer;
-    font-family: inherit;
-    font-size: inherit;
-    position: relative;
-    overflow: hidden;
-}
-
-.nav-link::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    width: 0;
-    background: linear-gradient(90deg, #3498db, #2980b9);
-    transition: width 0.3s ease;
-    z-index: -1;
-}
-
-.nav-link:hover {
-    background: rgba(255,255,255,0.1);
-    color: white;
-    transform: translateX(5px);
-}
-
-.nav-link:hover::before {
-    width: 100%;
-}
-
-.nav-link.active {
-    background: linear-gradient(90deg, #3498db, #2980b9);
-    color: white;
-    border-left: 4px solid #2ecc71;
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-    transform: translateX(5px);
-}
+/* Removed duplicate hardcoded nav-link styles to allow menu customization */
 
 .nav-icon {
     font-size: 1.2rem;
@@ -5266,7 +5317,7 @@ tr:last-child td {
 
 .settings-tabs .tab-button.active {
     background: linear-gradient(135deg, #4c1d95 0%, #312e81 50%, #1e1b4b 100%);
-    color: white;
+    color: var(--admin-text-secondary);
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 8px 30px rgba(76, 29, 149, 0.3);
     transform: translateY(-2px);
@@ -6888,15 +6939,15 @@ tr:last-child td {
     }
     
     .settings-tabs .tab-button {
-        margin-right: 0 !important;
-        margin-bottom: 0.75rem;
-        flex: none !important;
-        min-width: auto !important;
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.08) 0%, rgba(51, 65, 85, 0.08) 100%);
-        border: 1px solid rgba(30, 41, 59, 0.15);
-        border-radius: 16px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        background: none;
+        border: none;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--admin-text-secondary);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
     }
     
     .settings-tabs .tab-button:last-child {

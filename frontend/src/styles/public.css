@@ -180,6 +180,16 @@
     transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
 }
 
+/* Ensure logo scaling works within header context */
+.site-header .site-logo {
+    transform: scale(var(--logo-scale, 1)) !important;
+}
+
+/* Additional specificity for logo images */
+.site-header .site-logo img {
+    transform: scale(var(--logo-scale, 1));
+}
+
 
 
 /* Header scroll effects - ensure proper containment during shrinking */
@@ -208,9 +218,9 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
     transition: height var(--scroll-duration, 814ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
 }
 
-/* Nuclear option - force transition on any element with site-header ID */
-*[id="site-header"] {
-    transition: height 814ms cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+/* Controlled transition for site-header - only when scroll effects are active */
+*[id="site-header"][data-scroll-effect-active="true"] {
+    transition: height var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
 }
 
 .site-header .container {
@@ -231,16 +241,31 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
     justify-content: space-between !important;
 }
 
-/* Ensure navigation stays properly contained during scroll effects */
+/* Completely isolate navigation from header scroll effects */
+.site-header[style*="height"] .site-nav {
+    height: 60px !important;
+    min-height: 60px !important;
+    max-height: 60px !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+/* Ensure navigation stays completely stable during all scroll effects */
 .site-nav {
-    transition: var(--transition);
+    transition: none !important; /* Remove all transitions from nav */
     display: flex !important;
     align-items: center !important;
-    height: 100%;
+    height: 60px !important; /* Fixed height always */
+    min-height: 60px !important;
+    max-height: 60px !important;
     gap: var(--spacing-xl);
     /* Prevent navigation from wrapping or breaking layout */
-    flex-shrink: 0;
-    white-space: nowrap;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    /* Completely isolate from parent transformations */
+    position: relative !important;
+    z-index: 10 !important;
+    overflow: visible !important;
 }
 
 /* Ensure logo maintains consistent alignment */
@@ -251,45 +276,7 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
     flex-shrink: 0;
 }
 
-.site-nav a {
-    color: var(--header-text);
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 0.95rem;
-    transition: var(--transition);
-    position: relative;
-    white-space: nowrap;
-}
-
-.site-nav a:hover {
-    color: var(--nav-hover-color);
-}
-
-.site-nav a:visited {
-    color: var(--header-text);
-}
-
-.site-nav a:active {
-    color: var(--header-text);
-}
-
-.site-nav a::after {
-    content: '';
-    position: absolute;
-    width: 0;
-    height: var(--nav-underline-thickness);
-    bottom: -6px;
-    left: 50%;
-    background: var(--nav-underline-color);
-    transition: var(--transition);
-    transform: translateX(-50%);
-    background-size: 200% 100%;
-    animation: var(--nav-underline-animation);
-}
-
-.site-nav a:hover::after {
-    width: 100%;
-}
+/* Removed hardcoded site-nav a styles to allow menu customization */
 
 .nav-button {
     background: var(--button-primary-bg);
@@ -987,8 +974,7 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
 
 /* Focus States */
 .nav-button:focus,
-.read-more:focus,
-.site-nav a:focus {
+.read-more:focus {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }

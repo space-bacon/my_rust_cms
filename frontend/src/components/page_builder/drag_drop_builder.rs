@@ -6,6 +6,7 @@ use crate::components::markdown_editor::MarkdownEditor;
 use crate::components::MediaPicker;
 use crate::services::api_service::MediaItem;
 use crate::services::navigation_service::{get_component_templates, get_all_component_templates_admin, ComponentTemplate};
+use crate::components::{EnhancedGallery, EnhancedGalleryImage};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct PageComponent {
@@ -58,6 +59,11 @@ pub struct ComponentProperties {
     pub gallery_images: Vec<GalleryImage>,
     pub gallery_layout: String,
     pub gallery_columns: i32,
+    pub gallery_gap: i32,
+    pub gallery_border_radius: i32,
+    pub gallery_show_captions: bool,
+    pub gallery_enable_lightbox: bool,
+    pub gallery_enable_drag_reorder: bool,
     
 
     
@@ -175,6 +181,20 @@ pub struct ComponentProperties {
     pub comments_avatar_size: i32,
     pub comments_show_auth_prompt: bool,
     pub comments_post_id: i32,
+    
+    // Page Title specific properties
+    pub page_title_tag: String, // h1, h2, h3, etc.
+    pub page_title_show_prefix: bool,
+    pub page_title_prefix: String,
+    pub page_title_show_suffix: bool,
+    pub page_title_suffix: String,
+    
+    // Published Date specific properties
+    pub published_date_format: String, // "YYYY-MM-DD", "Month DD, YYYY", etc.
+    pub published_date_show_prefix: bool,
+    pub published_date_prefix: String,
+    pub published_date_show_time: bool,
+    pub published_date_relative: bool, // "2 days ago" vs absolute date
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -220,6 +240,8 @@ pub enum ComponentType {
     Gallery,
     PostsList,
     Comments,
+    PageTitle,
+    PublishedDate,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
@@ -418,6 +440,11 @@ impl Default for ComponentProperties {
             gallery_images: vec![],
             gallery_layout: "grid".to_string(),
             gallery_columns: 3,
+            gallery_gap: 16,
+            gallery_border_radius: 8,
+            gallery_show_captions: true,
+            gallery_enable_lightbox: true,
+            gallery_enable_drag_reorder: true,
             
 
             
@@ -467,6 +494,20 @@ impl Default for ComponentProperties {
             comments_avatar_size: 48,
             comments_show_auth_prompt: true,
             comments_post_id: 1,
+            
+            // Page Title specific properties
+            page_title_tag: "h1".to_string(),
+            page_title_show_prefix: false,
+            page_title_prefix: "".to_string(),
+            page_title_show_suffix: false,
+            page_title_suffix: "".to_string(),
+            
+            // Published Date specific properties
+            published_date_format: "Month DD, YYYY".to_string(),
+            published_date_show_prefix: true,
+            published_date_prefix: "Published on".to_string(),
+            published_date_show_time: false,
+            published_date_relative: false,
         }
     }
 }
@@ -497,6 +538,8 @@ impl ComponentType {
             ComponentType::Gallery => "Gallery",
             ComponentType::PostsList => "Posts List",
             ComponentType::Comments => "Comments",
+            ComponentType::PageTitle => "Page Title",
+            ComponentType::PublishedDate => "Published Date",
         }
     }
 
@@ -525,6 +568,8 @@ impl ComponentType {
             ComponentType::Gallery => "## 🖼️ Showcase Gallery\n\nExplore examples of websites built with our CMS. From simple blogs to complex e-commerce sites, see what's possible.\n\n[Image gallery with sample websites would appear here]".to_string(),
             ComponentType::PostsList => "## 📄 Latest Posts\n\nDiscover our latest articles and insights. This dynamic list automatically displays your most recent blog posts.\n\n[This will show a list of your published posts]".to_string(),
             ComponentType::Comments => "## 💬 Join the Conversation\n\nShare your thoughts and engage with our community. Sign in or create an account to leave your comments.\n\n[Comments section with text message style bubbles and Gravatar avatars will appear here]".to_string(),
+            ComponentType::PageTitle => "".to_string(), // Will be populated dynamically from page data
+            ComponentType::PublishedDate => "".to_string(), // Will be populated dynamically from page data
         }
     }
 
@@ -553,6 +598,8 @@ impl ComponentType {
             ComponentType::Gallery => "🖼️",
             ComponentType::PostsList => "📄",
             ComponentType::Comments => "💬",
+            ComponentType::PageTitle => "📋",
+            ComponentType::PublishedDate => "📅",
         }
     }
 }
@@ -734,6 +781,10 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
     // Individual drag-over states for nested drop zones  
     let container_drag_over = use_state(|| None::<String>); // stores container ID when dragging over
     let column_drag_over = use_state(|| None::<(String, String)>); // stores (container_id, column) when dragging over
+    
+    // New state for dragging existing components for reordering
+    let dragging_existing_component = use_state(|| None::<String>); // stores component ID being dragged
+    let drop_zone_hover = use_state(|| None::<String>); // stores drop zone ID being hovered over
     let show_media_picker = use_state(|| false);
     let media_picker_target_component = use_state(|| None::<String>);
     let media_picker_images_only = use_state(|| true);
@@ -816,6 +867,8 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         ComponentType::Gallery,
         ComponentType::PostsList,
         ComponentType::Comments,
+        ComponentType::PageTitle,
+        ComponentType::PublishedDate,
     ];
 
     let on_drag_start = {
@@ -848,6 +901,8 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                             "Gallery" => ComponentType::Gallery,
                             "PostsList" => ComponentType::PostsList,
                             "Comments" => ComponentType::Comments,
+                            "PageTitle" => ComponentType::PageTitle,
+                            "PublishedDate" => ComponentType::PublishedDate,
                             _ => ComponentType::Text,
                         };
                         dragging_component.set(Some(component_type));
@@ -859,9 +914,14 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
 
     let on_drag_over = {
         let drag_over = drag_over.clone();
+        let dragging_component = dragging_component.clone();
+        let dragging_existing_component = dragging_existing_component.clone();
         Callback::from(move |e: DragEvent| {
-            e.prevent_default();
-            drag_over.set(true);
+            // Only prevent default if we have something being dragged
+            if (*dragging_component).is_some() || (*dragging_existing_component).is_some() {
+                e.prevent_default();
+                drag_over.set(true);
+            }
         })
     };
 
@@ -877,60 +937,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         })
     };
 
-    let on_drop = {
-        let components = components.clone();
-        let drag_over = drag_over.clone();
-        let dragging_component = dragging_component.clone();
-        let container_drag_over = container_drag_over.clone();
-        let column_drag_over = column_drag_over.clone();
-        Callback::from(move |e: DragEvent| {
-            e.prevent_default();
-            drag_over.set(false);
-            
-            // Clear all drag-over states
-            container_drag_over.set(None);
-            column_drag_over.set(None);
-            
-            if let Some(component_type) = (*dragging_component).clone() {
-            let mut new_component = PageComponent {
-                id: uuid::Uuid::new_v4().to_string(),
-                component_type: component_type.clone(),
-                content: component_type.default_content(),
-                styles: ComponentStyles::default(),
-                position: Position::default(),
-                properties: ComponentProperties::default(),
-            };
-            if let ComponentType::Sidebar = component_type {
-                if let Some(sidebar) = (*component_templates)
-                    .iter()
-                    .find(|t| t.component_type == "sidebar")
-                {
-                    if let Some(obj) = sidebar.template_data.as_object() {
-                        if let Some(pos) = obj.get("position").and_then(|v| v.as_str()) {
-                            new_component.properties.sidebar_position = pos.to_string();
-                        }
-                        if let Some(width) = obj.get("width").and_then(|v| v.as_str()) {
-                            new_component.properties.sidebar_width = width.to_string();
-                        }
-                        if let Some(sticky) = obj.get("sticky").and_then(|v| v.as_bool()) {
-                            new_component.properties.sidebar_sticky = sticky;
-                        }
-                    }
-                }
-            }
-            
-            let mut current_components = (*components).clone();
-            current_components.push(new_component);
-            components.set(current_components);
-            } else {
-                // Log warning but don't crash if no component is being dragged
-                web_sys::console::log_1(&"No component being dragged to main canvas".into());
-            }
-            
-            // Always clear the dragging state
-            dragging_component.set(None);
-        })
-    };
+    // on_drop will be defined after on_component_reorder
 
     // Callback for handling drops into nested container components
     let on_nested_drop = {
@@ -1037,6 +1044,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         let media_picker_target_component = media_picker_target_component.clone();
         let media_picker_images_only = media_picker_images_only.clone();
         Callback::from(move |(component_id, images_only): (String, bool)| {
+            web_sys::console::log_1(&format!("🎯 Opening media picker for component: {}", component_id).into());
             media_picker_target_component.set(Some(component_id));
             media_picker_images_only.set(images_only);
             show_media_picker.set(true);
@@ -1057,24 +1065,95 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         let media_picker_target_component = media_picker_target_component.clone();
         let show_media_picker = show_media_picker.clone();
         Callback::from(move |media_item: MediaItem| {
+            web_sys::console::log_1(&format!("🎯 Media selected: {}", media_item.name).into());
+            
             if let Some(ref component_id) = *media_picker_target_component {
+                web_sys::console::log_1(&format!("🎯 Target component ID: {}", component_id).into());
+                
                 let mut current_components = (*components).clone();
                 if let Some(component) = current_components.iter_mut().find(|c| c.id == *component_id) {
+                    web_sys::console::log_1(&format!("🎯 Found component type: {:?}", component.component_type).into());
+                    
                     match component.component_type {
                         ComponentType::Image => {
                             component.properties.image_url = format!("http://localhost:8081{}", media_item.url);
                             if component.properties.image_alt.is_empty() {
                                 component.properties.image_alt = media_item.name;
                             }
+                            web_sys::console::log_1(&"🎯 Updated Image component".into());
                         }
                         ComponentType::Video => {
                             component.properties.video_url = format!("http://localhost:8081{}", media_item.url);
+                            web_sys::console::log_1(&"🎯 Updated Video component".into());
                         }
-                        ComponentType::Sidebar | _ => {}
+                        ComponentType::Gallery => {
+                            web_sys::console::log_1(&"🎯 Processing Gallery component".into());
+                            // Add the media item to the gallery images
+                            let new_gallery_image = GalleryImage {
+                                url: format!("http://localhost:8081{}", media_item.url),
+                                alt: media_item.name.clone(),
+                                caption: String::new(),
+                                title: media_item.name,
+                            };
+                            component.properties.gallery_images.push(new_gallery_image);
+                            web_sys::console::log_1(&format!("🎯 Added image to gallery. Total images: {}", component.properties.gallery_images.len()).into());
+                        }
+                        ComponentType::Sidebar | _ => {
+                            web_sys::console::log_1(&format!("🎯 Unhandled component type: {:?}", component.component_type).into());
+                        }
                     }
+                } else {
+                    web_sys::console::log_1(&format!("🎯 Component not found with ID: {}", component_id).into());
                 }
                 components.set(current_components);
+            } else {
+                web_sys::console::log_1(&"🎯 No target component ID set".into());
             }
+            show_media_picker.set(false);
+            media_picker_target_component.set(None);
+        })
+    };
+
+    let on_multi_media_select = {
+        let components = components.clone();
+        let media_picker_target_component = media_picker_target_component.clone();
+        let show_media_picker = show_media_picker.clone();
+        Callback::from(move |media_items: Vec<MediaItem>| {
+            web_sys::console::log_1(&format!("🎯 Multiple media selected: {} items", media_items.len()).into());
+            
+            if let Some(ref component_id) = *media_picker_target_component {
+                web_sys::console::log_1(&format!("🎯 Target component ID: {}", component_id).into());
+                
+                let mut current_components = (*components).clone();
+                if let Some(component) = current_components.iter_mut().find(|c| c.id == *component_id) {
+                    web_sys::console::log_1(&format!("🎯 Found component type: {:?}", component.component_type).into());
+                    
+                    match component.component_type {
+                        ComponentType::Gallery => {
+                            web_sys::console::log_1(&"🎯 Processing Gallery component for multiple items".into());
+                            // Add all media items to the gallery images
+                            for media_item in media_items {
+                                let new_gallery_image = GalleryImage {
+                                    url: format!("http://localhost:8081{}", media_item.url),
+                                    alt: media_item.name.clone(),
+                                    caption: String::new(),
+                                    title: media_item.name,
+                                };
+                                component.properties.gallery_images.push(new_gallery_image);
+                            }
+                            web_sys::console::log_1(&format!("🎯 Added images to gallery. Total images: {}", component.properties.gallery_images.len()).into());
+                        }
+                        _ => {
+                            web_sys::console::log_1(&"🎯 Multi-select only supported for Gallery components".into());
+                        }
+                    }
+                    
+                    components.set(current_components);
+                } else {
+                    web_sys::console::log_1(&"🎯 Component not found".into());
+                }
+            }
+            
             show_media_picker.set(false);
             media_picker_target_component.set(None);
         })
@@ -1082,98 +1161,122 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
 
     let on_property_update = {
         let components = components.clone();
-        Callback::from(move |(component_id, property_name, property_value): (String, String, String)| {
+        Callback::from(move |(component_id, property_name, prop_value): (String, String, String)| {
             let mut current_components = (*components).clone();
             if let Some(component) = current_components.iter_mut().find(|c| c.id == component_id) {
                 match property_name.as_str() {
-                    "image_url" => component.properties.image_url = property_value,
-                    "image_alt" => component.properties.image_alt = property_value,
-                    "image_title" => component.properties.image_title = property_value,
-                    "button_text" => component.properties.button_text = property_value,
-                    "button_url" => component.properties.button_url = property_value,
-                    "button_target" => component.properties.button_target = property_value,
-                    "button_size" => component.properties.button_size = property_value,
-                    "button_variant" => component.properties.button_variant = property_value,
-                    "button_icon" => component.properties.button_icon = property_value,
+                    "image_url" => component.properties.image_url = prop_value,
+                    "image_alt" => component.properties.image_alt = prop_value,
+                    "image_title" => component.properties.image_title = prop_value,
+                    "button_text" => component.properties.button_text = prop_value,
+                    "button_url" => component.properties.button_url = prop_value,
+                    "button_target" => component.properties.button_target = prop_value,
+                    "button_size" => component.properties.button_size = prop_value,
+                    "button_variant" => component.properties.button_variant = prop_value,
+                    "button_icon" => component.properties.button_icon = prop_value,
                     
                     // Card properties
-                    "card_title" => component.properties.card_title = property_value,
-                    "card_description" => component.properties.card_description = property_value,
-                    "card_image" => component.properties.card_image = property_value,
-                    "card_image_alt" => component.properties.card_image_alt = property_value,
-                    "card_background" => component.properties.card_background = property_value,
-                    "card_border_radius" => component.properties.card_border_radius = property_value,
-                    "card_shadow" => component.properties.card_shadow = property_value,
-                    "card_padding" => component.properties.card_padding = property_value,
-                    "card_meta_text" => component.properties.card_meta_text = property_value,
-                    "card_button_text" => component.properties.card_button_text = property_value,
-                    "card_button_url" => component.properties.card_button_url = property_value,
+                    "card_title" => component.properties.card_title = prop_value,
+                    "card_description" => component.properties.card_description = prop_value,
+                    "card_image" => component.properties.card_image = prop_value,
+                    "card_image_alt" => component.properties.card_image_alt = prop_value,
+                    "card_background" => component.properties.card_background = prop_value,
+                    "card_border_radius" => component.properties.card_border_radius = prop_value,
+                    "card_shadow" => component.properties.card_shadow = prop_value,
+                    "card_padding" => component.properties.card_padding = prop_value,
+                    "card_meta_text" => component.properties.card_meta_text = prop_value,
+                    "card_button_text" => component.properties.card_button_text = prop_value,
+                    "card_button_url" => component.properties.card_button_url = prop_value,
                     
                     // Hero properties
-                    "hero_badge_text" => component.properties.hero_badge_text = property_value,
-                    "hero_title" => component.properties.hero_title = property_value,
-                    "hero_subtitle" => component.properties.hero_subtitle = property_value,
-                    "hero_description" => component.properties.hero_description = property_value,
-                    "hero_background_type" => component.properties.hero_background_type = property_value,
-                    "hero_background_color" => component.properties.hero_background_color = property_value,
-                    "hero_background_gradient_start" => component.properties.hero_background_gradient_start = property_value,
-                    "hero_background_gradient_end" => component.properties.hero_background_gradient_end = property_value,
-                    "hero_background_image" => component.properties.hero_background_image = property_value,
-                    "hero_text_color" => component.properties.hero_text_color = property_value,
-                    "hero_alignment" => component.properties.hero_alignment = property_value,
-                    "hero_padding" => component.properties.hero_padding = property_value,
-                    "hero_min_height" => component.properties.hero_min_height = property_value,
-                    "hero_primary_button_text" => component.properties.hero_primary_button_text = property_value,
-                    "hero_primary_button_url" => component.properties.hero_primary_button_url = property_value,
-                    "hero_secondary_button_text" => component.properties.hero_secondary_button_text = property_value,
-                    "hero_secondary_button_url" => component.properties.hero_secondary_button_url = property_value,
-                    "hero_stat1_number" => component.properties.hero_stat1_number = property_value,
-                    "hero_stat1_label" => component.properties.hero_stat1_label = property_value,
-                    "hero_stat2_number" => component.properties.hero_stat2_number = property_value,
-                    "hero_stat2_label" => component.properties.hero_stat2_label = property_value,
-                    "hero_stat3_number" => component.properties.hero_stat3_number = property_value,
-                    "hero_stat3_label" => component.properties.hero_stat3_label = property_value,
+                    "hero_badge_text" => component.properties.hero_badge_text = prop_value,
+                    "hero_title" => component.properties.hero_title = prop_value,
+                    "hero_subtitle" => component.properties.hero_subtitle = prop_value,
+                    "hero_description" => component.properties.hero_description = prop_value,
+                    "hero_background_type" => component.properties.hero_background_type = prop_value,
+                    "hero_background_color" => component.properties.hero_background_color = prop_value,
+                    "hero_background_gradient_start" => component.properties.hero_background_gradient_start = prop_value,
+                    "hero_background_gradient_end" => component.properties.hero_background_gradient_end = prop_value,
+                    "hero_background_image" => component.properties.hero_background_image = prop_value,
+                    "hero_text_color" => component.properties.hero_text_color = prop_value,
+                    "hero_alignment" => component.properties.hero_alignment = prop_value,
+                    "hero_padding" => component.properties.hero_padding = prop_value,
+                    "hero_min_height" => component.properties.hero_min_height = prop_value,
+                    "hero_primary_button_text" => component.properties.hero_primary_button_text = prop_value,
+                    "hero_primary_button_url" => component.properties.hero_primary_button_url = prop_value,
+                    "hero_secondary_button_text" => component.properties.hero_secondary_button_text = prop_value,
+                    "hero_secondary_button_url" => component.properties.hero_secondary_button_url = prop_value,
+                    "hero_stat1_number" => component.properties.hero_stat1_number = prop_value,
+                    "hero_stat1_label" => component.properties.hero_stat1_label = prop_value,
+                    "hero_stat2_number" => component.properties.hero_stat2_number = prop_value,
+                    "hero_stat2_label" => component.properties.hero_stat2_label = prop_value,
+                    "hero_stat3_number" => component.properties.hero_stat3_number = prop_value,
+                    "hero_stat3_label" => component.properties.hero_stat3_label = prop_value,
                     
                     // List properties
-                    "list_background" => component.properties.list_background = property_value,
-                    "list_border_radius" => component.properties.list_border_radius = property_value,
-                    "list_padding" => component.properties.list_padding = property_value,
-                    "list_item_spacing" => component.properties.list_item_spacing = property_value,
-                    "list_text_color" => component.properties.list_text_color = property_value,
+                    "list_background" => component.properties.list_background = prop_value,
+                    "list_border_radius" => component.properties.list_border_radius = prop_value,
+                    "list_padding" => component.properties.list_padding = prop_value,
+                    "list_item_spacing" => component.properties.list_item_spacing = prop_value,
+                    "list_text_color" => component.properties.list_text_color = prop_value,
                     
-                    "video_url" => component.properties.video_url = property_value,
-                    "gallery_layout" => component.properties.gallery_layout = property_value,
+                    "video_url" => component.properties.video_url = prop_value,
+                    "gallery_layout" => component.properties.gallery_layout = prop_value,
                     "gallery_columns" => {
-                        if let Ok(columns) = property_value.parse::<i32>() {
+                        if let Ok(columns) = prop_value.parse::<i32>() {
                             component.properties.gallery_columns = columns;
                         }
                     },
-                    "divider_style" => component.properties.divider_style = property_value,
-                    "divider_thickness" => component.properties.divider_thickness = property_value,
-                    "divider_color" => component.properties.divider_color = property_value,
-                    "divider_margin" => component.properties.divider_margin = property_value,
-                    "divider_width" => component.properties.divider_width = property_value,
+                    "gallery_gap" => {
+                        if let Ok(gap) = prop_value.parse::<i32>() {
+                            component.properties.gallery_gap = gap;
+                        }
+                    },
+                    "gallery_border_radius" => {
+                        if let Ok(radius) = prop_value.parse::<i32>() {
+                            component.properties.gallery_border_radius = radius;
+                        }
+                    },
+                    "gallery_show_captions" => {
+                        component.properties.gallery_show_captions = prop_value == "true";
+                    },
+                    "gallery_enable_lightbox" => {
+                        component.properties.gallery_enable_lightbox = prop_value == "true";
+                    },
+                    "gallery_enable_drag_reorder" => {
+                        component.properties.gallery_enable_drag_reorder = prop_value == "true";
+                    },
+                    "gallery_images" => {
+                        if let Ok(images) = serde_json::from_str::<Vec<GalleryImage>>(&prop_value) {
+                            component.properties.gallery_images = images;
+                        }
+                    },
+                    "divider_style" => component.properties.divider_style = prop_value,
+                    "divider_thickness" => component.properties.divider_thickness = prop_value,
+                    "divider_color" => component.properties.divider_color = prop_value,
+                    "divider_margin" => component.properties.divider_margin = prop_value,
+                    "divider_width" => component.properties.divider_width = prop_value,
                     
                     // PostsList properties
-                    "posts_list_card_background" => component.properties.posts_list_card_background = property_value,
-                    "posts_list_grid_gap" => component.properties.posts_list_grid_gap = property_value,
-                    "posts_list_card_radius" => component.properties.posts_list_card_radius = property_value,
-                    "posts_list_card_shadow" => component.properties.posts_list_card_shadow = property_value,
-                    "posts_list_title_color" => component.properties.posts_list_title_color = property_value,
-                    "posts_list_meta_color" => component.properties.posts_list_meta_color = property_value,
-                    "posts_list_link_color" => component.properties.posts_list_link_color = property_value,
+                    "posts_list_card_background" => component.properties.posts_list_card_background = prop_value,
+                    "posts_list_grid_gap" => component.properties.posts_list_grid_gap = prop_value,
+                    "posts_list_card_radius" => component.properties.posts_list_card_radius = prop_value,
+                    "posts_list_card_shadow" => component.properties.posts_list_card_shadow = prop_value,
+                    "posts_list_title_color" => component.properties.posts_list_title_color = prop_value,
+                    "posts_list_meta_color" => component.properties.posts_list_meta_color = prop_value,
+                    "posts_list_link_color" => component.properties.posts_list_link_color = prop_value,
                     "posts_list_columns" => {
-                        if let Ok(columns) = property_value.parse::<i32>() {
+                        if let Ok(columns) = prop_value.parse::<i32>() {
                             component.properties.posts_list_columns = columns;
                         }
                     },
                     "posts_list_count" => {
-                        if let Ok(count) = property_value.parse::<i32>() {
+                        if let Ok(count) = prop_value.parse::<i32>() {
                             component.properties.posts_list_count = count;
                         }
                     },
                     "posts_list_excerpt_length" => {
-                        if let Ok(length) = property_value.parse::<i32>() {
+                        if let Ok(length) = prop_value.parse::<i32>() {
                             component.properties.posts_list_excerpt_length = length;
                         }
                     },
@@ -1186,33 +1289,43 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
 
     let on_boolean_property_update = {
         let components = components.clone();
-        Callback::from(move |(component_id, property_name, property_value): (String, String, bool)| {
+        Callback::from(move |(component_id, property_name, prop_value): (String, String, bool)| {
             let mut current_components = (*components).clone();
             if let Some(component) = current_components.iter_mut().find(|c| c.id == component_id) {
                 match property_name.as_str() {
-                    "image_lazy_load" => component.properties.image_lazy_load = property_value,
-                    "video_autoplay" => component.properties.video_autoplay = property_value,
-                    "video_controls" => component.properties.video_controls = property_value,
-                    "video_muted" => component.properties.video_muted = property_value,
-                    "video_loop" => component.properties.video_loop = property_value,
+                    "image_lazy_load" => component.properties.image_lazy_load = prop_value,
+                    "video_autoplay" => component.properties.video_autoplay = prop_value,
+                    "video_controls" => component.properties.video_controls = prop_value,
+                    "video_muted" => component.properties.video_muted = prop_value,
+                    "video_loop" => component.properties.video_loop = prop_value,
                     
                     // Card boolean properties
-                    "card_button_show" => component.properties.card_button_show = property_value,
+                    "card_button_show" => component.properties.card_button_show = prop_value,
                     
                     // Hero boolean properties
-                    "hero_show_primary_button" => component.properties.hero_show_primary_button = property_value,
-                    "hero_show_secondary_button" => component.properties.hero_show_secondary_button = property_value,
-                    "hero_show_badge" => component.properties.hero_show_badge = property_value,
-                    "hero_show_stats" => component.properties.hero_show_stats = property_value,
+                    "hero_show_primary_button" => component.properties.hero_show_primary_button = prop_value,
+                    "hero_show_secondary_button" => component.properties.hero_show_secondary_button = prop_value,
+                    "hero_show_badge" => component.properties.hero_show_badge = prop_value,
+                    "hero_show_stats" => component.properties.hero_show_stats = prop_value,
                     
                     // List boolean properties
-                    "list_show_icons" => component.properties.list_show_icons = property_value,
+                    "list_show_icons" => component.properties.list_show_icons = prop_value,
                     
                     // PostsList boolean properties
-                    "posts_list_show_author" => component.properties.posts_list_show_author = property_value,
-                    "posts_list_show_date" => component.properties.posts_list_show_date = property_value,
-                    "posts_list_show_excerpt" => component.properties.posts_list_show_excerpt = property_value,
-                    "posts_list_show_view_all" => component.properties.posts_list_show_view_all = property_value,
+                    "posts_list_show_author" => component.properties.posts_list_show_author = prop_value,
+                    "posts_list_show_date" => component.properties.posts_list_show_date = prop_value,
+                    "posts_list_show_excerpt" => component.properties.posts_list_show_excerpt = prop_value,
+                    "posts_list_show_view_all" => component.properties.posts_list_show_view_all = prop_value,
+                    
+                    // Page Title properties - TODO: Fix type inference issue
+                    "page_title_tag" | "page_title_prefix" | "page_title_suffix" |
+                    "page_title_show_prefix" | "page_title_show_suffix" |
+                    "published_date_format" | "published_date_prefix" |
+                    "published_date_show_prefix" | "published_date_show_time" | "published_date_relative" => {
+                        // Temporarily disabled due to type inference issue
+                        // Properties will use default values until this is resolved
+                        web_sys::console::log_1(&format!("Property update for {} temporarily disabled", property_name).into());
+                    },
                     _ => {}
                 }
             }
@@ -1220,7 +1333,152 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         })
     };
 
+    // Component reordering callbacks
+    let on_component_drag_start = {
+        let dragging_existing_component = dragging_existing_component.clone();
+        Callback::from(move |component_id: String| {
+            dragging_existing_component.set(Some(component_id));
+        })
+    };
+
+    let on_component_drag_end = {
+        let dragging_existing_component = dragging_existing_component.clone();
+        let drop_zone_hover = drop_zone_hover.clone();
+        Callback::from(move |_| {
+            dragging_existing_component.set(None);
+            drop_zone_hover.set(None);
+        })
+    };
+
+    let on_drop_zone_enter = {
+        let drop_zone_hover = drop_zone_hover.clone();
+        Callback::from(move |drop_zone_id: String| {
+            drop_zone_hover.set(Some(drop_zone_id));
+        })
+    };
+
+    let on_drop_zone_leave = {
+        let drop_zone_hover = drop_zone_hover.clone();
+        Callback::from(move |_| {
+            drop_zone_hover.set(None);
+        })
+    };
+
+    let on_component_reorder = {
+        let components = components.clone();
+        let dragging_existing_component = dragging_existing_component.clone();
+        let drop_zone_hover = drop_zone_hover.clone();
+        Callback::from(move |target_position: usize| {
+            web_sys::console::log_1(&format!("🔄 Reorder callback triggered! Target position: {}", target_position).into());
+            
+            if let Some(dragged_id) = (*dragging_existing_component).clone() {
+                web_sys::console::log_1(&format!("📦 Dragging component: {}", dragged_id).into());
+                let mut current_components = (*components).clone();
+                
+                web_sys::console::log_1(&format!("📋 Current components count: {}", current_components.len()).into());
+                
+                // Find the dragged component and remove it
+                if let Some(dragged_index) = current_components.iter().position(|c| c.id == dragged_id) {
+                    web_sys::console::log_1(&format!("📍 Found dragged component at index: {}", dragged_index).into());
+                    let dragged_component = current_components.remove(dragged_index);
+                    
+                    // Insert at the new position
+                    let insert_position = if target_position > dragged_index {
+                        target_position - 1
+                    } else {
+                        target_position
+                    };
+                    
+                    web_sys::console::log_1(&format!("🎯 Inserting at position: {} (calculated from target: {})", insert_position, target_position).into());
+                    
+                    current_components.insert(insert_position.min(current_components.len()), dragged_component);
+                    components.set(current_components);
+                    
+                    web_sys::console::log_1(&"✅ Component reordered successfully!".into());
+                } else {
+                    web_sys::console::log_1(&format!("❌ Could not find component with id: {}", dragged_id).into());
+                }
+                
+                // Clear drag state
+                dragging_existing_component.set(None);
+                drop_zone_hover.set(None);
+            } else {
+                web_sys::console::log_1(&"❌ No component being dragged!".into());
+            }
+        })
+    };
+
+    // Main canvas drop handler (defined after on_component_reorder)
+    let on_drop = {
+        let components = components.clone();
+        let drag_over = drag_over.clone();
+        let dragging_component = dragging_component.clone();
+        let dragging_existing_component = dragging_existing_component.clone();
+        let on_component_reorder = on_component_reorder.clone();
+        let container_drag_over = container_drag_over.clone();
+        let column_drag_over = column_drag_over.clone();
+        let component_templates = component_templates.clone();
+        Callback::from(move |e: DragEvent| {
+            e.prevent_default();
+            drag_over.set(false);
+            
+            // Clear all drag-over states
+            container_drag_over.set(None);
+            column_drag_over.set(None);
+            
+            // Check if we're reordering an existing component
+            if (*dragging_existing_component).is_some() {
+                web_sys::console::log_1(&"🔄 Main canvas drop - reordering to end of list".into());
+                let current_components_len = (*components).len();
+                on_component_reorder.emit(current_components_len);
+                return;
+            }
+            
+            // Otherwise, handle new component drop
+            if let Some(component_type) = (*dragging_component).clone() {
+                let mut new_component = PageComponent {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    component_type: component_type.clone(),
+                    content: component_type.default_content(),
+                    styles: ComponentStyles::default(),
+                    position: Position::default(),
+                    properties: ComponentProperties::default(),
+                };
+                if let ComponentType::Sidebar = component_type {
+                    if let Some(sidebar) = (*component_templates)
+                        .iter()
+                        .find(|t| t.component_type == "sidebar")
+                    {
+                        if let Some(obj) = sidebar.template_data.as_object() {
+                            if let Some(pos) = obj.get("position").and_then(|v| v.as_str()) {
+                                new_component.properties.sidebar_position = pos.to_string();
+                            }
+                            if let Some(width) = obj.get("width").and_then(|v| v.as_str()) {
+                                new_component.properties.sidebar_width = width.to_string();
+                            }
+                            if let Some(sticky) = obj.get("sticky").and_then(|v| v.as_bool()) {
+                                new_component.properties.sidebar_sticky = sticky;
+                            }
+                        }
+                    }
+                }
+                
+                let mut current_components = (*components).clone();
+                current_components.push(new_component);
+                components.set(current_components);
+            } else {
+                // Log warning but don't crash if no component is being dragged
+                web_sys::console::log_1(&"No component being dragged to main canvas".into());
+            }
+            
+            // Always clear the dragging state
+            dragging_component.set(None);
+            dragging_existing_component.set(None);
+        })
+    };
+
     html! {
+        <>
         <div class="drag-drop-page-builder">
             <div class="builder-layout">
                 // Component Library Sidebar
@@ -1247,7 +1505,10 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                 // Main Canvas Area
                 <div class="builder-canvas">
                     <div 
-                        class={classes!("drop-zone", if *drag_over { Some("drag-over") } else { None })}
+                        class={classes!("drop-zone", 
+                            if *drag_over { Some("drag-over") } else { None },
+                            if (*dragging_existing_component).is_some() { Some("reordering") } else { None }
+                        )}
                         ondragover={on_drag_over}
                         ondragleave={on_drag_leave}
                         ondrop={on_drop}
@@ -1278,167 +1539,303 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                 </div>
                             }
                         } else {
-                            html! {
-                                <div class="canvas-components">
-                                    {components.iter().map(|component| {
-                                        let is_selected = selected_component.as_ref() == Some(&component.id);
-                                        let is_editing = editing_component.as_ref() == Some(&component.id);
+                            {
+                                let mut elements = Vec::new();
                                         
-                                        if is_editing {
-                                            let component_id = component.id.clone();
-                                            let content = component.content.clone();
-                                            let on_save = {
-                                                let on_content_save = on_content_save.clone();
-                                                let component_id = component_id.clone();
-                                                Callback::from(move |new_content: String| {
-                                                    on_content_save.emit((component_id.clone(), new_content));
-                                                })
-                                            };
-                                            let on_cancel = {
-                                                let editing_component = editing_component.clone();
-                                                Callback::from(move |_| {
-                                                    editing_component.set(None);
-                                                })
-                                            };
-                                            let on_save_click = {
-                                                let on_save = on_save.clone();
-                                                let content = content.clone();
-                                                Callback::from(move |_| {
-                                                    on_save.emit(content.clone());
-                                                })
-                                            };
+                                        // Add drop zone at the beginning
+                                        let is_drop_zone_active = drop_zone_hover.as_ref() == Some(&format!("drop-zone-0"));
+                                        let drop_zone_class = if is_drop_zone_active { "component-drop-zone active" } else { "component-drop-zone" };
+                                        
+                                        let on_drop_zone_dragover = {
+                                            let on_drop_zone_enter = on_drop_zone_enter.clone();
+                                            let dragging_existing_component = dragging_existing_component.clone();
+                                            Callback::from(move |e: DragEvent| {
+                                                // Only allow drop if we have a component being dragged
+                                                if (*dragging_existing_component).is_some() {
+                                                    e.prevent_default(); // This is crucial for allowing drop
+                                                    web_sys::console::log_1(&"🎯 Hovering over top drop zone (position 0)".into());
+                                                    on_drop_zone_enter.emit(format!("drop-zone-0"));
+                                                }
+                                            })
+                                        };
+                                        
+                                        let on_drop_zone_drop = {
+                                            let on_component_reorder = on_component_reorder.clone();
+                                            let dragging_existing_component = dragging_existing_component.clone();
+                                            Callback::from(move |e: DragEvent| {
+                                                e.prevent_default();
+                                                e.stop_propagation(); // Prevent main canvas from handling this
+                                                // Check if we have a component being dragged
+                                                if (*dragging_existing_component).is_some() {
+                                                    web_sys::console::log_1(&"🎯 Dropping at position 0 (top drop zone)".into());
+                                                    on_component_reorder.emit(0);
+                                                } else {
+                                                    web_sys::console::log_1(&"❌ No component being dragged to top drop zone".into());
+                                                }
+                                            })
+                                        };
+                                        
+                                        elements.push(html! {
+                                            <div 
+                                                class={drop_zone_class}
+                                                ondragover={on_drop_zone_dragover}
+                                                ondrop={on_drop_zone_drop}
+                                                ondragleave={on_drop_zone_leave.clone()}
+                                            />
+                                        });
+                                        
+                                        // Add components with drop zones between them
+                                        for (index, component) in components.iter().enumerate() {
+                                            let is_selected = selected_component.as_ref() == Some(&component.id);
+                                            let is_editing = editing_component.as_ref() == Some(&component.id);
+                                            let is_being_dragged = dragging_existing_component.as_ref() == Some(&component.id);
                                             
-                                            html! {
-                                                <div class="component-editor">
-                                                    <div class="editor-header">
-                                                        <h4>{format!("Editing: {}", component.component_type.display_name())}</h4>
-                                                        <div class="editor-actions">
-                                                            <button class="btn btn-secondary" onclick={on_cancel}>{"Cancel"}</button>
-                                                            <button class="btn" onclick={on_save_click}>{"Save"}</button>
-                                                        </div>
-                                                    </div>
-                                                    <MarkdownEditor
-                                                        value={component.content.clone()}
-                                                        on_change={on_save}
-                                                        placeholder={Some(format!("Enter content for your {}...", component.component_type.display_name()))}
-                                                        rows={Some(15)}
-                                                    />
-                                                </div>
-                                            }
-                                        } else {
-                                            let component_id = component.id.clone();
-                                            let on_click = {
-                                                let on_component_click = on_component_click.clone();
-                                                let component_id = component_id.clone();
-                                                Callback::from(move |_| {
-                                                    on_component_click.emit(component_id.clone());
-                                                })
-                                            };
-                                            let on_edit = {
-                                                let on_component_edit = on_component_edit.clone();
-                                                let component_id = component_id.clone();
-                                                Callback::from(move |_| {
-                                                    on_component_edit.emit(component_id.clone());
-                                                })
-                                            };
-                                            let on_delete = {
-                                                let on_component_delete = on_component_delete.clone();
-                                                let component_id = component_id.clone();
-                                                Callback::from(move |_| {
-                                                    on_component_delete.emit(component_id.clone());
-                                                })
-                                            };
-                                            let on_duplicate = {
-                                                let on_component_duplicate = on_component_duplicate.clone();
-                                                let component_id = component_id.clone();
-                                                Callback::from(move |_| {
-                                                    on_component_duplicate.emit(component_id.clone());
-                                                })
-                                            };
-                                            
-                                            let selection_border = if is_selected {
-                                                "3px solid #007bff"
-                                            } else {
-                                                &format!("{} {} {}", component.styles.border_width, component.styles.border_style, component.styles.border_color)
-                                            };
-                                            
-                                            let selection_box_shadow = if is_selected {
-                                                format!("{}, 0 0 0 2px rgba(0, 123, 255, 0.25)", component.styles.box_shadow)
-                                            } else {
-                                                component.styles.box_shadow.clone()
-                                            };
-                                            
-                                            html! {
-                                                <div 
-                                                    class={classes!("canvas-component", if is_selected { Some("selected") } else { None })}
-                                                    onclick={on_click}
-                                                    style={format!(
-                                                        "background-color: {}; color: {}; padding: {}; margin: {}; border-radius: {}; font-size: {}; font-weight: {}; text-align: {}; border: {}; box-shadow: {}; opacity: {}; z-index: {}; font-family: {}; line-height: {}; letter-spacing: {}; text-decoration: {}; text-transform: {}; background-image: {}; background-size: {}; background-position: {}; background-repeat: {}; position: relative;",
-                                                        component.styles.background_color,
-                                                        component.styles.text_color,
-                                                        component.styles.padding,
-                                                        component.styles.margin,
-                                                        component.styles.border_radius,
-                                                        component.styles.font_size,
-                                                        component.styles.font_weight,
-                                                        component.styles.text_align,
-                                                        selection_border,
-                                                        selection_box_shadow,
-                                                        component.styles.opacity,
-                                                        if is_selected { "10" } else { &component.styles.z_index.to_string() },
-                                                        component.styles.font_family,
-                                                        component.styles.line_height,
-                                                        component.styles.letter_spacing,
-                                                        component.styles.text_decoration,
-                                                        component.styles.text_transform,
-                                                        component.styles.background_image,
-                                                        component.styles.background_size,
-                                                        component.styles.background_position,
-                                                        component.styles.background_repeat
-                                                    )}
-                                                >
-                                                    {render_component_content_with_drop_zones(
-                                                        component, 
-                                                        on_nested_drop.clone(), 
-                                                        dragging_component.clone(), 
-                                                        container_drag_over.clone(), 
-                                                        column_drag_over.clone(),
-                                                        selected_component.clone(),
-                                                        on_component_click.clone(),
-                                                        on_component_edit.clone(),
-                                                        on_component_duplicate.clone(),
-                                                        on_component_delete.clone()
-                                                    )}
-                                                    {if is_selected {
-                                                        html! {
-                                                            <>
-                                                                <div class="selection-indicator" style="position: absolute; top: -8px; left: -8px; background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; z-index: 11; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                                                    {"✓ Selected"}
+                                            // Add the component with drag functionality
+                                            // Always render the component, but apply different styles when being dragged
+                                                if is_editing {
+                                                    let component_id = component.id.clone();
+                                                    let content = component.content.clone();
+                                                    let on_save = {
+                                                        let on_content_save = on_content_save.clone();
+                                                        let component_id = component_id.clone();
+                                                        Callback::from(move |new_content: String| {
+                                                            on_content_save.emit((component_id.clone(), new_content));
+                                                        })
+                                                    };
+                                                    let on_cancel = {
+                                                        let editing_component = editing_component.clone();
+                                                        Callback::from(move |_| {
+                                                            editing_component.set(None);
+                                                        })
+                                                    };
+                                                    let on_save_click = {
+                                                        let on_save = on_save.clone();
+                                                        let content = content.clone();
+                                                        Callback::from(move |_| {
+                                                            on_save.emit(content.clone());
+                                                        })
+                                                    };
+                                                    
+                                                    elements.push(html! {
+                                                        <div class="component-editor">
+                                                            <div class="editor-header">
+                                                                <h4>{format!("Editing: {}", component.component_type.display_name())}</h4>
+                                                                <div class="editor-actions">
+                                                                    <button class="btn btn-secondary" onclick={on_cancel}>{"Cancel"}</button>
+                                                                    <button class="btn" onclick={on_save_click}>{"Save"}</button>
                                                                 </div>
-                                                            <div class="component-controls">
-                                                                <button class="control-btn" onclick={on_edit} title="Edit Content">{"✏️"}</button>
-                                                                <button class="control-btn" onclick={on_duplicate} title="Duplicate">{"📋"}</button>
-                                                                <button class="control-btn" onclick={on_delete} title="Delete">{"🗑️"}</button>
                                                             </div>
-                                                            </>
-                                                        }
+                                                            <MarkdownEditor
+                                                                value={component.content.clone()}
+                                                                on_change={on_save}
+                                                                placeholder={Some(format!("Enter content for your {}...", component.component_type.display_name()))}
+                                                                rows={Some(15)}
+                                                            />
+                                                        </div>
+                                                    });
+                                                } else {
+                                                    let component_id = component.id.clone();
+                                                    let on_click = {
+                                                        let on_component_click = on_component_click.clone();
+                                                        let component_id = component_id.clone();
+                                                        Callback::from(move |_| {
+                                                            on_component_click.emit(component_id.clone());
+                                                        })
+                                                    };
+                                                    let on_edit = {
+                                                        let on_component_edit = on_component_edit.clone();
+                                                        let component_id = component_id.clone();
+                                                        Callback::from(move |_| {
+                                                            on_component_edit.emit(component_id.clone());
+                                                        })
+                                                    };
+                                                    let on_delete = {
+                                                        let on_component_delete = on_component_delete.clone();
+                                                        let component_id = component_id.clone();
+                                                        Callback::from(move |_| {
+                                                            on_component_delete.emit(component_id.clone());
+                                                        })
+                                                    };
+                                                    let on_duplicate = {
+                                                        let on_component_duplicate = on_component_duplicate.clone();
+                                                        let component_id = component_id.clone();
+                                                        Callback::from(move |_| {
+                                                            on_component_duplicate.emit(component_id.clone());
+                                                        })
+                                                    };
+                                                    
+                                                    // Drag event handlers for existing components
+                                                    let on_drag_start = {
+                                                        let on_component_drag_start = on_component_drag_start.clone();
+                                                        let component_id = component_id.clone();
+                                                        Callback::from(move |e: DragEvent| {
+                                                            // Don't prevent default - we want the drag to work
+                                                            // Set drag data for the component using the event target
+                                                            web_sys::console::log_1(&format!("Drag started for component: {}", component_id).into());
+                                                            on_component_drag_start.emit(component_id.clone());
+                                                        })
+                                                    };
+                                                    
+                                                    let on_drag_end = {
+                                                        let on_component_drag_end = on_component_drag_end.clone();
+                                                        Callback::from(move |_: DragEvent| {
+                                                            on_component_drag_end.emit(());
+                                                        })
+                                                    };
+                                                    
+                                                    let selection_border = if is_selected {
+                                                        "3px solid #007bff"
                                                     } else {
-                                                        html! {}
-                                                    }}
-                                                </div>
+                                                        &format!("{} {} {}", component.styles.border_width, component.styles.border_style, component.styles.border_color)
+                                                    };
+                                                    
+                                                    let selection_box_shadow = if is_selected {
+                                                        format!("{}, 0 0 0 2px rgba(0, 123, 255, 0.25)", component.styles.box_shadow)
+                                                    } else {
+                                                        component.styles.box_shadow.clone()
+                                                    };
+                                                    
+                                                    // Apply ghost effect when being dragged
+                                                    let drag_opacity = if is_being_dragged { "0.3" } else { &component.styles.opacity.to_string() };
+                                                    let drag_transform = if is_being_dragged { "scale(0.95)" } else { "scale(1)" };
+                                                    
+                                                    elements.push(html! {
+                                                        <div 
+                                                            class={classes!("canvas-component", if is_selected { Some("selected") } else { None })}
+                                                            draggable="true"
+                                                            ondragstart={on_drag_start}
+                                                            ondragend={on_drag_end}
+                                                            onclick={on_click}
+                                                            style={format!(
+                                                                "background-color: {}; color: {}; padding: {}; margin: {}; border-radius: {}; font-size: {}; font-weight: {}; text-align: {}; border: {}; box-shadow: {}; opacity: {}; z-index: {}; font-family: {}; line-height: {}; letter-spacing: {}; text-decoration: {}; text-transform: {}; background-image: {}; background-size: {}; background-position: {}; background-repeat: {}; position: relative; cursor: move; transform: {};",
+                                                                component.styles.background_color,
+                                                                component.styles.text_color,
+                                                                component.styles.padding,
+                                                                component.styles.margin,
+                                                                component.styles.border_radius,
+                                                                component.styles.font_size,
+                                                                component.styles.font_weight,
+                                                                component.styles.text_align,
+                                                                selection_border,
+                                                                selection_box_shadow,
+                                                                drag_opacity,
+                                                                if is_selected { "10" } else { &component.styles.z_index.to_string() },
+                                                                component.styles.font_family,
+                                                                component.styles.line_height,
+                                                                component.styles.letter_spacing,
+                                                                component.styles.text_decoration,
+                                                                component.styles.text_transform,
+                                                                component.styles.background_image,
+                                                                component.styles.background_size,
+                                                                component.styles.background_position,
+                                                                component.styles.background_repeat,
+                                                                drag_transform
+                                                            )}
+                                                        >
+                                                            // Drag handle
+                                                            <div 
+                                                                class="drag-handle" 
+                                                                style="position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; background: rgba(0,123,255,0.8); color: white; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: grab; z-index: 12; opacity: 0; transition: opacity 0.2s; pointer-events: none;"
+                                                                title="Drag to reorder"
+                                                            >
+                                                                {"⋮⋮"}
+                                                            </div>
+                                                            
+                                                            {render_component_content_with_drop_zones(
+                                                                component, 
+                                                                on_nested_drop.clone(), 
+                                                                dragging_component.clone(), 
+                                                                container_drag_over.clone(), 
+                                                                column_drag_over.clone(),
+                                                                selected_component.clone(),
+                                                                on_component_click.clone(),
+                                                                on_component_edit.clone(),
+                                                                on_component_duplicate.clone(),
+                                                                on_component_delete.clone()
+                                                            )}
+                                                            
+                                                            {if is_selected {
+                                                                html! {
+                                                                    <>
+                                                                        <div class="selection-indicator" style="position: absolute; top: -8px; left: -8px; background: #007bff; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; z-index: 11; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                                                            {"✓ Selected"}
+                                                                        </div>
+                                                                    <div class="component-controls">
+                                                                        <button class="control-btn" onclick={on_edit} title="Edit Content">{"✏️"}</button>
+                                                                        <button class="control-btn" onclick={on_duplicate} title="Duplicate">{"📋"}</button>
+                                                                        <button class="control-btn" onclick={on_delete} title="Delete">{"🗑️"}</button>
+                                                                    </div>
+                                                                    </>
+                                                                }
+                                                            } else {
+                                                                html! {}
+                                                            }}
+                                                        </div>
+                                                    });
+                                                }
+                                            
+                                            // Add drop zone after each component (except the last one)
+                                            if index < components.len() - 1 {
+                                                let drop_zone_id = format!("drop-zone-{}", index + 1);
+                                                let is_drop_zone_active = drop_zone_hover.as_ref() == Some(&drop_zone_id);
+                                                let drop_zone_class = if is_drop_zone_active { "component-drop-zone active" } else { "component-drop-zone" };
+                                                
+                                                let on_drop_zone_dragover = {
+                                                    let on_drop_zone_enter = on_drop_zone_enter.clone();
+                                                    let dragging_existing_component = dragging_existing_component.clone();
+                                                    let drop_zone_id = drop_zone_id.clone();
+                                                    Callback::from(move |e: DragEvent| {
+                                                        // Only allow drop if we have a component being dragged
+                                                        if (*dragging_existing_component).is_some() {
+                                                            e.prevent_default(); // This is crucial for allowing drop
+                                                            e.stop_propagation(); // Prevent main canvas from handling this
+                                                            web_sys::console::log_1(&format!("🎯 Hovering over drop zone: {}", drop_zone_id).into());
+                                                            on_drop_zone_enter.emit(drop_zone_id.clone());
+                                                        }
+                                                    })
+                                                };
+                                                
+                                                let on_drop_zone_drop = {
+                                                    let on_component_reorder = on_component_reorder.clone();
+                                                    let dragging_existing_component = dragging_existing_component.clone();
+                                                    let target_index = index + 1;
+                                                    Callback::from(move |e: DragEvent| {
+                                                        e.prevent_default();
+                                                        e.stop_propagation(); // Prevent main canvas from handling this
+                                                        // Check if we have a component being dragged
+                                                        if (*dragging_existing_component).is_some() {
+                                                            web_sys::console::log_1(&format!("🎯 Dropping at position {} (drop zone)", target_index).into());
+                                                            on_component_reorder.emit(target_index);
+                                                        } else {
+                                                            web_sys::console::log_1(&format!("❌ No component being dragged to drop zone {}", target_index).into());
+                                                        }
+                                                    })
+                                                };
+                                                
+                                                elements.push(html! {
+                                                    <div 
+                                                        class={drop_zone_class}
+                                                        ondragover={on_drop_zone_dragover}
+                                                        ondrop={on_drop_zone_drop}
+                                                        ondragleave={on_drop_zone_leave.clone()}
+                                                    />
+                                                });
                                             }
                                         }
-                                    }).collect::<Html>()}
-                                </div>
+                                        
+                                        html! {
+                                            <div class="canvas-components">
+                                                {Html::from_iter(elements.into_iter())}
+                                            </div>
+                                        }
                             }
                         }}
                     </div>
                 </div>
-
-
             </div>
+        </div>
 
-            // Properties Modal - Opens when editing_component is set
+        // Properties Modal - Opens when editing_component is set
             {if let Some(editing_id) = editing_component.as_ref() {
                 // Find the component from current state each render to ensure reactivity (including nested components)
                 if let Some(component) = find_component_by_id(&(*components), editing_id) {
@@ -2949,137 +3346,112 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                             },
                                             ComponentType::Gallery => html! {
                                                 <div class="property-section">
-                                                    <h4 class="section-title">{"Gallery Properties"}</h4>
+                                                    <h4 class="section-title">{"Gallery"}</h4>
+                                                    
+                                                    // Add Images Section
                                                     <div class="property-group">
-                                                        <label>{"Layout Style"}</label>
-                                                        <select 
-                                                            value={component.properties.gallery_layout.clone()}
-                                                            onchange={{
-                                                                let on_property_update = on_property_update.clone();
+                                                        <button 
+                                                            class="media-picker-btn"
+                                                            onclick={{
+                                                                let open_media_picker = open_media_picker.clone();
                                                                 let component_id = component.id.clone();
-                                                                Callback::from(move |e: Event| {
-                                                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
-                                                                    on_property_update.emit((component_id.clone(), "gallery_layout".to_string(), target.value()));
+                                                                Callback::from(move |_| {
+                                                                    web_sys::console::log_1(&format!("🎯 Opening media picker for gallery component: {}", component_id).into());
+                                                                    open_media_picker.emit((component_id.clone(), true));
                                                                 })
                                                             }}
+                                                            style="
+                                                                width: 100%;
+                                                                padding: 16px;
+                                                                background: var(--admin-primary, #007bff);
+                                                                color: white;
+                                                                border: none;
+                                                                border-radius: 8px;
+                                                                cursor: pointer;
+                                                                font-size: 16px;
+                                                                font-weight: 600;
+                                                                margin-bottom: 20px;
+                                                                transition: all 0.2s ease;
+                                                                display: flex;
+                                                                align-items: center;
+                                                                justify-content: center;
+                                                                gap: 8px;
+                                                            "
                                                         >
-                                                            <option value="grid">{"Grid"}</option>
-                                                            <option value="masonry">{"Masonry"}</option>
-                                                            <option value="carousel">{"Carousel"}</option>
-                                                            <option value="slider">{"Slider"}</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="property-group">
-                                                        <label>{"Columns"}</label>
-                                                        <select 
-                                                            value={component.properties.gallery_columns.to_string()}
-                                                            onchange={{
-                                                                let on_property_update = on_property_update.clone();
-                                                                let component_id = component.id.clone();
-                                                                Callback::from(move |e: Event| {
-                                                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
-                                                                    on_property_update.emit((component_id.clone(), "gallery_columns".to_string(), target.value()));
-                                                                })
-                                                            }}
-                                                        >
-                                                            <option value="1">{"1 Column"}</option>
-                                                            <option value="2">{"2 Columns"}</option>
-                                                            <option value="3">{"3 Columns"}</option>
-                                                            <option value="4">{"4 Columns"}</option>
-                                                            <option value="5">{"5 Columns"}</option>
-                                                        </select>
+                                                            <span style="font-size: 18px;">{"📷"}</span>
+                                                            {"Add Images"}
+                                                        </button>
                                                     </div>
                                                     
-                                                    <div class="property-group">
-                                                        <label>{"Gallery Images"}</label>
-                                                        <div class="gallery-manager">
-                                                            {if component.properties.gallery_images.is_empty() {
-                                                                html! {
-                                                                    <div class="no-images" style="padding: 20px; text-align: center; background: var(--public-background-secondary, #f5f5f5); border-radius: 4px; color: var(--public-text-secondary, #666);">
-                                                                        {"No images added yet"}
-                                                                    </div>
-                                                                }
-                                                            } else {
-                                                                html! {
-                                                                    <div class="gallery-images-list">
-                                                                        {component.properties.gallery_images.iter().enumerate().map(|(index, image)| {
-                                                                            html! {
-                                                                                <div key={index} class="gallery-image-item" style="display: flex; gap: 12px; padding: 12px; border: 1px solid var(--public-border-light, #ddd); border-radius: 4px; margin-bottom: 8px;">
-                                                                                    <img 
-                                                                                        src={image.url.clone()}
-                                                                                        alt={image.alt.clone()}
-                                                                                        style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; flex-shrink: 0;"
-                                                                                    />
-                                                                                    <div style="flex: 1; min-width: 0;">
-                                                                                        <div style="font-size: 12px; color: var(--public-text-secondary, #666); margin-bottom: 2px;">{"URL:"}</div>
-                                                                                        <div style="font-size: 11px; word-break: break-all; margin-bottom: 4px;">{&image.url}</div>
-                                                                                        {if !image.alt.is_empty() {
-                                                                                            html! {
-                                                                                                <div style="font-size: 11px; color: var(--public-text-secondary, #666);">
-                                                                                                    {"Alt: "}{&image.alt}
-                                                                                                </div>
-                                                                                            }
-                                                                                        } else { html! {} }}
-                                                                                        {if !image.caption.is_empty() {
-                                                                                            html! {
-                                                                                                <div style="font-size: 11px; color: var(--public-text-secondary, #666);">
-                                                                                                    {"Caption: "}{&image.caption}
-                                                                                                </div>
-                                                                                            }
-                                                                                        } else { html! {} }}
-                                                                                    </div>
-                                                                                    <button 
-                                                                                        class="btn btn-sm btn-danger"
-                                                                                        style="align-self: flex-start;"
-                                                                                        title="Remove image"
-                                                                                    >
-                                                                                        {"×"}
-                                                                                    </button>
-                                                                                </div>
-                                                                            }
-                                                                        }).collect::<Html>()}
-                                                                    </div>
-                                                                }
-                                                            }}
-                                                            
-                                                            <div class="add-image-form" style="margin-top: 12px; padding: 16px; background: var(--public-background-secondary, #f8f9fa); border-radius: 4px;">
-                                                                <h5 style="margin: 0 0 12px 0; font-size: 14px;">{"Add New Image"}</h5>
-                                                                <div style="display: grid; gap: 8px;">
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="Image URL" 
-                                                                        style="padding: 8px; border: 1px solid var(--public-border-light, #ddd); border-radius: 4px; font-size: 13px;"
-                                                                        id={format!("gallery-url-{}", component.id)}
+                                                    // Gallery Management
+                                                    {if !component.properties.gallery_images.is_empty() {
+                                                        html! {
+                                                            <div class="property-group">
+                                                                <label style="font-weight: 600; margin-bottom: 12px; display: block;">
+                                                                    {format!("Gallery Images ({})", component.properties.gallery_images.len())}
+                                                                </label>
+                                                                <div class="enhanced-gallery-wrapper" style="
+                                                                    border: 1px solid #e1e5e9; 
+                                                                    border-radius: 8px; 
+                                                                    overflow: hidden;
+                                                                    max-height: 400px;
+                                                                ">
+                                                                    <EnhancedGallery 
+                                                                        images={component.properties.gallery_images.iter().map(|img| EnhancedGalleryImage {
+                                                                            id: uuid::Uuid::new_v4().to_string(),
+                                                                            url: img.url.clone(),
+                                                                            alt: img.alt.clone(),
+                                                                            caption: img.caption.clone(),
+                                                                            title: img.title.clone(),
+                                                                            media_id: None,
+                                                                        }).collect::<Vec<_>>()}
+                                                                        on_images_change={{
+                                                                            let on_property_update = on_property_update.clone();
+                                                                            let component_id = component.id.clone();
+                                                                            Callback::from(move |images: Vec<EnhancedGalleryImage>| {
+                                                                                let gallery_images = images.iter().map(|img| GalleryImage {
+                                                                                    url: img.url.clone(),
+                                                                                    alt: img.alt.clone(),
+                                                                                    caption: img.caption.clone(),
+                                                                                    title: img.title.clone(),
+                                                                                }).collect::<Vec<_>>();
+                                                                                
+                                                                                // Serialize the gallery images to JSON string for property update
+                                                                                if let Ok(json_str) = serde_json::to_string(&gallery_images) {
+                                                                                    on_property_update.emit((component_id.clone(), "gallery_images".to_string(), json_str));
+                                                                                }
+                                                                            })
+                                                                        }}
+                                                                        layout={component.properties.gallery_layout.clone()}
+                                                                        columns={component.properties.gallery_columns}
+                                                                        gap={component.properties.gallery_gap}
+                                                                        border_radius={component.properties.gallery_border_radius}
+                                                                        show_captions={component.properties.gallery_show_captions}
+                                                                        enable_lightbox={component.properties.gallery_enable_lightbox}
+                                                                        enable_drag_reorder={component.properties.gallery_enable_drag_reorder}
+                                                                        is_admin_mode={true}
                                                                     />
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="Alt text (for accessibility)" 
-                                                                        style="padding: 8px; border: 1px solid var(--public-border-light, #ddd); border-radius: 4px; font-size: 13px;"
-                                                                        id={format!("gallery-alt-{}", component.id)}
-                                                                    />
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="Caption (optional)" 
-                                                                        style="padding: 8px; border: 1px solid var(--public-border-light, #ddd); border-radius: 4px; font-size: 13px;"
-                                                                        id={format!("gallery-caption-{}", component.id)}
-                                                                    />
-                                                                    <button 
-                                                                        class="btn btn-sm btn-primary"
-                                                                        style="margin-top: 4px;"
-                                                                    >
-                                                                        {"Add Image"}
-                                                                    </button>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div class="property-group">
-                                                        <label>{"Preview"}</label>
-                                                        <div class="property-preview">
-                                                            {render_component_content(component)}
-                                                        </div>
-                                                    </div>
+                                                        }
+                                                    } else {
+                                                        html! {
+                                                            <div class="property-group">
+                                                                <div style="
+                                                                    text-align: center;
+                                                                    padding: 40px 20px;
+                                                                    border: 2px dashed #ddd;
+                                                                    border-radius: 8px;
+                                                                    color: #666;
+                                                                    background: #f8f9fa;
+                                                                ">
+                                                                    <div style="font-size: 48px; margin-bottom: 12px;">{"🖼️"}</div>
+                                                                    <p style="margin: 0; font-size: 16px; font-weight: 500;">{"No images added yet"}</p>
+                                                                    <p style="margin: 8px 0 0 0; font-size: 14px;">{"Click 'Add Images' to get started"}</p>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    }}
                                                 </div>
                                             },
                                             ComponentType::Container => html! {
@@ -3946,6 +4318,211 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                     </div>
                                                 </>
                                             },
+                                            ComponentType::PageTitle => html! {
+                                                <div class="property-section">
+                                                    <h4 class="section-title">{"Page Title"}</h4>
+                                                    
+                                                    <div class="property-group">
+                                                        <label>{"HTML Tag"}</label>
+                                                        <select 
+                                                            value={component.properties.page_title_tag.clone()}
+                                                            onchange={{
+                                                                let on_property_update = on_property_update.clone();
+                                                                let component_id = component.id.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                    on_property_update.emit((component_id.clone(), "page_title_tag".to_string(), target.value()));
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="h1">{"H1 (Main Title)"}</option>
+                                                            <option value="h2">{"H2 (Section Title)"}</option>
+                                                            <option value="h3">{"H3 (Subsection)"}</option>
+                                                            <option value="h4">{"H4 (Minor Heading)"}</option>
+                                                            <option value="h5">{"H5 (Small Heading)"}</option>
+                                                            <option value="h6">{"H6 (Smallest Heading)"}</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="property-group">
+                                                        <label>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={component.properties.page_title_show_prefix}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                        on_property_update.emit((component_id.clone(), "page_title_show_prefix".to_string(), target.checked().to_string()));
+                                                                    })
+                                                                }}
+                                                            />
+                                                            {" Show Prefix"}
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    {if component.properties.page_title_show_prefix {
+                                                        html! {
+                                                            <div class="property-group">
+                                                                <label>{"Prefix Text"}</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={component.properties.page_title_prefix.clone()}
+                                                                    placeholder="e.g., 'Page:', 'Article:'"
+                                                                    oninput={{
+                                                                        let on_property_update = on_property_update.clone();
+                                                                        let component_id = component.id.clone();
+                                                                        Callback::from(move |e: InputEvent| {
+                                                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                            on_property_update.emit((component_id.clone(), "page_title_prefix".to_string(), target.value()));
+                                                                        })
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        }
+                                                    } else { html! {} }}
+                                                    
+                                                    <div class="property-group">
+                                                        <label>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={component.properties.page_title_show_suffix}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                        on_property_update.emit((component_id.clone(), "page_title_show_suffix".to_string(), target.checked().to_string()));
+                                                                    })
+                                                                }}
+                                                            />
+                                                            {" Show Suffix"}
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    {if component.properties.page_title_show_suffix {
+                                                        html! {
+                                                            <div class="property-group">
+                                                                <label>{"Suffix Text"}</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={component.properties.page_title_suffix.clone()}
+                                                                    placeholder="e.g., '- My Site', '| Blog'"
+                                                                    oninput={{
+                                                                        let on_property_update = on_property_update.clone();
+                                                                        let component_id = component.id.clone();
+                                                                        Callback::from(move |e: InputEvent| {
+                                                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                            on_property_update.emit((component_id.clone(), "page_title_suffix".to_string(), target.value()));
+                                                                        })
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        }
+                                                    } else { html! {} }}
+                                                </div>
+                                            },
+                                            ComponentType::PublishedDate => html! {
+                                                <div class="property-section">
+                                                    <h4 class="section-title">{"Published Date"}</h4>
+                                                    
+                                                    <div class="property-group">
+                                                        <label>{"Date Format"}</label>
+                                                        <select 
+                                                            value={component.properties.published_date_format.clone()}
+                                                            onchange={{
+                                                                let on_property_update = on_property_update.clone();
+                                                                let component_id = component.id.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                    on_property_update.emit((component_id.clone(), "published_date_format".to_string(), target.value()));
+                                                                })
+                                                            }}
+                                                        >
+                                                            <option value="Month DD, YYYY">{"August 25, 2024"}</option>
+                                                            <option value="YYYY-MM-DD">{"2024-08-25"}</option>
+                                                            <option value="DD/MM/YYYY">{"25/08/2024"}</option>
+                                                            <option value="MM/DD/YYYY">{"08/25/2024"}</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="property-group">
+                                                        <label>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={component.properties.published_date_show_prefix}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                        on_property_update.emit((component_id.clone(), "published_date_show_prefix".to_string(), target.checked().to_string()));
+                                                                    })
+                                                                }}
+                                                            />
+                                                            {" Show Prefix"}
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    {if component.properties.published_date_show_prefix {
+                                                        html! {
+                                                            <div class="property-group">
+                                                                <label>{"Prefix Text"}</label>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={component.properties.published_date_prefix.clone()}
+                                                                    placeholder="e.g., 'Published on', 'Date:'"
+                                                                    oninput={{
+                                                                        let on_property_update = on_property_update.clone();
+                                                                        let component_id = component.id.clone();
+                                                                        Callback::from(move |e: InputEvent| {
+                                                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                            on_property_update.emit((component_id.clone(), "published_date_prefix".to_string(), target.value()));
+                                                                        })
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        }
+                                                    } else { html! {} }}
+                                                    
+                                                    <div class="property-group">
+                                                        <label>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={component.properties.published_date_show_time}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                        on_property_update.emit((component_id.clone(), "published_date_show_time".to_string(), target.checked().to_string()));
+                                                                    })
+                                                                }}
+                                                            />
+                                                            {" Show Time"}
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    <div class="property-group">
+                                                        <label>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={component.properties.published_date_relative}
+                                                                onchange={{
+                                                                    let on_property_update = on_property_update.clone();
+                                                                    let component_id = component.id.clone();
+                                                                    Callback::from(move |e: Event| {
+                                                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                                        on_property_update.emit((component_id.clone(), "published_date_relative".to_string(), target.checked().to_string()));
+                                                                    })
+                                                                }}
+                                                            />
+                                                            {" Use Relative Dates (e.g., '2 days ago')"}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            },
                                             _ => html! {}
                                         }}
                                         
@@ -4061,9 +4638,22 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                 show={*show_media_picker}
                 filter_images_only={*media_picker_images_only}
                 on_select={on_media_select}
+                on_multi_select={Some(on_multi_media_select)}
                 on_close={close_media_picker}
+                allow_multi_select={
+                    // Enable multi-select for gallery components
+                    if let Some(ref component_id) = *media_picker_target_component {
+                        if let Some(component) = components.iter().find(|c| c.id == *component_id) {
+                            matches!(component.component_type, ComponentType::Gallery)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
             />
-        </div>
+        </>
     }
 }
 
@@ -4505,61 +5095,29 @@ fn render_component_content(component: &PageComponent) -> Html {
             }
         }
         ComponentType::Gallery => {
-            if component.properties.gallery_images.is_empty() {
-                html! { 
-                    <div class="placeholder-gallery" style="background: var(--public-background-secondary, #f5f5f5); border: 2px dashed var(--public-border-light, #ccc); padding: 60px 40px; text-align: center; border-radius: 8px; color: var(--public-text-secondary, #666);">
-                        <div style="font-size: 48px; margin-bottom: 16px;">{"🖼️"}</div>
-                        <div style="font-size: 18px; font-weight: 500; margin-bottom: 8px;">{"Image Gallery"}</div>
-                        <div style="font-size: 14px;">{"Add images in properties to create gallery"}</div>
-                    </div> 
-                }
-            } else {
-                let gallery_style = match component.properties.gallery_layout.as_str() {
-                    "grid" => format!(
-                        "display: grid; grid-template-columns: repeat({}, 1fr); gap: 16px; width: 100%;",
-                        component.properties.gallery_columns
-                    ),
-                    "masonry" => "display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; width: 100%;".to_string(),
-                    "carousel" => "display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; width: 100%;".to_string(),
-                    "slider" => "display: flex; gap: 16px; overflow: hidden; width: 100%;".to_string(),
-                    _ => "display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%;".to_string()
-                };
-
-                html! {
-                    <div class="gallery-container" style={gallery_style}>
-                        {component.properties.gallery_images.iter().enumerate().map(|(index, image)| {
-                            let image_style = if component.properties.gallery_layout == "carousel" {
-                                "flex: 0 0 300px; scroll-snap-align: start;"
-                            } else if component.properties.gallery_layout == "slider" {
-                                "flex: 0 0 300px;"
-                            } else {
-                                "width: 100%;"
-                            };
-                            
-                            html! {
-                                <div 
-                                    key={index}
-                                    class="gallery-item" 
-                                    style={format!("{} position: relative;", image_style)}
-                                >
-                                    <img 
-                                        src={image.url.clone()}
-                                        alt={image.alt.clone()}
-                                        title={image.title.clone()}
-                                        style="width: 100%; height: auto; border-radius: 8px; object-fit: cover;"
-                                    />
-                                    {if !image.caption.is_empty() {
-                                        html! {
-                                            <div class="gallery-caption" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; padding: 16px 12px 12px; border-radius: 0 0 8px 8px; font-size: 14px;">
-                                                {&image.caption}
-                                            </div>
-                                        }
-                                    } else { html! {} }}
-                                </div>
-                            }
-                        }).collect::<Html>()}
-                    </div>
-                }
+            // Use the enhanced gallery component for rendering
+            html! {
+                <div class="gallery-preview-container" style="border-radius: 8px; overflow: hidden;">
+                    <EnhancedGallery 
+                        images={component.properties.gallery_images.iter().map(|img| EnhancedGalleryImage {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            url: img.url.clone(),
+                            alt: img.alt.clone(),
+                            caption: img.caption.clone(),
+                            title: img.title.clone(),
+                            media_id: None,
+                        }).collect::<Vec<_>>()}
+                        on_images_change={Callback::noop()} // Read-only for preview
+                        layout={component.properties.gallery_layout.clone()}
+                        columns={component.properties.gallery_columns}
+                        gap={component.properties.gallery_gap}
+                        border_radius={component.properties.gallery_border_radius}
+                        show_captions={component.properties.gallery_show_captions}
+                        enable_lightbox={component.properties.gallery_enable_lightbox}
+                        enable_drag_reorder={false} // Disable drag reorder in preview
+                        is_admin_mode={false} // Preview should behave like public view
+                    />
+                </div>
             }
         }
         ComponentType::ContactForm => {
@@ -4997,6 +5555,62 @@ fn render_component_content(component: &PageComponent) -> Html {
                         </div>
                     </div>
                 </div> 
+            }
+        }
+        ComponentType::PageTitle => {
+            let tag = &component.properties.page_title_tag;
+            let prefix = if component.properties.page_title_show_prefix && !component.properties.page_title_prefix.is_empty() {
+                format!("{} ", component.properties.page_title_prefix)
+            } else {
+                String::new()
+            };
+            let suffix = if component.properties.page_title_show_suffix && !component.properties.page_title_suffix.is_empty() {
+                format!(" {}", component.properties.page_title_suffix)
+            } else {
+                String::new()
+            };
+            
+            let title_content = format!("{}[Page Title]{}", prefix, suffix);
+            
+            match tag.as_str() {
+                "h1" => html! { <h1 style="margin: 0;">{title_content}</h1> },
+                "h2" => html! { <h2 style="margin: 0;">{title_content}</h2> },
+                "h3" => html! { <h3 style="margin: 0;">{title_content}</h3> },
+                "h4" => html! { <h4 style="margin: 0;">{title_content}</h4> },
+                "h5" => html! { <h5 style="margin: 0;">{title_content}</h5> },
+                "h6" => html! { <h6 style="margin: 0;">{title_content}</h6> },
+                _ => html! { <h1 style="margin: 0;">{title_content}</h1> },
+            }
+        }
+        ComponentType::PublishedDate => {
+            let prefix = if component.properties.published_date_show_prefix && !component.properties.published_date_prefix.is_empty() {
+                format!("{} ", component.properties.published_date_prefix)
+            } else {
+                String::new()
+            };
+            
+            let date_content = if component.properties.published_date_relative {
+                format!("{}[Published 2 days ago]", prefix)
+            } else {
+                match component.properties.published_date_format.as_str() {
+                    "YYYY-MM-DD" => format!("{}[2024-08-25]", prefix),
+                    "DD/MM/YYYY" => format!("{}[25/08/2024]", prefix),
+                    "MM/DD/YYYY" => format!("{}[08/25/2024]", prefix),
+                    "Month DD, YYYY" => format!("{}[August 25, 2024]", prefix),
+                    _ => format!("{}[August 25, 2024]", prefix),
+                }
+            };
+            
+            let time_suffix = if component.properties.published_date_show_time {
+                " at 2:30 PM"
+            } else {
+                ""
+            };
+            
+            html! {
+                <div class="published-date" style="color: var(--public-text-secondary, #666); font-size: 0.9em;">
+                    {format!("{}{}", date_content, time_suffix)}
+                </div>
             }
         }
     }

@@ -806,7 +806,119 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                 // Set CSS variables for scroll effects
                                 if let Some(shrink_logo_scale) = template_data.get("shrink_logo_scale").and_then(|v| v.as_str()) {
                                     let scale_value = shrink_logo_scale.parse::<f64>().unwrap_or(80.0) / 100.0;
-                                    styles.push(format!("--logo-scale-shrink: {}", scale_value));
+                                    
+                                    // Apply logo scale immediately for live preview - apply to logo element directly
+                                    if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+                                        // Apply to both header (for scroll effect compatibility) and logo (for direct control)
+                                        if let Some(header) = document.get_element_by_id("site-header") {
+                                            let current_style = header.get_attribute("style").unwrap_or_default();
+                                            let mut style_parts: Vec<String> = current_style
+                                                .split(';')
+                                                .filter(|s| !s.trim().is_empty())
+                                                .map(|s| s.trim().to_string())
+                                                .collect();
+                                            
+                                            // Remove existing logo scale
+                                            style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                            
+                                            // Add new logo scale
+                                            style_parts.push(format!("--logo-scale: {}", scale_value));
+                                            
+                                            let new_style = style_parts.join("; ");
+                                            let _ = header.set_attribute("style", &new_style);
+                                        }
+                                        
+                                        // ALSO apply directly to logo element to ensure it takes precedence
+                                        if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {
+                                            if let Ok(logo_html) = logo_element.dyn_into::<HtmlElement>() {
+                                                let current_logo_style = logo_html.get_attribute("style").unwrap_or_default();
+                                                let mut logo_style_parts: Vec<String> = current_logo_style
+                                                    .split(';')
+                                                    .filter(|s| !s.trim().is_empty())
+                                                    .map(|s| s.trim().to_string())
+                                                    .collect();
+                                                
+                                                // Remove existing logo scale
+                                                logo_style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                                
+                                                // Add new logo scale
+                                                logo_style_parts.push(format!("--logo-scale: {}", scale_value));
+                                                
+                                                let new_logo_style = logo_style_parts.join("; ");
+                                                let _ = logo_html.set_attribute("style", &new_logo_style);
+                                                
+                                                web_sys::console::log_1(&format!("🎨 Applied logo scale {} directly to logo element", scale_value).into());
+                                            }
+                                        }
+                                    }
+                                    
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Updated shrink logo scale to {}% (scale: {})", shrink_logo_scale, scale_value).into());
+                                }
+                                
+                                // Handle scroll trigger
+                                if let Some(scroll_trigger) = template_data.get("scroll_trigger").and_then(|v| v.as_str()) {
+                                    styles.push(format!("--scroll-trigger: {}px", scroll_trigger));
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Updated scroll trigger to {}px", scroll_trigger).into());
+                                }
+                                
+                                // Handle scroll duration
+                                if let Some(scroll_duration) = template_data.get("scroll_duration").and_then(|v| v.as_str()) {
+                                    styles.push(format!("--scroll-duration: {}ms", scroll_duration));
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Updated scroll duration to {}ms", scroll_duration).into());
+                                }
+                                
+                                // Handle scroll easing
+                                if let Some(scroll_easing) = template_data.get("scroll_easing").and_then(|v| v.as_str()) {
+                                    let css_easing = match scroll_easing {
+                                        "linear" => "linear",
+                                        "ease" => "ease",
+                                        "ease-in" => "ease-in",
+                                        "ease-out" => "ease-out", 
+                                        "ease-in-out" => "ease-in-out",
+                                        "elastic" => "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                                        "bounce" => "cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                                        _ => "cubic-bezier(0.68, -0.55, 0.265, 1.55)"
+                                    };
+                                    styles.push(format!("--scroll-easing: {}", css_easing));
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Updated scroll easing to {}", scroll_easing).into());
+                                }
+                                
+                                // Handle shrink height for shrink scroll effect
+                                if scroll_effect == "shrink" {
+                                    if let Some(shrink_height) = template_data.get("shrink_height").and_then(|v| v.as_str()) {
+                                        // Apply shrink height immediately for live preview if currently in shrunk state
+                                        if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+                                            if let Some(header) = document.get_element_by_id("site-header") {
+                                                let scroll_y = web_sys::window().and_then(|w| w.scroll_y().ok()).unwrap_or(0.0);
+                                                let scroll_trigger = template_data.get("scroll_trigger")
+                                                    .and_then(|v| v.as_str())
+                                                    .unwrap_or("100")
+                                                    .parse::<f64>()
+                                                    .unwrap_or(100.0);
+                                                
+                                                // If currently scrolled past trigger, apply the new shrink height immediately
+                                                if scroll_y > scroll_trigger {
+                                                    let current_style = header.get_attribute("style").unwrap_or_default();
+                                                    let mut style_parts: Vec<String> = current_style
+                                                        .split(';')
+                                                        .filter(|s| !s.trim().is_empty())
+                                                        .map(|s| s.trim().to_string())
+                                                        .collect();
+                                                    
+                                                    // Remove existing height
+                                                    style_parts.retain(|s| !s.starts_with("height:"));
+                                                    
+                                                    // Add new shrink height
+                                                    style_parts.push(format!("height: {}px", shrink_height));
+                                                    
+                                                    let new_style = style_parts.join("; ");
+                                                    let _ = header.set_attribute("style", &new_style);
+                                                }
+                                            }
+                                        }
+                                        
+                                        web_sys::console::log_1(&format!("🎨 Live Preview: Updated shrink height to {}px", shrink_height).into());
+                                    }
                                 }
                                 
                                 // Add scroll effect class for CSS targeting
@@ -819,6 +931,196 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                 }
                                 
                                 web_sys::console::log_1(&format!("🎯 Live Preview: Applied scroll effect: {}", scroll_effect).into());
+                            }
+                        }
+                        
+                        // Handle logo properties for header
+                        let logo_height = template_data.get("logo_height").and_then(|v| v.as_str());
+                        let logo_width = template_data.get("logo_width").and_then(|v| v.as_str());
+                        
+                        if logo_height.is_some() || logo_width.is_some() {
+                            // Find the logo container and apply dimensions
+                            if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {
+                                if let Ok(logo_html) = logo_element.dyn_into::<HtmlElement>() {
+                                    let current_style = logo_html.get_attribute("style").unwrap_or_default();
+                                    
+                                    // Parse existing styles and update dimensions
+                                    let mut style_parts: Vec<String> = current_style
+                                        .split(';')
+                                        .filter(|s| {
+                                            let s = s.trim();
+                                            !s.is_empty() && !s.starts_with("height:") && !s.starts_with("width:")
+                                        })
+                                        .map(|s| s.trim().to_string())
+                                        .collect();
+                                    
+                                    // Add the new dimensions
+                                    if let Some(height) = logo_height {
+                                        style_parts.push(format!("height: {}", height));
+                                        web_sys::console::log_1(&format!("🎨 Live Preview: Updated logo height to {}", height).into());
+                                    }
+                                    if let Some(width) = logo_width {
+                                        style_parts.push(format!("width: {}", width));
+                                        web_sys::console::log_1(&format!("🎨 Live Preview: Updated logo width to {}", width).into());
+                                    }
+                                    
+                                    let new_style = style_parts.join("; ");
+                                    let _ = logo_html.set_attribute("style", &new_style);
+                                }
+                            }
+                        }
+                        
+                        // Handle logo URL changes for header
+                        if let Some(logo_url) = template_data.get("logo_url").and_then(|v| v.as_str()) {
+                            // Find the logo image and update src
+                            if let Some(logo_img) = document.query_selector(".site-logo img").ok().flatten() {
+                                let _ = logo_img.set_attribute("src", logo_url);
+                                web_sys::console::log_1(&format!("🎨 Live Preview: Updated logo URL to {}", logo_url).into());
+                            }
+                        }
+                        
+                        // Handle logo effects for header
+                        if let Some(logo_effect) = template_data.get("logo_effect").and_then(|v| v.as_str()) {
+                            if logo_effect == "pulsate" {
+                                // Find the logo element and apply effects
+                                if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {
+                                    // Check if logo is SVG and get src first (before consuming logo_element)
+                                    let (is_svg, logo_src) = if let Some(img) = logo_element.query_selector("img").ok().flatten() {
+                                        if let Some(src) = img.get_attribute("src") {
+                                            let is_svg = src.to_lowercase().ends_with(".svg") || src.to_lowercase().contains("image/svg+xml");
+                                            (is_svg, Some(src))
+                                        } else { (false, None) }
+                                    } else { (false, None) };
+                                    
+                                    if let Ok(logo_html) = logo_element.dyn_into::<HtmlElement>() {
+                                        let mut logo_classes = vec!["site-logo"];
+                                        let mut logo_css_vars = Vec::new();
+                                        
+                                        if is_svg {
+                                            logo_classes.push("logo-effect-pulsate");
+                                            logo_classes.push("has-svg-logo");
+                                            
+                                            // Add CSS variables for pulsate effect
+                                            if let Some(frequency) = template_data.get("logo_pulsate_frequency").and_then(|v| v.as_str()) {
+                                                logo_css_vars.push(format!("--logo-pulsate-frequency: {}", frequency));
+                                            }
+                                            if let Some(decay) = template_data.get("logo_pulsate_decay").and_then(|v| v.as_str()) {
+                                                logo_css_vars.push(format!("--logo-pulsate-decay: {}", decay));
+                                            }
+                                            if let Some(opacity) = template_data.get("logo_pulsate_opacity").and_then(|v| v.as_str()) {
+                                                let opacity_decimal = opacity.parse::<f32>().unwrap_or(70.0) / 100.0;
+                                                logo_css_vars.push(format!("--logo-pulsate-opacity: {}", opacity_decimal));
+                                            }
+                                            if let Some(duration) = template_data.get("logo_pulsate_duration").and_then(|v| v.as_str()) {
+                                                logo_css_vars.push(format!("--logo-pulsate-duration: {}", duration));
+                                            }
+                                            if let Some(anim_freq) = template_data.get("logo_pulsate_anim_frequency").and_then(|v| v.as_str()) {
+                                                logo_css_vars.push(format!("--logo-pulsate-anim-frequency: {}", anim_freq));
+                                            }
+                                            
+                                            // Add SVG URL for JavaScript processing
+                                            if let Some(ref src) = logo_src {
+                                                logo_css_vars.push(format!("--logo-svg-url: {}", src));
+                                            }
+                                            
+                                            // Apply classes and styles to logo
+                                            let logo_class_str = logo_classes.join(" ");
+                                            let _ = logo_html.set_attribute("class", &logo_class_str);
+                                            
+                                            if !logo_css_vars.is_empty() {
+                                                let current_logo_style = logo_html.get_attribute("style").unwrap_or_default();
+                                                
+                                                // Parse existing styles to preserve important properties like --logo-scale
+                                                let mut style_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                                                
+                                                // Parse existing styles
+                                                for style_pair in current_logo_style.split(';') {
+                                                    if let Some((key, value)) = style_pair.split_once(':') {
+                                                        let key = key.trim().to_lowercase();
+                                                        let value = value.trim();
+                                                        if !key.is_empty() && !value.is_empty() {
+                                                            style_map.insert(key, value.to_string());
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                // Add new pulsate CSS variables
+                                                for var in &logo_css_vars {
+                                                    if let Some((key, value)) = var.split_once(':') {
+                                                        let key = key.trim().to_lowercase();
+                                                        let value = value.trim();
+                                                        if !key.is_empty() && !value.is_empty() {
+                                                            style_map.insert(key, value.to_string());
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                // Ensure logo scale is preserved from header if not already set
+                                                if !style_map.contains_key("--logo-scale") {
+                                                    if let Some(header) = document.get_element_by_id("site-header") {
+                                                        let header_style = header.get_attribute("style").unwrap_or_default();
+                                                        for style_pair in header_style.split(';') {
+                                                            if let Some((key, value)) = style_pair.split_once(':') {
+                                                                let key = key.trim().to_lowercase();
+                                                                if key == "--logo-scale" {
+                                                                    style_map.insert(key, value.trim().to_string());
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                // Rebuild style string
+                                                let new_logo_style: Vec<String> = style_map.iter()
+                                                    .map(|(key, value)| format!("{}: {}", key, value))
+                                                    .collect();
+                                                let final_logo_style = new_logo_style.join("; ");
+                                                
+                                                let _ = logo_html.set_attribute("style", &final_logo_style);
+                                                web_sys::console::log_1(&format!("🎨 Logo pulsate style applied: {}", final_logo_style).into());
+                                            }
+                                            
+                                            // Create SVG ripples if we have an SVG logo
+                                            if let Some(ref src) = logo_src {
+                                                create_svg_ripples(&logo_html, src);
+                                            }
+                                            
+                                            web_sys::console::log_1(&format!("🎯 Live Preview: Applied logo pulsate effect with vars: {:?}", logo_css_vars).into());
+                                        } else {
+                                            web_sys::console::log_1(&"⚠️ Live Preview: Logo effect only works with SVG images".into());
+                                        }
+                                    }
+                                }
+                            } else if logo_effect == "none" {
+                                // Remove logo effects
+                                if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {
+                                    if let Ok(logo_html) = logo_element.dyn_into::<HtmlElement>() {
+                                        // Remove effect classes but keep site-logo class
+                                        let current_class = logo_html.get_attribute("class").unwrap_or_default();
+                                        let cleaned_classes: Vec<&str> = current_class
+                                            .split_whitespace()
+                                            .filter(|&class| class == "site-logo")
+                                            .collect();
+                                        let _ = logo_html.set_attribute("class", &cleaned_classes.join(" "));
+                                        
+                                        // Remove logo effect CSS variables and ripples
+                                        let current_style = logo_html.get_attribute("style").unwrap_or_default();
+                                        let cleaned_style = current_style
+                                            .split(';')
+                                            .filter(|s| !s.trim().starts_with("--logo-pulsate") && !s.trim().starts_with("--logo-svg"))
+                                            .collect::<Vec<_>>()
+                                            .join("; ");
+                                        let _ = logo_html.set_attribute("style", &cleaned_style);
+                                        
+                                        // Remove existing ripples
+                                        if let Some(ripples) = logo_html.query_selector(".logo-ripples").ok().flatten() {
+                                            let _ = ripples.remove();
+                                        }
+                                        
+                                        web_sys::console::log_1(&"🎯 Live Preview: Removed logo effects".into());
+                                    }
+                                }
                             }
                         }
                     }
@@ -941,20 +1243,82 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                     // Debug logging for applied styles
                     web_sys::console::log_1(&format!("✅ Live Preview: Final styles for {}: {}", element_id, new_style).into());
                     
-                    // For header position changes, temporarily remove effect classes that might override position
-                    if component_type == "header" && template_data.get("position").is_some() {
-                        let current_class = html_element.get_attribute("class").unwrap_or_default();
-                        let mut classes: Vec<&str> = current_class.split_whitespace().collect();
-                        
-                        // Remove effect classes that force position: fixed
-                        classes.retain(|&class| !class.starts_with("effect-"));
-                        
-                        let new_class = classes.join(" ");
-                        if new_class != current_class {
-                            web_sys::console::log_1(&format!("🎯 Live Preview: Removing effect classes to allow position change: {} -> {}", current_class, new_class).into());
-                            let _ = html_element.set_attribute("class", &new_class);
+                                            // Handle header effects and positioning properly
+                        if component_type == "header" {
+                            let has_effects = template_data.get("effects").and_then(|v| v.as_str()).unwrap_or("none") != "none";
+                            let position = template_data.get("position").and_then(|v| v.as_str()).unwrap_or("sticky");
+                            
+                            // If user explicitly sets position and it conflicts with effects, respect user choice
+                            if template_data.get("position").is_some() && (position == "static" || position == "sticky") && has_effects {
+                                let current_class = html_element.get_attribute("class").unwrap_or_default();
+                                let mut classes: Vec<&str> = current_class.split_whitespace().collect();
+                                
+                                // Remove effect classes that force position: fixed
+                                classes.retain(|&class| !class.starts_with("effect-"));
+                                
+                                let new_class = classes.join(" ");
+                                if new_class != current_class {
+                                    web_sys::console::log_1(&format!("🎯 Live Preview: Removing effect classes to allow position change: {} -> {}", current_class, new_class).into());
+                                    let _ = html_element.set_attribute("class", &new_class);
+                                }
+                                
+                                // Remove header-has-effects class from body since we're overriding effects
+                                if let Some(window) = web_sys::window() {
+                                    if let Some(document) = window.document() {
+                                        if let Some(body) = document.body() {
+                                            let current_body_class = body.class_name();
+                                            let new_body_class = current_body_class.replace("header-has-effects", "").trim().to_string();
+                                            if new_body_class != current_body_class {
+                                                body.set_class_name(&new_body_class);
+                                                // Remove the margin-top from main content
+                                                if let Some(main_element) = document.query_selector("main").ok().flatten() {
+                                                    let current_main_style = main_element.get_attribute("style").unwrap_or_default();
+                                                    let new_main_style = current_main_style
+                                                        .split(';')
+                                                        .filter(|s| !s.trim().starts_with("margin-top:"))
+                                                        .collect::<Vec<_>>()
+                                                        .join("; ");
+                                                    let _ = main_element.set_attribute("style", &new_main_style);
+                                                }
+                                                web_sys::console::log_1(&"🎯 Live Preview: Removed header-has-effects class and main margin".into());
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if has_effects && (position == "fixed" || !template_data.get("position").is_some()) {
+                                // When effects are applied and position allows it, ensure proper body class and spacing
+                                if let Some(window) = web_sys::window() {
+                                    if let Some(document) = window.document() {
+                                        if let Some(body) = document.body() {
+                                            let current_body_class = body.class_name();
+                                            if !current_body_class.contains("header-has-effects") {
+                                                body.set_class_name(&format!("{} header-has-effects", current_body_class));
+                                                
+                                                // Add proper margin to main content
+                                                if let Some(main_element) = document.query_selector("main").ok().flatten() {
+                                                    let header_height = template_data.get("height")
+                                                        .and_then(|v| v.as_str())
+                                                        .unwrap_or("120px")
+                                                        .trim_end_matches("px");
+                                                    
+                                                    let current_main_style = main_element.get_attribute("style").unwrap_or_default();
+                                                    let mut main_styles: Vec<String> = current_main_style
+                                                        .split(';')
+                                                        .filter(|s| !s.trim().is_empty() && !s.trim().starts_with("margin-top:"))
+                                                        .map(|s| s.trim().to_string())
+                                                        .collect();
+                                                    
+                                                    main_styles.push(format!("margin-top: {}px", header_height));
+                                                    let new_main_style = main_styles.join("; ");
+                                                    let _ = main_element.set_attribute("style", &new_main_style);
+                                                }
+                                                web_sys::console::log_1(&"🎯 Live Preview: Added header-has-effects class and main margin".into());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    }
                     
                     let _ = html_element.set_attribute("style", &new_style);
                     
@@ -1471,4 +1835,96 @@ fn generate_shape_points_new(
         },
         _ => Vec::new(),
     }
+}
+
+// Function to create SVG ripples that match the logo shape
+pub fn create_svg_ripples(logo_container: &web_sys::HtmlElement, svg_url: &str) {
+    use wasm_bindgen::JsCast;
+    use wasm_bindgen_futures::JsFuture;
+    use web_sys::{Request, RequestInit, RequestMode, Response};
+    
+    // Remove existing ripples first
+    if let Some(existing_ripples) = logo_container.query_selector(".logo-ripples").ok().flatten() {
+        let _ = existing_ripples.remove();
+    }
+    
+    let logo_container = logo_container.clone();
+    let svg_url = svg_url.to_string();
+    
+    wasm_bindgen_futures::spawn_local(async move {
+        // Fetch the SVG content
+        let opts = RequestInit::new();
+        opts.set_method("GET");
+        opts.set_mode(RequestMode::Cors);
+        
+        if let Ok(request) = Request::new_with_str_and_init(&svg_url, &opts) {
+            if let Some(window) = web_sys::window() {
+                if let Ok(resp_value) = JsFuture::from(window.fetch_with_request(&request)).await {
+                    if let Ok(resp) = resp_value.dyn_into::<Response>() {
+                        if let Ok(text_promise) = resp.text() {
+                            if let Ok(text_value) = JsFuture::from(text_promise).await {
+                                if let Some(svg_content) = text_value.as_string() {
+                                    // Create ripples container
+                                    if let Ok(document) = window.document().ok_or("No document") {
+                                        if let Some(ripples_container) = document.create_element("div").ok() {
+                                            let _ = ripples_container.set_attribute("class", "logo-ripples");
+                                            
+                                            // Create 3 ripple layers
+                                            for i in 1..=3 {
+                                                if let Some(ripple_div) = document.create_element("div").ok() {
+                                                    let _ = ripple_div.set_attribute("class", &format!("logo-ripple ripple-{}", i));
+                                                    
+                                                    // Parse and modify SVG content
+                                                    let modified_svg = modify_svg_for_ripple(&svg_content);
+                                                    ripple_div.set_inner_html(&modified_svg);
+                                                    
+                                                    let _ = ripples_container.append_child(&ripple_div);
+                                                }
+                                            }
+                                            
+                                            // Add ripples to logo container
+                                            let _ = logo_container.append_child(&ripples_container);
+                                            
+                                            web_sys::console::log_1(&"🎯 Created SVG ripples successfully".into());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Function to modify SVG content for ripple effect
+fn modify_svg_for_ripple(svg_content: &str) -> String {
+    // Remove any existing fill attributes and add stroke-only styling
+    let mut modified = svg_content.to_string();
+    
+    // Remove fill attributes
+    modified = modified.replace(r#"fill="[^"]*""#, "");
+    modified = modified.replace(r#"fill='[^']*'"#, "");
+    
+    // Add stroke-only styling to all shape elements
+    let shapes = ["path", "circle", "rect", "polygon", "ellipse", "line", "polyline"];
+    for shape in &shapes {
+        let pattern = format!(r#"<{}"#, shape);
+        let replacement = format!(r#"<{} fill="none" stroke="currentColor""#, shape);
+        modified = modified.replace(&pattern, &replacement);
+    }
+    
+    // Ensure SVG has proper attributes for ripple effect
+    if modified.contains("<svg") {
+        // Add preserveAspectRatio and other attributes if not present
+        if !modified.contains("preserveAspectRatio") {
+            modified = modified.replace("<svg", r#"<svg preserveAspectRatio="xMidYMid meet""#);
+        }
+        if !modified.contains("vector-effect") {
+            modified = modified.replace("stroke=\"currentColor\"", r#"stroke="currentColor" vector-effect="non-scaling-stroke""#);
+        }
+    }
+    
+    modified
 }

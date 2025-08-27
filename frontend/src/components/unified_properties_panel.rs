@@ -359,6 +359,8 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                                 template_data.get("logo_url").and_then(|v| v.as_str()).unwrap_or(""), on_change.clone())}
                             {render_input_field("Logo Height", "logo_height", 
                                 template_data.get("logo_height").and_then(|v| v.as_str()).unwrap_or("40px"), on_change.clone())}
+                            {render_input_field("Logo Width", "logo_width", 
+                                template_data.get("logo_width").and_then(|v| v.as_str()).unwrap_or("auto"), on_change.clone())}
                         </>
                     },
                     _ => html! {
@@ -502,8 +504,8 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                     html! {
                         <>
                             {render_range_field("Shrink Height (px)", "shrink_height", 
-                                template_data.get("shrink_height").and_then(|v| v.as_str()).unwrap_or("60"), 
-                                "40", "120", on_change.clone())}
+                                template_data.get("shrink_height").and_then(|v| v.as_str()).unwrap_or("500"), 
+                                "40", "600", on_change.clone())}
                             {render_range_field("Logo Scale (%)", "shrink_logo_scale", 
                                 template_data.get("shrink_logo_scale").and_then(|v| v.as_str()).unwrap_or("80"), 
                                 "10", "100", on_change.clone())}
@@ -585,6 +587,43 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                                     template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15"), 
                                     "1", "45", on_change.clone())
                             } else { html! {} }}
+                        </>
+                    }
+                } else { html! {} }}
+            </div>
+
+            // Logo Effects Properties (SVG Only)
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Logo Effects"}</h4>
+                <div style="margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #666;">
+                    {"⚠️ Logo effects only work with SVG images"}
+                </div>
+                
+                {render_select_field("Logo Effect", "logo_effect", 
+                    template_data.get("logo_effect").and_then(|v| v.as_str()).unwrap_or("none"), 
+                    vec![
+                        ("none", "None"),
+                        ("pulsate", "Pulsate SVG Edges")
+                    ], on_change.clone())}
+                
+                {if template_data.get("logo_effect").and_then(|v| v.as_str()).unwrap_or("none") == "pulsate" {
+                    html! {
+                        <>
+                            {render_decimal_range_field("Pulsate Frequency (Hz)", "logo_pulsate_frequency", 
+                                template_data.get("logo_pulsate_frequency").and_then(|v| v.as_str()).unwrap_or("1.5"), 
+                                "0.1", "5.0", "0.1", on_change.clone())}
+                            {render_decimal_range_field("Decay Rate", "logo_pulsate_decay", 
+                                template_data.get("logo_pulsate_decay").and_then(|v| v.as_str()).unwrap_or("0.8"), 
+                                "0.1", "1.0", "0.1", on_change.clone())}
+                            {render_range_field("Opacity (%)", "logo_pulsate_opacity", 
+                                template_data.get("logo_pulsate_opacity").and_then(|v| v.as_str()).unwrap_or("70"), 
+                                "10", "100", on_change.clone())}
+                            {render_range_field("Duration (s)", "logo_pulsate_duration", 
+                                template_data.get("logo_pulsate_duration").and_then(|v| v.as_str()).unwrap_or("3"), 
+                                "1", "10", on_change.clone())}
+                            {render_range_field("Speed Multiplier", "logo_pulsate_anim_frequency", 
+                                template_data.get("logo_pulsate_anim_frequency").and_then(|v| v.as_str()).unwrap_or("2"), 
+                                "1", "8", on_change.clone())}
                         </>
                     }
                 } else { html! {} }}
@@ -1227,6 +1266,34 @@ fn render_range_field(label: &str, name: &str, value: &str, min: &str, max: &str
                 value={value}
                 min={min}
                 max={max}
+                oninput={on_change}
+                style="
+                    width: 100%;
+                    margin-bottom: 4px;
+                "
+            />
+        </div>
+    }
+}
+
+fn render_decimal_range_field(label: &str, name: &str, value: &str, min: &str, max: &str, step: &str, on_change: Callback<InputEvent>) -> Html {
+    let label = label.to_string();
+    let name = name.to_string();
+    let value = value.to_string();
+    let min = min.to_string();
+    let max = max.to_string();
+    let step = step.to_string();
+    
+    html! {
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{format!("{} ({})", label, value)}</label>
+            <input 
+                type="range"
+                name={name}
+                value={value}
+                min={min}
+                max={max}
+                step={step}
                 oninput={on_change}
                 style="
                     width: 100%;

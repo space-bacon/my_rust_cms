@@ -7,6 +7,8 @@ pub mod unified_properties_panel;
 pub mod enhanced_live_edit_system;
 mod public_layout;
 mod media_picker;
+mod enhanced_gallery;
+mod modern_menu_designer;
 mod live_edit_mode;
 // mod hamburger_menu; // Temporarily removed
 pub mod admin;
@@ -30,5 +32,7 @@ pub use auth_guard::AdminGuard;
 // pub use hamburger_menu::HamburgerMenu; // Will be used when integrated
 pub use performance_monitor::PerformanceMonitor;
 pub use media_picker::MediaPicker;
+pub use enhanced_gallery::{EnhancedGallery, EnhancedGalleryImage};
+pub use modern_menu_designer::{ModernMenuDesigner, MenuStyle, MenuProperties};
 // pub use comment_item::CommentItem; // Used internally by CommentsSection
 pub use comments_section::CommentsSection;

@@ -193,6 +193,62 @@
     box-shadow: inset 0 0 20px rgba(0, 123, 255, 0.1);
 }
 
+.drop-zone.reordering {
+    background-color: rgba(0, 123, 255, 0.02);
+    border: 2px dashed rgba(0, 123, 255, 0.2);
+}
+
+.drop-zone.reordering .component-drop-zone {
+    opacity: 0.8;
+    background: rgba(0, 123, 255, 0.1);
+    height: 40px;
+    border: 2px dashed #007bff;
+    margin: 20px 0;
+    padding: 12px 0;
+    border-radius: 6px;
+}
+
+/* Drop indicator styles */
+.drop-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: rgba(0, 123, 255, 0.15);
+    border-radius: 6px;
+    animation: pulse 1.5s ease-in-out infinite;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    pointer-events: none;
+}
+
+.drop-text {
+    font-size: 12px;
+    color: #007bff;
+    font-weight: 600;
+    margin-bottom: 4px;
+    pointer-events: none;
+}
+
+.drop-arrow {
+    font-size: 16px;
+    color: #007bff;
+    animation: bounce 1s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-4px); }
+    60% { transform: translateY(-2px); }
+}
+
 .empty-canvas {
     display: flex;
     align-items: center;
@@ -225,24 +281,116 @@
     min-height: 100%;
 }
 
+/* Drop zones hidden by default, shown during reordering */
+.canvas-components .component-drop-zone {
+    margin: 0;
+    height: 0;
+}
+
+.canvas-components .drop-zone.reordering .component-drop-zone {
+    margin: 20px 0;
+    height: 40px;
+}
+
 .canvas-component {
     position: relative;
-    margin-bottom: 16px;
+    margin: 12px 0;
     border: 2px solid transparent;
     border-radius: 8px;
     min-height: 40px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    cursor: move;
+    transition: all 0.2s ease, opacity 0.3s ease, transform 0.3s ease;
 }
 
 .canvas-component:hover {
     border-color: #007bff;
 }
 
+.canvas-component:hover .drag-handle {
+    opacity: 1;
+}
+
 .canvas-component.selected {
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
+
+.canvas-component.selected .drag-handle {
+    opacity: 1;
+}
+
+/* Drag handle styles */
+.drag-handle {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 123, 255, 0.8);
+    color: white;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: grab;
+    z-index: 12;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    user-select: none;
+    pointer-events: none;
+}
+
+.drag-handle:hover {
+    background: rgba(0, 123, 255, 1);
+    cursor: grab;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Component reorder drop zone styles - hidden by default */
+.component-drop-zone {
+    height: 0;
+    margin: 0;
+    background: transparent;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    opacity: 0;
+    min-height: 0;
+    position: relative;
+    z-index: 10;
+    padding: 0;
+    overflow: hidden;
+}
+
+.component-drop-zone.active {
+    height: 50px;
+    background: linear-gradient(90deg, #007bff, #0056b3);
+    opacity: 1;
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.7);
+    margin: 24px 0;
+    border: 3px dashed #ffffff;
+    border-radius: 8px;
+    padding: 12px 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.component-drop-zone.active::before {
+    content: "Drop component here ↓";
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    animation: pulse 1.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* Component being dragged - handled via inline styles now */
 
 .component-controls {
     position: absolute;

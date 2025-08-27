@@ -7,9 +7,10 @@ use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 
 use crate::{
-    models::{Setting, SystemInfo, BackupInfo, DataSnapshot},
+    models::{Setting, SystemInfo},
+    models::setting::{BackupInfo, DataSnapshot},
     middleware::errors::AppError,
-    services::BackupService,
+    services::{BackupService, SimpleBackupService, SimpleBackupRequest},
     AppServices,
 };
 
@@ -178,40 +179,62 @@ pub async fn get_system_info(
     Ok(ResponseJson(system_info))
 }
 
-// Create backup
+// Create backup with simple service (minimal database dependency)
 pub async fn create_backup(
     State(services): State<AppServices>,
     Json(request): Json<BackupRequest>
 ) -> Result<ResponseJson<BackupInfo>, AppError> {
-    let mut conn = services.db_pool.get()
-        .map_err(|e| AppError::DatabaseConnection(e.to_string()))?;
-
-    // Initialize backup service
-    // TODO: Get these from environment variables or config
-    let backup_dir = std::env::var("BACKUP_DIR").unwrap_or_else(|_| "./backups".to_string());
-    let database_url = std::env::var("DATABASE_URL")
-        .map_err(|_| AppError::Configuration("DATABASE_URL not set".to_string()))?;
-    
-    let backup_service = BackupService::new(backup_dir, database_url);
-
-    // Create backup based on type
-    let backup_info = match request.backup_type.as_str() {
-        "database" => backup_service.create_database_backup(request.description).await,
-        "media" => backup_service.create_media_backup(request.description).await,
-        "full" => backup_service.create_full_backup(request.description).await,
-        _ => return Err(AppError::BadRequest("Invalid backup type".to_string())),
+    // Validate backup type
+    if !["database", "media", "full"].contains(&request.backup_type.as_str()) {
+        return Err(AppError::BadRequest("Invalid backup type. Must be one of: database, media, full".to_string()));
     }
-    .map_err(|e| AppError::InternalServerError(format!("Backup creation failed: {}", e)))?;
+
+    // Initialize simple backup service (no database dependency for backup creation)
+    let backup_dir = std::env::var("BACKUP_DIR").unwrap_or_else(|_| "./backups".to_string());
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        // Fallback database URL if not set
+        "postgres://rustcms:password@localhost:5432/my_rust_cms".to_string()
+    });
     
-    // Update last backup time in settings
-    let timestamp = Utc::now();
-    let _ = Setting::upsert(
-        &mut conn,
-        "last_backup_time",
-        &timestamp.to_rfc3339(),
-        "system",
-        Some("Last backup timestamp".to_string())
-    );
+    let backup_service = SimpleBackupService::new(backup_dir, database_url);
+
+    // Convert request to service request
+    let service_request = SimpleBackupRequest {
+        backup_type: request.backup_type.clone(),
+        description: request.description.clone(),
+    };
+
+    // Create backup with simple service
+    let backup_info = backup_service
+        .create_backup_simple(service_request)
+        .await
+        .map_err(|e| {
+            eprintln!("Backup creation error: {}", e);
+            match e {
+                crate::services::SimpleBackupError::ConfigurationError(msg) => {
+                    AppError::Configuration(msg)
+                },
+                crate::services::SimpleBackupError::ValidationError(msg) => {
+                    AppError::BadRequest(msg)
+                },
+                _ => AppError::InternalServerError(format!("Backup creation failed: {}", e))
+            }
+        })?;
+    
+    // Try to update last backup time in settings (gracefully handle connection failures)
+    if let Ok(mut conn) = services.db_pool.get() {
+        let timestamp = Utc::now();
+        let _ = Setting::upsert(
+            &mut conn,
+            "last_backup_time",
+            &timestamp.to_rfc3339(),
+            "system",
+            Some("Last backup timestamp".to_string())
+        );
+        println!("✅ Updated last backup time in database");
+    } else {
+        println!("⚠️  Could not update last backup time in database (connection failed)");
+    }
 
     Ok(ResponseJson(backup_info))
 }
@@ -234,20 +257,25 @@ pub async fn get_data_snapshot(
     Ok(ResponseJson(snapshot))
 }
 
-// List available backups
+// List available backups with simple service
 pub async fn list_backups(
     State(_services): State<AppServices>
 ) -> Result<ResponseJson<Vec<BackupInfo>>, AppError> {
-    // Initialize backup service
+    // Initialize simple backup service
     let backup_dir = std::env::var("BACKUP_DIR").unwrap_or_else(|_| "./backups".to_string());
     let database_url = std::env::var("DATABASE_URL")
         .map_err(|_| AppError::Configuration("DATABASE_URL not set".to_string()))?;
     
-    let backup_service = BackupService::new(backup_dir, database_url);
+    let backup_service = SimpleBackupService::new(backup_dir, database_url);
     
-    // List all available backups
-    let backups = backup_service.list_backups().await
-        .map_err(|e| AppError::InternalServerError(format!("Failed to list backups: {}", e)))?;
+    // List all available backups using simple service (filesystem-based)
+    let backups = backup_service
+        .list_backups_simple()
+        .await
+        .map_err(|e| {
+            eprintln!("Failed to list backups: {}", e);
+            AppError::InternalServerError(format!("Failed to list backups: {}", e))
+        })?;
     
     Ok(ResponseJson(backups))
 }

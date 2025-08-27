@@ -1,11 +1,14 @@
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
 use crate::services::navigation_service::{MenuArea, ComponentTemplate, NavigationItem, get_menu_areas, get_component_templates, get_all_component_templates_admin, update_menu_area, update_component_template, get_navigation_by_area, toggle_component_template};
-use crate::services::api_service::{SettingData, get_settings, update_settings, get_templates, Template};
+use crate::services::api_service::{SettingData, get_settings, update_settings, get_templates, Template, MediaItem};
+use crate::components::{ModernMenuDesigner, MenuStyle};
+use crate::services::modern_menu_service::{save_menu_style, load_menu_style, force_refresh_menu_styles};
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use wasm_bindgen::JsValue;
 use crate::components::simple_notification::SimpleNotification;
+use std::collections::HashMap;
 
 #[derive(Clone, PartialEq)]
 pub enum TemplateView {
@@ -122,6 +125,11 @@ pub fn template_manager() -> Html {
     let export_json_text = use_state(String::new);
     let applied_default_once = use_state(|| false);
     let notify_message = use_state(|| None::<(String, String)>);
+    
+    // Modern Menu Designer State
+    let show_modern_designer = use_state(|| false);
+    let current_menu_area = use_state(|| "header".to_string());
+    let current_menu_style = use_state(|| None::<MenuStyle>);
 
     // Load initial data
     {
@@ -539,6 +547,85 @@ pub fn template_manager() -> Html {
         Callback::from(move |_| current_view.set(TemplateView::ContainerSettings))
     };
 
+    // Modern Menu Designer Callbacks
+    let open_modern_designer = {
+        let show_modern_designer = show_modern_designer.clone();
+        let current_menu_area = current_menu_area.clone();
+        let current_menu_style = current_menu_style.clone();
+        
+        Callback::from(move |area: String| {
+            current_menu_area.set(area.clone());
+            
+            // Force refresh all menu styles first
+            force_refresh_menu_styles();
+            
+            // Load existing style for this area
+            let current_menu_style = current_menu_style.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Ok(Some(style)) = load_menu_style(&area).await {
+                    current_menu_style.set(Some(style));
+                } else {
+                    current_menu_style.set(None);
+                }
+            });
+            
+            show_modern_designer.set(true);
+        })
+    };
+
+    let close_modern_designer = {
+        let show_modern_designer = show_modern_designer.clone();
+        Callback::from(move |_| {
+            show_modern_designer.set(false);
+            // Force refresh menu styles when closing to ensure they're applied
+            force_refresh_menu_styles();
+        })
+    };
+
+    let save_menu_style_callback = {
+        let notify_message = notify_message.clone();
+        let current_menu_area = current_menu_area.clone();
+        let current_menu_style = current_menu_style.clone();
+        let show_modern_designer = show_modern_designer.clone();
+        
+        Callback::from(move |style: MenuStyle| {
+            let area = (*current_menu_area).clone();
+            let notify_message = notify_message.clone();
+            let current_menu_style = current_menu_style.clone();
+            let show_modern_designer = show_modern_designer.clone();
+            
+            // Update the local state with the new style
+            current_menu_style.set(Some(style.clone()));
+            
+            // Debug logging
+            web_sys::console::log_1(&format!("🔧 TEMPLATE_MANAGER: Saving style for area '{}', style: {:?}", area, style).into());
+            
+            // Check if this is a final save (when modal is about to close) or live update
+            let is_final_save = !*show_modern_designer;
+            
+            // Save the style to database
+            wasm_bindgen_futures::spawn_local(async move {
+                match save_menu_style(&area, &style).await {
+                    Ok(_) => {
+                        if is_final_save {
+                            // Show success notification for final save
+                            notify_message.set(Some(("success".to_string(), "Menu style saved successfully!".to_string())));
+                        } else {
+                            // Just log success for live updates
+                            web_sys::console::log_1(&"🎨 Menu style auto-saved successfully".into());
+                        }
+                    }
+                    Err(e) => {
+                        // Show error notifications for both cases
+                        notify_message.set(Some(("error".to_string(), format!("Failed to save menu style: {}", e))));
+                    }
+                }
+            });
+        })
+    };
+
+
+
     html! {
         <div class="template-manager">
             <div class="page-header">
@@ -693,6 +780,7 @@ pub fn template_manager() -> Html {
                         TemplateView::MenuAreas => html! { 
                             <MenuAreasView 
                                 menu_areas={(*menu_areas).clone()}
+                                on_customize={open_modern_designer.clone()}
                                 on_toggle={{
                                     let menu_areas = menu_areas.clone();
                                     let error = error.clone();
@@ -755,6 +843,21 @@ pub fn template_manager() -> Html {
                     }
                 }}
             </div>
+            
+            // Modern Menu Designer Modal
+            {if *show_modern_designer {
+                html! {
+                    <ModernMenuDesigner
+                        menu_area={(*current_menu_area).clone()}
+                        current_style={(*current_menu_style).clone()}
+                        on_style_change={save_menu_style_callback.clone()}
+                        on_save_and_close={Some(Callback::noop())}
+                        on_close={close_modern_designer.clone()}
+                    />
+                }
+            } else {
+                html! {}
+            }}
         </div>
     }
 }
@@ -763,10 +866,180 @@ pub fn template_manager() -> Html {
 pub struct MenuAreasViewProps {
     pub menu_areas: Vec<MenuArea>,
     pub on_toggle: Callback<(String, bool)>,
+    pub on_customize: Callback<String>,
+}
+
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MenuAreaCustomization {
+    pub area_name: String,
+    
+    // Background
+    pub background_type: String, // "solid", "gradient", "image"
+    pub background_color: String,
+    pub gradient_start: String,
+    pub gradient_end: String,
+    pub gradient_direction: String,
+    pub background_image: String,
+    
+    // Text Colors
+    pub text_color: String,
+    
+    // Hover Effects
+    pub hover_type: String, // "color", "gradient", "shape", "button"
+    pub hover_color: String,
+    pub hover_gradient_start: String,
+    pub hover_gradient_end: String,
+    pub hover_gradient_direction: String,
+    pub hover_shape: String, // "rectangle", "rounded", "circle", "custom"
+    pub hover_shape_size: String,
+    pub hover_animation: String,
+    
+    // Active Effects  
+    pub active_type: String, // "color", "gradient", "shape", "button"
+    pub active_color: String,
+    pub active_gradient_start: String,
+    pub active_gradient_end: String,
+    pub active_gradient_direction: String,
+    pub active_shape: String,
+    pub active_shape_size: String,
+    pub active_animation: String,
+    
+    // Animation Targeting
+    pub animation_type: String, // "none", "slide", "fade", "bounce", "rotate", "scale"
+    pub animation_duration: String,
+    pub animation_target: String, // "buttons", "text", "hover_shapes", "active_shapes", "all"
+    
+    // Layout
+    pub border_radius: String,
+    pub padding: String,
+    pub margin: String,
+    pub box_shadow: String,
+    
+    // Effects
+    pub effects: String, // "none", "glassmorphism", "neumorphism", "glow", "shadow"
+    pub effects_intensity: String,
+    pub effects_target: String, // "buttons", "text", "hover_shapes", "active_shapes", "all"
+    
+    // Text Effects
+    pub text_shadow_enabled: bool,
+    pub text_shadow_type: String, // "none", "glow", "drop-shadow", "outline", "neon"
+    pub text_shadow_color: String,
+    pub text_shadow_intensity: String,
+    pub text_shadow_blur: String,
+    pub text_shadow_offset_x: String,
+    pub text_shadow_offset_y: String,
+    
+    // Shape Masks
+    pub shape_mask_upper: String,
+    pub shape_mask_lower: String,
+    pub shape_mask_scale: String,
+    
+    // Mobile Menu
+    pub mobile_hamburger_style: String, // "lines", "dots", "arrow", "custom"
+    pub mobile_dropdown_animation: String, // "slide", "fade", "scale", "flip"
+    pub mobile_dropdown_direction: String, // "down", "up", "left", "right"
+    pub mobile_item_hover_type: String,
+    pub mobile_item_hover_shape: String,
+    pub mobile_background_type: String,
+    pub mobile_background_color: String,
+}
+
+impl Default for MenuAreaCustomization {
+    fn default() -> Self {
+        Self {
+            area_name: String::new(),
+            
+            // Background
+            background_type: "solid".to_string(),
+            background_color: "#ffffff".to_string(),
+            gradient_start: "#667eea".to_string(),
+            gradient_end: "#764ba2".to_string(),
+            gradient_direction: "to-right".to_string(),
+            background_image: String::new(),
+            
+            // Text Colors
+            text_color: "#333333".to_string(),
+            
+            // Hover Effects
+            hover_type: "color".to_string(),
+            hover_color: "#007bff".to_string(),
+            hover_gradient_start: "#3b82f6".to_string(),
+            hover_gradient_end: "#1d4ed8".to_string(),
+            hover_gradient_direction: "to-right".to_string(),
+            hover_shape: "rectangle".to_string(),
+            hover_shape_size: "100%".to_string(),
+            hover_animation: "fade".to_string(),
+            
+            // Active Effects
+            active_type: "color".to_string(),
+            active_color: "#0056b3".to_string(),
+            active_gradient_start: "#1d4ed8".to_string(),
+            active_gradient_end: "#1e40af".to_string(),
+            active_gradient_direction: "to-right".to_string(),
+            active_shape: "rectangle".to_string(),
+            active_shape_size: "100%".to_string(),
+            active_animation: "scale".to_string(),
+            
+            // Animation Targeting
+            animation_type: "slide".to_string(),
+            animation_duration: "0.3s".to_string(),
+            animation_target: "all".to_string(),
+            
+            // Layout
+            border_radius: "8px".to_string(),
+            padding: "16px".to_string(),
+            margin: "0px".to_string(),
+            box_shadow: "0 2px 8px rgba(0,0,0,0.1)".to_string(),
+            
+            // Effects
+            effects: "none".to_string(),
+            effects_intensity: "50".to_string(),
+            effects_target: "all".to_string(),
+            
+            // Text Effects
+            text_shadow_enabled: false,
+            text_shadow_type: "none".to_string(),
+            text_shadow_color: "#000000".to_string(),
+            text_shadow_intensity: "50".to_string(),
+            text_shadow_blur: "4".to_string(),
+            text_shadow_offset_x: "0".to_string(),
+            text_shadow_offset_y: "2".to_string(),
+            
+            // Shape Masks
+            shape_mask_upper: "none".to_string(),
+            shape_mask_lower: "none".to_string(),
+            shape_mask_scale: "100".to_string(),
+            
+            // Mobile Menu
+            mobile_hamburger_style: "lines".to_string(),
+            mobile_dropdown_animation: "slide".to_string(),
+            mobile_dropdown_direction: "down".to_string(),
+            mobile_item_hover_type: "color".to_string(),
+            mobile_item_hover_shape: "rectangle".to_string(),
+            mobile_background_type: "solid".to_string(),
+            mobile_background_color: "#ffffff".to_string(),
+        }
+    }
 }
 
 #[function_component(MenuAreasView)]
 pub fn menu_areas_view(props: &MenuAreasViewProps) -> Html {
+    let customizing_area = use_state(|| None::<String>);
+    let area_customizations = use_state(|| load_menu_customizations());
+    
+    // Apply existing customizations on component load
+    {
+        let area_customizations = area_customizations.clone();
+        use_effect_with_deps(move |_| {
+            let customizations = (*area_customizations).clone();
+            for (area_name, customization) in customizations.iter() {
+                let css = generate_menu_css(customization, area_name);
+                inject_menu_css(area_name, &css);
+            }
+            || ()
+        }, ());
+    }
+    
     let get_area_info = |area_name: &str| -> (String, String, String, bool) {
         if let Some(area) = props.menu_areas.iter().find(|a| a.area_name == area_name) {
             (
@@ -803,72 +1076,144 @@ pub fn menu_areas_view(props: &MenuAreasViewProps) -> Html {
                 <div class="area-card">
                     <div class="area-header">
                         <h3>{"📱 Header Menu"}</h3>
-                        <div class="area-toggle">
-                            <label class="toggle-switch">
-                                <input 
-                                    type="checkbox"
-                                    checked={get_area_info("header").3}
-                                    onchange={
-                                        let handle_toggle = handle_toggle.clone();
-                                        Callback::from(move |e: Event| {
-                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
-                                            handle_toggle.emit(("header".to_string(), target.checked()));
-                                        })
-                                    }
-                                />
-                                <span class="slider"></span>
-                            </label>
+                        <div class="area-controls">
+                            <button 
+                                class="customize-btn"
+                                onclick={{
+                                    let on_customize = props.on_customize.clone();
+                                    Callback::from(move |_| {
+                                        on_customize.emit("header".to_string());
+                                    })
+                                }}
+                                style="
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    border: none;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                "
+                            >
+                                {"🎨 Customize"}
+                            </button>
                         </div>
                     </div>
                     <p>{"Main navigation with mobile hamburger support"}</p>
+                    <div class="area-toggle" style="margin-bottom: 8px;">
+                        <label class="toggle-switch">
+                            <input 
+                                type="checkbox"
+                                checked={get_area_info("header").3}
+                                onchange={
+                                    let handle_toggle = handle_toggle.clone();
+                                    Callback::from(move |e: Event| {
+                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                        handle_toggle.emit(("header".to_string(), target.checked()));
+                                    })
+                                }
+                            />
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class={get_area_info("header").2}>{get_area_info("header").1}</div>
                 </div>
                 
                 <div class="area-card">
                     <div class="area-header">
                         <h3>{"🦶 Footer Menu"}</h3>
-                        <div class="area-toggle">
-                            <label class="toggle-switch">
-                                <input 
-                                    type="checkbox"
-                                    checked={get_area_info("footer").3}
-                                    onchange={
-                                        let handle_toggle = handle_toggle.clone();
-                                        Callback::from(move |e: Event| {
-                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
-                                            handle_toggle.emit(("footer".to_string(), target.checked()));
-                                        })
-                                    }
-                                />
-                                <span class="slider"></span>
-                            </label>
+                        <div class="area-controls">
+                            <button 
+                                class="customize-btn"
+                                onclick={{
+                                    let on_customize = props.on_customize.clone();
+                                    Callback::from(move |_| {
+                                        on_customize.emit("footer".to_string());
+                                    })
+                                }}
+                                style="
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    border: none;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                "
+                            >
+                                {"🎨 Customize"}
+                            </button>
                         </div>
                     </div>
                     <p>{"Footer navigation with layout options"}</p>
+                    <div class="area-toggle" style="margin-bottom: 8px;">
+                        <label class="toggle-switch">
+                            <input 
+                                type="checkbox"
+                                checked={get_area_info("footer").3}
+                                onchange={
+                                    let handle_toggle = handle_toggle.clone();
+                                    Callback::from(move |e: Event| {
+                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                        handle_toggle.emit(("footer".to_string(), target.checked()));
+                                    })
+                                }
+                            />
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class={get_area_info("footer").2}>{get_area_info("footer").1}</div>
                 </div>
                 
                 <div class="area-card">
                     <div class="area-header">
                         <h3>{"🎈 Floating Menu"}</h3>
-                        <div class="area-toggle">
-                            <label class="toggle-switch">
-                                <input 
-                                    type="checkbox"
-                                    checked={get_area_info("floating").3}
-                                    onchange={
-                                        let handle_toggle = handle_toggle.clone();
-                                        Callback::from(move |e: Event| {
-                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
-                                            handle_toggle.emit(("floating".to_string(), target.checked()));
-                                        })
-                                    }
-                                />
-                                <span class="slider"></span>
-                            </label>
+                        <div class="area-controls">
+                            <button 
+                                class="customize-btn"
+                                onclick={{
+                                    let on_customize = props.on_customize.clone();
+                                    Callback::from(move |_| {
+                                        on_customize.emit("floating".to_string());
+                                    })
+                                }}
+                                style="
+                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    border: none;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                "
+                            >
+                                {"🎨 Customize"}
+                            </button>
                         </div>
                     </div>
                     <p>{"Floating navigation elements"}</p>
+                    <div class="area-toggle" style="margin-bottom: 8px;">
+                        <label class="toggle-switch">
+                            <input 
+                                type="checkbox"
+                                checked={get_area_info("floating").3}
+                                onchange={
+                                    let handle_toggle = handle_toggle.clone();
+                                    Callback::from(move |e: Event| {
+                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                        handle_toggle.emit(("floating".to_string(), target.checked()));
+                                    })
+                                }
+                            />
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class={get_area_info("floating").2}>{get_area_info("floating").1}</div>
                 </div>
 
@@ -904,11 +1249,2999 @@ pub fn menu_areas_view(props: &MenuAreasViewProps) -> Html {
                     }
                 })}
             </div>
+
+            // Customization Modal
+            {if let Some(ref area_name) = *customizing_area {
+                let current_customization = area_customizations.get(area_name).cloned().unwrap_or_default();
+                html! {
+                    <div class="customization-modal-overlay" style="
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0, 0, 0, 0.8);
+                        backdrop-filter: blur(8px);
+                        z-index: 250000;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 2.5vh 2.5vw;
+                        overflow-y: auto;
+                    ">
+                        <div class="customization-modal" style="
+                            background: transparent;
+                            border-radius: 0;
+                            box-shadow: none;
+                            max-width: 1600px;
+                            width: 98vw;
+                            max-height: 95vh;
+                            overflow: visible;
+                            position: relative;
+                            z-index: 250001;
+                        ">
+                            <div class="modal-header" style="
+                                padding: 24px;
+                                border-bottom: 1px solid #e1e5e9;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white;
+                                border-radius: 16px 16px 0 0;
+                            ">
+                                <h2 style="margin: 0; font-size: 24px; font-weight: 700;">
+                                    {format!("🎨 Customize {} Menu", 
+                                        match area_name.as_str() {
+                                            "header" => "Header",
+                                            "footer" => "Footer", 
+                                            "floating" => "Floating",
+                                            _ => "Menu"
+                                        }
+                                    )}
+                                </h2>
+                                <button 
+                                    onclick={{
+                                        let customizing_area = customizing_area.clone();
+                                        Callback::from(move |_| {
+                                            customizing_area.set(None);
+                                        })
+                                    }}
+                                    style="
+                                        background: rgba(255, 255, 255, 0.2);
+                                        border: none;
+                                        color: white;
+                                        width: 32px;
+                                        height: 32px;
+                                        border-radius: 50%;
+                                        cursor: pointer;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        font-size: 18px;
+                                        transition: all 0.2s ease;
+                                    "
+                                >
+                                    {"×"}
+                                </button>
+                            </div>
+                            
+                            <div class="modal-content" style="padding: 24px;">
+                                {render_menu_customization_panel(&current_customization, area_customizations.clone(), area_name.clone(), customizing_area.clone())}
+                            </div>
+                        </div>
+                    </div>
+                }
+            } else { html! {} }}
         </div>
     }
 }
 
+// Function to render the comprehensive menu customization panel
+fn render_menu_customization_panel(
+    customization: &MenuAreaCustomization,
+    area_customizations: UseStateHandle<HashMap<String, MenuAreaCustomization>>,
+    area_name: String,
+    customizing_area: UseStateHandle<Option<String>>
+) -> Html {
+    let update_customization = {
+        let area_customizations = area_customizations.clone();
+        let area_name = area_name.clone();
+        Callback::from(move |updates: Vec<(String, String)>| {
+            let mut customizations = (*area_customizations).clone();
+            if let Some(mut current) = customizations.get(&area_name).cloned() {
+                for (key, value) in updates {
+                    match key.as_str() {
+                        // Background
+                        "background_type" => current.background_type = value,
+                        "background_color" => current.background_color = value,
+                        "gradient_start" => current.gradient_start = value,
+                        "gradient_end" => current.gradient_end = value,
+                        "gradient_direction" => current.gradient_direction = value,
+                        "background_image" => current.background_image = value,
+                        
+                        // Text
+                        "text_color" => current.text_color = value,
+                        
+                        // Hover Effects
+                        "hover_type" => current.hover_type = value,
+                        "hover_color" => current.hover_color = value,
+                        "hover_gradient_start" => current.hover_gradient_start = value,
+                        "hover_gradient_end" => current.hover_gradient_end = value,
+                        "hover_gradient_direction" => current.hover_gradient_direction = value,
+                        "hover_shape" => current.hover_shape = value,
+                        "hover_shape_size" => current.hover_shape_size = value,
+                        "hover_animation" => current.hover_animation = value,
+                        
+                        // Active Effects
+                        "active_type" => current.active_type = value,
+                        "active_color" => current.active_color = value,
+                        "active_gradient_start" => current.active_gradient_start = value,
+                        "active_gradient_end" => current.active_gradient_end = value,
+                        "active_gradient_direction" => current.active_gradient_direction = value,
+                        "active_shape" => current.active_shape = value,
+                        "active_shape_size" => current.active_shape_size = value,
+                        "active_animation" => current.active_animation = value,
+                        
+                        // Animation
+                        "animation_type" => current.animation_type = value,
+                        "animation_duration" => current.animation_duration = value,
+                        "animation_target" => current.animation_target = value,
+                        
+                        // Layout
+                        "border_radius" => current.border_radius = value,
+                        "padding" => current.padding = value,
+                        "margin" => current.margin = value,
+                        "box_shadow" => current.box_shadow = value,
+                        
+                        // Effects
+                        "effects" => current.effects = value,
+                        "effects_intensity" => current.effects_intensity = value,
+                        "effects_target" => current.effects_target = value,
+                        
+                        // Text Effects
+                        "text_shadow_enabled" => current.text_shadow_enabled = value == "true",
+                        "text_shadow_type" => current.text_shadow_type = value,
+                        "text_shadow_color" => current.text_shadow_color = value,
+                        "text_shadow_intensity" => current.text_shadow_intensity = value,
+                        "text_shadow_blur" => current.text_shadow_blur = value,
+                        "text_shadow_offset_x" => current.text_shadow_offset_x = value,
+                        "text_shadow_offset_y" => current.text_shadow_offset_y = value,
+                        
+                        // Shape Masks
+                        "shape_mask_upper" => current.shape_mask_upper = value,
+                        "shape_mask_lower" => current.shape_mask_lower = value,
+                        "shape_mask_scale" => current.shape_mask_scale = value,
+                        
+                        // Mobile Menu
+                        "mobile_hamburger_style" => current.mobile_hamburger_style = value,
+                        "mobile_dropdown_animation" => current.mobile_dropdown_animation = value,
+                        "mobile_dropdown_direction" => current.mobile_dropdown_direction = value,
+                        "mobile_item_hover_type" => current.mobile_item_hover_type = value,
+                        "mobile_item_hover_shape" => current.mobile_item_hover_shape = value,
+                        "mobile_background_type" => current.mobile_background_type = value,
+                        "mobile_background_color" => current.mobile_background_color = value,
+                        
+                        _ => {}
+                    }
+                }
+                customizations.insert(area_name.clone(), current);
+                area_customizations.set(customizations);
+            }
+        })
+    };
 
+    html! {
+        <div class="modern-menu-customization-panel" style="
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            min-width: 900px;
+            margin: 0 auto;
+        ">
+            // Clean Header
+            <div class="panel-header" style="
+                background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                color: white;
+                padding: 24px 32px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            ">
+                <h2 style="margin: 0; font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 28px;">{"🎨"}</span>
+                    {format!("Menu Designer - {}", match area_name.as_str() {
+                        "header" => "Header",
+                        "footer" => "Footer", 
+                        "floating" => "Floating",
+                        _ => "Menu"
+                    })}
+                </h2>
+            </div>
+
+            // Main Content with Enhanced Sections
+            <div class="panel-content" style="
+                padding: 32px 40px;
+                background: white;
+                max-height: 65vh;
+                overflow-y: auto;
+                min-height: 400px;
+            ">
+                <div class="customization-grid" style="display: grid; gap: 32px;">
+                    
+                    // Background & Colors Section
+                    {render_background_section(customization, update_customization.clone())}
+
+                    // Hover & Active Effects Section
+                    {render_hover_active_section(customization, update_customization.clone())}
+
+                    // Animation & Effects Section
+                    {render_animation_effects_section(customization, update_customization.clone())}
+
+                    // Mobile Menu Section
+                    {render_mobile_menu_section(customization, update_customization.clone())}
+
+                    // Layout & Shape Masks Section
+                    {render_layout_shapes_section(customization, update_customization.clone())}
+
+                    // Creative Menu Construction Section
+                    {render_creative_construction_section(customization, update_customization.clone())}
+
+                    // Live Preview Section
+                    {render_live_preview_section(customization, &area_name)}
+                </div>
+            </div>
+
+            // Clean Action Bar
+            <div class="action-bar" style="
+                background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+                padding: 20px 40px;
+                border-top: 1px solid #e2e8f0;
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+            ">
+                <div class="action-buttons" style="display: flex; gap: 12px;">
+                    <button 
+                        class="reset-btn"
+                        style="
+                            background: white;
+                            color: #64748b;
+                            border: 2px solid #e2e8f0;
+                            padding: 14px 28px;
+                            border-radius: 12px;
+                            cursor: pointer;
+                            font-weight: 600;
+                            font-size: 14px;
+                            transition: all 0.3s ease;
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                        "
+                        onclick={{
+                            let area_customizations = area_customizations.clone();
+                            let area_name = area_name.clone();
+                            Callback::from(move |_| {
+                                reset_to_defaults(area_customizations.clone(), area_name.clone());
+                            })
+                        }}
+                    >
+                        <span style="font-size: 16px;">{"🔄"}</span>
+                        {"Reset"}
+                    </button>
+                    <button 
+                        class="apply-btn"
+                        style="
+                            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                            color: white;
+                            border: none;
+                            padding: 14px 32px;
+                            border-radius: 12px;
+                            cursor: pointer;
+                            font-weight: 700;
+                            font-size: 14px;
+                            transition: all 0.3s ease;
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+                            position: relative;
+                            overflow: hidden;
+                        "
+                        onclick={{
+                            let area_customizations = area_customizations.clone();
+                            let customizing_area = customizing_area.clone();
+                            Callback::from(move |_| {
+                                apply_menu_customizations(area_customizations.clone());
+                                customizing_area.set(None);
+                            })
+                        }}
+                    >
+                        <span style="font-size: 16px;">{"✨"}</span>
+                        {"Apply Changes"}
+                        // Shimmer effect
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: -100%;
+                            width: 100%;
+                            height: 100%;
+                            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                            animation: shimmer 2s infinite;
+                        "></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// New Enhanced Section Functions
+
+fn render_background_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-section" style="
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        ">
+            <div class="section-header" style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 24px;
+                padding-bottom: 16px;
+                border-bottom: 2px solid #e2e8f0;
+            ">
+                <div style="
+                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    color: white;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 18px;
+                ">
+                    {"🎨"}
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #1f2937;">
+                        {"Background & Colors"}
+                    </h3>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                        {"Set the visual foundation of your menu"}
+                    </p>
+                </div>
+            </div>
+
+            <div class="controls-grid" style="display: grid; gap: 24px;">
+                // Background Type Selector with Visual Cards
+                <div class="control-group">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 14px;">
+                        {"Background Type"}
+                    </label>
+                    <div class="bg-type-cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 400px;">
+                        {render_background_type_cards(customization, update_customization.clone())}
+                    </div>
+                </div>
+
+                // Dynamic Background Controls
+                <div class="control-group">
+                    {render_background_controls(customization, update_customization.clone())}
+                </div>
+
+                // Color Palette
+                <div class="control-group">
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 14px;">
+                        {"Color Palette"}
+                    </label>
+                    <div class="color-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 800px;">
+                        {render_enhanced_color_controls(customization, update_customization.clone())}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_background_type_cards(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let types = vec![
+        ("solid", "🎯", "Solid"),
+        ("gradient", "🌈", "Gradient"), 
+        ("image", "🖼️", "Image"),
+    ];
+
+    html! {
+        <>
+            {types.into_iter().map(|(value, icon, label)| {
+                let is_active = customization.background_type == value;
+                let update_customization = update_customization.clone();
+                html! {
+                    <button
+                        style={format!("
+                            background: {};
+                            border: 2px solid {};
+                            color: {};
+                            padding: 12px 8px;
+                            border-radius: 12px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: 600;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            gap: 4px;
+                        ",
+                            if is_active { "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" } else { "white" },
+                            if is_active { "#3b82f6" } else { "#e5e7eb" },
+                            if is_active { "white" } else { "#6b7280" }
+                        )}
+                        onclick={Callback::from(move |_| {
+                            update_customization.emit(vec![("background_type".to_string(), value.to_string())]);
+                        })}
+                    >
+                        <span style="font-size: 16px;">{icon}</span>
+                        <span>{label}</span>
+                    </button>
+                }
+            }).collect::<Html>()}
+        </>
+    }
+}
+
+fn render_enhanced_color_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let colors = vec![
+        ("text_color", "Text Color", "🔤", &customization.text_color),
+        ("hover_color", "Hover Color", "👆", &customization.hover_color),
+        ("active_color", "Active Color", "✨", &customization.active_color),
+    ];
+
+    html! {
+        <>
+            {colors.into_iter().map(|(key, label, icon, value)| {
+                let update_customization = update_customization.clone();
+                html! {
+                    <div class="color-control" style="
+                        background: white;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 12px;
+                        padding: 16px;
+                        transition: all 0.2s ease;
+                    ">
+                        <label style="
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            font-weight: 600;
+                            color: #374151;
+                            margin-bottom: 8px;
+                            font-size: 14px;
+                        ">
+                            <span style="font-size: 16px;">{icon}</span>
+                            {label}
+                        </label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input
+                                type="color"
+                                value={value.clone()}
+                                onchange={{
+                                    let key = key.to_string();
+                                    let update_customization = update_customization.clone();
+                                    Callback::from(move |e: Event| {
+                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                        update_customization.emit(vec![(key.clone(), target.value())]);
+                                    })
+                                }}
+                                style="
+                                    width: 50px;
+                                    height: 50px;
+                                    border: none;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                "
+                            />
+                            <input
+                                type="text"
+                                value={value.clone()}
+                                onchange={{
+                                    let key = key.to_string();
+                                    Callback::from(move |e: Event| {
+                                        let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                        update_customization.emit(vec![(key.clone(), target.value())]);
+                                    })
+                                }}
+                                style="
+                                    flex: 1;
+                                    padding: 8px 12px;
+                                    border: 1px solid #d1d5db;
+                                    border-radius: 6px;
+                                    font-family: monospace;
+                                    font-size: 12px;
+                                "
+                            />
+                        </div>
+                        <div style={format!("
+                            margin-top: 8px;
+                            height: 20px;
+                            border-radius: 6px;
+                            background: {};
+                            border: 1px solid #e5e7eb;
+                        ", value)} data-color-preview={value.clone()}></div>
+                    </div>
+                }
+            }).collect::<Html>()}
+        </>
+    }
+}
+
+fn render_hover_active_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="section-card" style="
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        ">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">{"🎯"}</span>
+                {"Hover & Active Effects"}
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                // Hover Effects
+                <div>
+                    <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">{"Hover Effects"}</h4>
+                    {render_effect_controls("hover", &customization.hover_type, &customization.hover_color, &customization.hover_gradient_start, &customization.hover_gradient_end, &customization.hover_gradient_direction, &customization.hover_shape, &customization.hover_shape_size, &customization.hover_animation, update_customization.clone())}
+                </div>
+                
+                // Active Effects
+                <div>
+                    <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">{"Active Effects"}</h4>
+                    {render_effect_controls("active", &customization.active_type, &customization.active_color, &customization.active_gradient_start, &customization.active_gradient_end, &customization.active_gradient_direction, &customization.active_shape, &customization.active_shape_size, &customization.active_animation, update_customization.clone())}
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_animation_effects_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="section-card" style="
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        ">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">{"✨"}</span>
+                {"Animation & Effects"}
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                {render_animation_controls(customization, update_customization.clone())}
+                {render_effects_controls(customization, update_customization.clone())}
+            </div>
+        </div>
+    }
+}
+
+fn render_mobile_menu_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="section-card" style="
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        ">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">{"📱"}</span>
+                {"Mobile Menu Designer"}
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                {render_mobile_hamburger_controls(customization, update_customization.clone())}
+                {render_mobile_dropdown_controls(customization, update_customization.clone())}
+                {render_mobile_styling_controls(customization, update_customization.clone())}
+            </div>
+        </div>
+    }
+}
+
+fn render_layout_shapes_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="section-card" style="
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        ">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">{"🎨"}</span>
+                {"Layout & Shape Masks"}
+            </h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                {render_layout_section(customization, update_customization.clone())}
+                {render_shape_masks_section(customization, update_customization.clone())}
+            </div>
+        </div>
+    }
+}
+
+// Advanced Control Helper Functions
+
+fn render_effect_controls(
+    prefix: &str, 
+    effect_type: &str, 
+    color: &str, 
+    gradient_start: &str, 
+    gradient_end: &str, 
+    gradient_direction: &str, 
+    shape: &str, 
+    shape_size: &str, 
+    animation: &str,
+    update_customization: Callback<Vec<(String, String)>>
+) -> Html {
+    html! {
+        <div class="effect-controls" style="
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+        ">
+            // Effect Type Selector
+            <div class="control-group" style="margin-bottom: 16px;">
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                    {"Effect Type"}
+                </label>
+                <div class="effect-type-buttons" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+                    {["color", "gradient", "shape", "button"].iter().map(|&type_val| {
+                        let is_active = effect_type == type_val;
+                        let update_customization = update_customization.clone();
+                        let prefix = prefix.to_string();
+                        html! {
+                            <button
+                                style={format!("
+                                    background: {};
+                                    border: 1px solid {};
+                                    color: {};
+                                    padding: 6px 8px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                ",
+                                    if is_active { "#3b82f6" } else { "white" },
+                                    if is_active { "#3b82f6" } else { "#d1d5db" },
+                                    if is_active { "white" } else { "#6b7280" }
+                                )}
+                                onclick={Callback::from(move |_| {
+                                    update_customization.emit(vec![(format!("{}_type", prefix), type_val.to_string())]);
+                                })}
+                            >
+                                {match type_val {
+                                    "color" => "Color",
+                                    "gradient" => "Gradient", 
+                                    "shape" => "Shape",
+                                    "button" => "Button",
+                                    _ => type_val
+                                }}
+                            </button>
+                        }
+                    }).collect::<Html>()}
+                </div>
+            </div>
+
+            // Dynamic Controls Based on Type
+            {match effect_type {
+                "color" => render_color_effect_controls(prefix, color, update_customization.clone()),
+                "gradient" => render_gradient_effect_controls(prefix, gradient_start, gradient_end, gradient_direction, update_customization.clone()),
+                "shape" => render_shape_effect_controls(prefix, shape, shape_size, animation, update_customization.clone()),
+                "button" => render_button_effect_controls(prefix, color, shape, animation, update_customization.clone()),
+                _ => html! {}
+            }}
+        </div>
+    }
+}
+
+fn render_color_effect_controls(prefix: &str, color: &str, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let color = color.to_string();
+    let prefix = prefix.to_string();
+    
+    html! {
+        <div class="color-effect-controls">
+            <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                {"Color"}
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <input
+                    type="color"
+                    value={color.clone()}
+                    onchange={{
+                        let prefix = prefix.clone();
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![(format!("{}_color", prefix), target.value())]);
+                        })
+                    }}
+                    style="
+                        width: 40px;
+                        height: 40px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    "
+                />
+                <input
+                    type="text"
+                    value={color}
+                    onchange={{
+                        let prefix = prefix.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![(format!("{}_color", prefix), target.value())]);
+                        })
+                    }}
+                    style="
+                        flex: 1;
+                        padding: 8px 12px;
+                        border: 1px solid #d1d5db;
+                        border-radius: 6px;
+                        font-family: monospace;
+                        font-size: 12px;
+                    "
+                />
+            </div>
+        </div>
+    }
+}
+
+fn render_gradient_effect_controls(prefix: &str, gradient_start: &str, gradient_end: &str, gradient_direction: &str, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let prefix = prefix.to_string();
+    let gradient_start = gradient_start.to_string();
+    let gradient_end = gradient_end.to_string();
+    let gradient_direction = gradient_direction.to_string();
+    
+    html! {
+        <div class="gradient-effect-controls" style="display: grid; gap: 12px;">
+            // Start Color
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"Start Color"}
+                </label>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <input
+                        type="color"
+                        value={gradient_start.clone()}
+                        onchange={{
+                            let prefix = prefix.clone();
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![(format!("{}_gradient_start", prefix), target.value())]);
+                            })
+                        }}
+                        style="width: 30px; height: 30px; border: none; border-radius: 6px; cursor: pointer;"
+                    />
+                    <input
+                        type="text"
+                        value={gradient_start}
+                        onchange={{
+                            let prefix = prefix.clone();
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![(format!("{}_gradient_start", prefix), target.value())]);
+                            })
+                        }}
+                        style="flex: 1; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family: monospace; font-size: 11px;"
+                    />
+                </div>
+            </div>
+
+            // End Color
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"End Color"}
+                </label>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <input
+                        type="color"
+                        value={gradient_end.clone()}
+                        onchange={{
+                            let prefix = prefix.clone();
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![(format!("{}_gradient_end", prefix), target.value())]);
+                            })
+                        }}
+                        style="width: 30px; height: 30px; border: none; border-radius: 6px; cursor: pointer;"
+                    />
+                    <input
+                        type="text"
+                        value={gradient_end}
+                        onchange={{
+                            let prefix = prefix.clone();
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![(format!("{}_gradient_end", prefix), target.value())]);
+                            })
+                        }}
+                        style="flex: 1; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-family: monospace; font-size: 11px;"
+                    />
+                </div>
+            </div>
+
+            // Direction
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"Direction"}
+                </label>
+                <select
+                    value={gradient_direction}
+                    onchange={{
+                        let prefix = prefix.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                            update_customization.emit(vec![(format!("{}_gradient_direction", prefix), target.value())]);
+                        })
+                    }}
+                    style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;"
+                >
+                    <option value="to-right">{"→ Right"}</option>
+                    <option value="to-left">{"← Left"}</option>
+                    <option value="to-bottom">{"↓ Down"}</option>
+                    <option value="to-top">{"↑ Up"}</option>
+                    <option value="to-bottom-right">{"↘ Bottom Right"}</option>
+                    <option value="to-bottom-left">{"↙ Bottom Left"}</option>
+                    <option value="to-top-right">{"↗ Top Right"}</option>
+                    <option value="to-top-left">{"↖ Top Left"}</option>
+                </select>
+            </div>
+        </div>
+    }
+}
+
+fn render_shape_effect_controls(prefix: &str, shape: &str, shape_size: &str, animation: &str, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let prefix = prefix.to_string();
+    let shape = shape.to_string();
+    let shape_size = shape_size.to_string();
+    let animation = animation.to_string();
+    
+    html! {
+        <div class="shape-effect-controls" style="display: grid; gap: 12px;">
+            // Shape Type
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"Shape"}
+                </label>
+                <div class="shape-buttons" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+                    {["rectangle", "rounded", "circle", "custom"].iter().map(|&shape_val| {
+                        let is_active = shape == shape_val;
+                        let update_customization = update_customization.clone();
+                        let prefix = prefix.clone();
+                        html! {
+                            <button
+                                style={format!("
+                                    background: {};
+                                    border: 1px solid {};
+                                    color: {};
+                                    padding: 4px 6px;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                    font-size: 10px;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                ",
+                                    if is_active { "#3b82f6" } else { "white" },
+                                    if is_active { "#3b82f6" } else { "#d1d5db" },
+                                    if is_active { "white" } else { "#6b7280" }
+                                )}
+                                onclick={Callback::from(move |_| {
+                                    update_customization.emit(vec![(format!("{}_shape", prefix), shape_val.to_string())]);
+                                })}
+                            >
+                                {match shape_val {
+                                    "rectangle" => "▭",
+                                    "rounded" => "▢",
+                                    "circle" => "●",
+                                    "custom" => "✦",
+                                    _ => shape_val
+                                }}
+                            </button>
+                        }
+                    }).collect::<Html>()}
+                </div>
+            </div>
+
+            // Size
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"Size"}
+                </label>
+                <input
+                    type="text"
+                    value={shape_size}
+                    onchange={{
+                        let prefix = prefix.clone();
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![(format!("{}_shape_size", prefix), target.value())]);
+                        })
+                    }}
+                    placeholder="100%, 50px, etc."
+                    style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;"
+                />
+            </div>
+
+            // Animation
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"Animation"}
+                </label>
+                <select
+                    value={animation}
+                    onchange={{
+                        let prefix = prefix.clone();
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                            update_customization.emit(vec![(format!("{}_animation", prefix), target.value())]);
+                        })
+                    }}
+                    style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;"
+                >
+                    <option value="none">{"None"}</option>
+                    <option value="fade">{"Fade"}</option>
+                    <option value="scale">{"Scale"}</option>
+                    <option value="slide">{"Slide"}</option>
+                    <option value="rotate">{"Rotate"}</option>
+                    <option value="bounce">{"Bounce"}</option>
+                </select>
+            </div>
+        </div>
+    }
+}
+
+fn render_button_effect_controls(prefix: &str, color: &str, shape: &str, _animation: &str, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let prefix = prefix.to_string();
+    let shape = shape.to_string();
+    
+    html! {
+        <div class="button-effect-controls" style="display: grid; gap: 12px;">
+            <p style="margin: 0; font-size: 12px; color: #6b7280; font-style: italic;">
+                {"Button mode creates full button-style hover effects"}
+            </p>
+            
+            {render_color_effect_controls(&prefix, color, update_customization.clone())}
+            
+            <div>
+                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 6px; font-size: 12px;">
+                    {"Button Style"}
+                </label>
+                <select
+                    value={shape}
+                    onchange={{
+                        let prefix = prefix.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                            update_customization.emit(vec![(format!("{}_shape", prefix), target.value())]);
+                        })
+                    }}
+                    style="width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px;"
+                >
+                    <option value="rectangle">{"Rectangle"}</option>
+                    <option value="rounded">{"Rounded"}</option>
+                    <option value="pill">{"Pill"}</option>
+                    <option value="outline">{"Outline"}</option>
+                </select>
+            </div>
+        </div>
+    }
+}
+
+// Advanced Animation & Effects Controls
+fn render_animation_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="animation-controls" style="
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        ">
+            <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{"🎬"}</span>
+                {"Animations"}
+            </h4>
+            
+            <div style="display: grid; gap: 16px;">
+                // Animation Type
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Animation Type"}
+                    </label>
+                    <div class="animation-type-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                        {["none", "slide", "fade", "bounce", "rotate", "scale"].iter().map(|&anim_type| {
+                            let is_active = customization.animation_type == anim_type;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 12px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 4px;
+                                    ",
+                                        if is_active { "#3b82f6" } else { "white" },
+                                        if is_active { "#3b82f6" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#6b7280" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("animation_type".to_string(), anim_type.to_string())]);
+                                    })}
+                                >
+                                    <span>{match anim_type {
+                                        "none" => "🚫",
+                                        "slide" => "➡️",
+                                        "fade" => "👻",
+                                        "bounce" => "🏀",
+                                        "rotate" => "🔄",
+                                        "scale" => "🔍",
+                                        _ => "✨"
+                                    }}</span>
+                                    {anim_type.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Animation Target
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Animation Target"}
+                    </label>
+                    <div class="target-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                        {["all", "buttons", "text", "hover_shapes", "active_shapes"].iter().map(|&target| {
+                            let is_active = customization.animation_target == target;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 6px 10px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                    ",
+                                        if is_active { "#10b981" } else { "white" },
+                                        if is_active { "#10b981" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#6b7280" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("animation_target".to_string(), target.to_string())]);
+                                    })}
+                                >
+                                    {match target {
+                                        "all" => "🎯 All",
+                                        "buttons" => "🔘 Buttons",
+                                        "text" => "📝 Text",
+                                        "hover_shapes" => "🎨 Hover",
+                                        "active_shapes" => "⚡ Active",
+                                        _ => target
+                                    }}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Animation Duration
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Duration: "}{&customization.animation_duration}
+                    </label>
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="2.0"
+                        step="0.1"
+                        value={customization.animation_duration.trim_end_matches('s').to_string()}
+                        oninput={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: InputEvent| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                let value = format!("{}s", target.value());
+                                update_customization.emit(vec![("animation_duration".to_string(), value)]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 6px;
+                            border-radius: 3px;
+                            background: #e2e8f0;
+                            outline: none;
+                            cursor: pointer;
+                        "
+                    />
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; margin-top: 4px;">
+                        <span>{"0.1s"}</span>
+                        <span>{"Fast"}</span>
+                        <span>{"Slow"}</span>
+                        <span>{"2.0s"}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_effects_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <>
+        <div class="effects-controls" style="
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        ">
+            <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{"✨"}</span>
+                {"Visual Effects"}
+            </h4>
+            
+            <div style="display: grid; gap: 16px;">
+                // Effect Type
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Effect Type"}
+                    </label>
+                    <div class="effects-type-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                        {["none", "glassmorphism", "neumorphism", "glow", "shadow", "text-glow", "text-outline", "text-neon"].iter().map(|&effect_type| {
+                            let is_active = customization.effects == effect_type;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 10px 12px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 6px;
+                                    ",
+                                        if is_active { "#8b5cf6" } else { "white" },
+                                        if is_active { "#8b5cf6" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#6b7280" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("effects".to_string(), effect_type.to_string())]);
+                                    })}
+                                >
+                                    <span>{match effect_type {
+                                        "none" => "🚫",
+                                        "glassmorphism" => "🔮",
+                                        "neumorphism" => "🎭",
+                                        "glow" => "💫",
+                                        "shadow" => "🌑",
+                                        "text-glow" => "✨",
+                                        "text-outline" => "📝",
+                                        "text-neon" => "🌈",
+                                        _ => "✨"
+                                    }}</span>
+                                    {match effect_type {
+                                        "glassmorphism" => "Glass",
+                                        "neumorphism" => "Neuro",
+                                        "text-glow" => "Text Glow",
+                                        "text-outline" => "Outline",
+                                        "text-neon" => "Neon",
+                                        _ => effect_type
+                                    }.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Effects Target
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Effects Target"}
+                    </label>
+                    <div class="target-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                        {["all", "buttons", "text", "hover_shapes", "active_shapes"].iter().map(|&target| {
+                            let is_active = customization.effects_target == target;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 6px 10px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                    ",
+                                        if is_active { "#f59e0b" } else { "white" },
+                                        if is_active { "#f59e0b" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#6b7280" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("effects_target".to_string(), target.to_string())]);
+                                    })}
+                                >
+                                    {match target {
+                                        "all" => "🎯 All",
+                                        "buttons" => "🔘 Buttons",
+                                        "text" => "📝 Text",
+                                        "hover_shapes" => "🎨 Hover",
+                                        "active_shapes" => "⚡ Active",
+                                        _ => target
+                                    }}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Effects Intensity
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Intensity: "}{&customization.effects_intensity}{"%"}
+                    </label>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={customization.effects_intensity.clone()}
+                        oninput={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: InputEvent| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("effects_intensity".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 6px;
+                            border-radius: 3px;
+                            background: linear-gradient(to right, #e2e8f0, #8b5cf6);
+                            outline: none;
+                            cursor: pointer;
+                        "
+                    />
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6b7280; margin-top: 4px;">
+                        <span>{"0%"}</span>
+                        <span>{"Subtle"}</span>
+                        <span>{"Strong"}</span>
+                        <span>{"100%"}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {render_text_shadow_section(customization, update_customization.clone())}
+        </>
+    }
+}
+
+fn render_mobile_hamburger_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="mobile-hamburger-controls" style="
+            background: #f0f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #bae6fd;
+        ">
+            <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #0c4a6e; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{"🍔"}</span>
+                {"Hamburger Style"}
+            </h4>
+            
+            <div style="display: grid; gap: 16px;">
+                // Hamburger Icon Style
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Icon Style"}
+                    </label>
+                    <div class="hamburger-style-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        {["lines", "dots", "arrow", "custom"].iter().map(|&style| {
+                            let is_active = customization.mobile_hamburger_style == style;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 12px 16px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 6px;
+                                    ",
+                                        if is_active { "#0ea5e9" } else { "white" },
+                                        if is_active { "#0ea5e9" } else { "#bae6fd" },
+                                        if is_active { "white" } else { "#0c4a6e" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_hamburger_style".to_string(), style.to_string())]);
+                                    })}
+                                >
+                                    <div style="font-size: 16px;">
+                                        {match style {
+                                            "lines" => "☰",
+                                            "dots" => "⋮",
+                                            "arrow" => "▶",
+                                            "custom" => "✦",
+                                            _ => "☰"
+                                        }}
+                                    </div>
+                                    <span>{style.to_uppercase()}</span>
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Visual Preview
+                <div style="
+                    background: white;
+                    border: 2px dashed #bae6fd;
+                    border-radius: 8px;
+                    padding: 16px;
+                    text-align: center;
+                ">
+                    <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">{"Preview"}</div>
+                    <div style="
+                        display: inline-block;
+                        padding: 8px 12px;
+                        background: #f1f5f9;
+                        border-radius: 6px;
+                        font-size: 18px;
+                        color: #0c4a6e;
+                    ">
+                        {match customization.mobile_hamburger_style.as_str() {
+                            "lines" => "☰",
+                            "dots" => "⋮",
+                            "arrow" => "▶",
+                            "custom" => "✦",
+                            _ => "☰"
+                        }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_mobile_dropdown_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="mobile-dropdown-controls" style="
+            background: #f0fdf4;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #bbf7d0;
+        ">
+            <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #14532d; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{"📱"}</span>
+                {"Dropdown Animation"}
+            </h4>
+            
+            <div style="display: grid; gap: 16px;">
+                // Animation Type
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Animation"}
+                    </label>
+                    <div class="dropdown-animation-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        {["slide", "fade", "scale", "flip"].iter().map(|&animation| {
+                            let is_active = customization.mobile_dropdown_animation == animation;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 10px 12px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 6px;
+                                    ",
+                                        if is_active { "#22c55e" } else { "white" },
+                                        if is_active { "#22c55e" } else { "#bbf7d0" },
+                                        if is_active { "white" } else { "#14532d" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_dropdown_animation".to_string(), animation.to_string())]);
+                                    })}
+                                >
+                                    <span>{match animation {
+                                        "slide" => "📐",
+                                        "fade" => "👻",
+                                        "scale" => "🔍",
+                                        "flip" => "🔄",
+                                        _ => "✨"
+                                    }}</span>
+                                    {animation.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Direction
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Direction"}
+                    </label>
+                    <div class="dropdown-direction-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        {["down", "up", "left", "right"].iter().map(|&direction| {
+                            let is_active = customization.mobile_dropdown_direction == direction;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 12px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 4px;
+                                    ",
+                                        if is_active { "#16a34a" } else { "white" },
+                                        if is_active { "#16a34a" } else { "#bbf7d0" },
+                                        if is_active { "white" } else { "#14532d" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_dropdown_direction".to_string(), direction.to_string())]);
+                                    })}
+                                >
+                                    <span>{match direction {
+                                        "down" => "⬇️",
+                                        "up" => "⬆️",
+                                        "left" => "⬅️",
+                                        "right" => "➡️",
+                                        _ => "⬇️"
+                                    }}</span>
+                                    {direction.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Item Hover Type
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Item Hover"}
+                    </label>
+                    <div class="item-hover-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        {["color", "gradient", "shape", "button"].iter().map(|&hover_type| {
+                            let is_active = customization.mobile_item_hover_type == hover_type;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 6px 10px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 10px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                    ",
+                                        if is_active { "#15803d" } else { "white" },
+                                        if is_active { "#15803d" } else { "#bbf7d0" },
+                                        if is_active { "white" } else { "#14532d" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_item_hover_type".to_string(), hover_type.to_string())]);
+                                    })}
+                                >
+                                    {hover_type.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_mobile_styling_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="mobile-styling-controls" style="
+            background: #fefce8;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #fde047;
+        ">
+            <h4 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #713f12; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">{"🎨"}</span>
+                {"Mobile Styling"}
+            </h4>
+            
+            <div style="display: grid; gap: 16px;">
+                // Background Type
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Background"}
+                    </label>
+                    <div class="mobile-bg-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                        {["solid", "gradient", "blur"].iter().map(|&bg_type| {
+                            let is_active = customization.mobile_background_type == bg_type;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 10px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 4px;
+                                    ",
+                                        if is_active { "#eab308" } else { "white" },
+                                        if is_active { "#eab308" } else { "#fde047" },
+                                        if is_active { "white" } else { "#713f12" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_background_type".to_string(), bg_type.to_string())]);
+                                    })}
+                                >
+                                    <span>{match bg_type {
+                                        "solid" => "⬜",
+                                        "gradient" => "🌈",
+                                        "blur" => "🌫️",
+                                        _ => "⬜"
+                                    }}</span>
+                                    {bg_type.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Background Color
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Background Color"}
+                    </label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input
+                            type="color"
+                            value={customization.mobile_background_color.clone()}
+                            onchange={{
+                                let update_customization = update_customization.clone();
+                                Callback::from(move |e: Event| {
+                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                    update_customization.emit(vec![("mobile_background_color".to_string(), target.value())]);
+                                })
+                            }}
+                            style="
+                                width: 50px;
+                                height: 40px;
+                                border: none;
+                                border-radius: 8px;
+                                cursor: pointer;
+                            "
+                        />
+                        <input
+                            type="text"
+                            value={customization.mobile_background_color.clone()}
+                            onchange={{
+                                let update_customization = update_customization.clone();
+                                Callback::from(move |e: Event| {
+                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                    update_customization.emit(vec![("mobile_background_color".to_string(), target.value())]);
+                                })
+                            }}
+                            style="
+                                flex: 1;
+                                padding: 8px 12px;
+                                border: 1px solid #fde047;
+                                border-radius: 6px;
+                                font-family: monospace;
+                                font-size: 12px;
+                                background: white;
+                            "
+                        />
+                    </div>
+                </div>
+
+                // Item Hover Shape
+                <div>
+                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                        {"Item Hover Shape"}
+                    </label>
+                    <div class="hover-shape-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                        {["rectangle", "rounded", "circle", "custom"].iter().map(|&shape| {
+                            let is_active = customization.mobile_item_hover_shape == shape;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 6px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 10px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 2px;
+                                    ",
+                                        if is_active { "#ca8a04" } else { "white" },
+                                        if is_active { "#ca8a04" } else { "#fde047" },
+                                        if is_active { "white" } else { "#713f12" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_item_hover_shape".to_string(), shape.to_string())]);
+                                    })}
+                                >
+                                    <span style="font-size: 12px;">{match shape {
+                                        "rectangle" => "▭",
+                                        "rounded" => "▢",
+                                        "circle" => "●",
+                                        "custom" => "✦",
+                                        _ => "▭"
+                                    }}</span>
+                                    <span style="font-size: 8px;">{shape.chars().take(4).collect::<String>().to_uppercase()}</span>
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_creative_construction_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="section-card" style="
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        ">
+            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">{"🚀"}</span>
+                {"Creative Menu Construction"}
+            </h3>
+            
+            <div style="display: grid; gap: 24px;">
+                // Menu Layout Modes
+                <div class="construction-group">
+                    <h4 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #374151;">{"Layout Modes"}</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
+                        {["horizontal", "vertical", "circular", "diagonal", "floating", "sidebar"].iter().map(|&layout| {
+                            let is_active = customization.padding.contains(layout); // Using padding as temp storage
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 12px 8px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 4px;
+                                    ",
+                                        if is_active { "#6366f1" } else { "white" },
+                                        if is_active { "#6366f1" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#6b7280" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("padding".to_string(), format!("layout-{}", layout))]);
+                                    })}
+                                >
+                                    <span style="font-size: 14px;">{match layout {
+                                        "horizontal" => "↔️",
+                                        "vertical" => "↕️",
+                                        "circular" => "🔄",
+                                        "diagonal" => "↗️",
+                                        "floating" => "🎈",
+                                        "sidebar" => "📋",
+                                        _ => "📐"
+                                    }}</span>
+                                    <span>{layout.to_uppercase()}</span>
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Interactive Elements
+                <div class="construction-group">
+                    <h4 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #374151;">{"Interactive Elements"}</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px;">
+                        {["magnetic", "parallax", "morphing", "particles", "waves", "3d-tilt"].iter().map(|&effect| {
+                            let is_active = customization.margin.contains(effect); // Using margin as temp storage
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 10px 6px;
+                                        border-radius: 6px;
+                                        cursor: pointer;
+                                        font-size: 10px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 3px;
+                                    ",
+                                        if is_active { "#ec4899" } else { "white" },
+                                        if is_active { "#ec4899" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#6b7280" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("margin".to_string(), format!("effect-{}", effect))]);
+                                    })}
+                                >
+                                    <span style="font-size: 12px;">{match effect {
+                                        "magnetic" => "🧲",
+                                        "parallax" => "🌌",
+                                        "morphing" => "🦋",
+                                        "particles" => "✨",
+                                        "waves" => "🌊",
+                                        "3d-tilt" => "📐",
+                                        _ => "⚡"
+                                    }}</span>
+                                    <span>{effect.chars().take(6).collect::<String>().to_uppercase()}</span>
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Advanced Behaviors
+                <div class="construction-group">
+                    <h4 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #374151;">{"Advanced Behaviors"}</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        // Smart Positioning
+                        <div style="
+                            background: #f8fafc;
+                            border-radius: 8px;
+                            padding: 16px;
+                            border: 1px solid #e2e8f0;
+                        ">
+                            <h5 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #374151;">{"🎯 Smart Positioning"}</h5>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                                {["auto-center", "follow-cursor", "edge-snap", "viewport-aware"].iter().map(|&behavior| {
+                                    let update_customization = update_customization.clone();
+                                    html! {
+                                        <button
+                                            style="
+                                                background: white;
+                                                border: 1px solid #d1d5db;
+                                                color: #6b7280;
+                                                padding: 6px 8px;
+                                                border-radius: 4px;
+                                                cursor: pointer;
+                                                font-size: 9px;
+                                                font-weight: 600;
+                                                transition: all 0.2s ease;
+                                            "
+                                            onclick={Callback::from(move |_| {
+                                                update_customization.emit(vec![("box_shadow".to_string(), format!("behavior-{}", behavior))]);
+                                            })}
+                                        >
+                                            {behavior.replace("-", " ").to_uppercase()}
+                                        </button>
+                                    }
+                                }).collect::<Html>()}
+                            </div>
+                        </div>
+
+                        // Responsive Adaptation
+                        <div style="
+                            background: #f0fdf4;
+                            border-radius: 8px;
+                            padding: 16px;
+                            border: 1px solid #bbf7d0;
+                        ">
+                            <h5 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #14532d;">{"📱 Responsive Magic"}</h5>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                                {["breakpoint-morph", "device-adapt", "orientation-shift", "size-scale"].iter().map(|&behavior| {
+                                    let update_customization = update_customization.clone();
+                                    html! {
+                                        <button
+                                            style="
+                                                background: white;
+                                                border: 1px solid #bbf7d0;
+                                                color: #14532d;
+                                                padding: 6px 8px;
+                                                border-radius: 4px;
+                                                cursor: pointer;
+                                                font-size: 9px;
+                                                font-weight: 600;
+                                                transition: all 0.2s ease;
+                                            "
+                                            onclick={Callback::from(move |_| {
+                                                update_customization.emit(vec![("border_radius".to_string(), format!("responsive-{}", behavior))]);
+                                            })}
+                                        >
+                                            {behavior.replace("-", " ").to_uppercase()}
+                                        </button>
+                                    }
+                                }).collect::<Html>()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                // Construction Preview
+                <div style="
+                    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+                    border-radius: 12px;
+                    padding: 20px;
+                    border: 2px dashed #cbd5e1;
+                    text-align: center;
+                ">
+                    <div style="font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 8px;">
+                        {"🎨 Creative Construction Preview"}
+                    </div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+                        {"Your menu will adapt and transform based on selected behaviors"}
+                    </div>
+                    <div style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        background: white;
+                        padding: 8px 16px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    ">
+                        <span style="font-size: 16px;">{"🚀"}</span>
+                        <span style="font-size: 12px; font-weight: 600; color: #374151;">{"Dynamic Menu System"}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// Helper functions for rendering customization sections
+fn render_background_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    match customization.background_type.as_str() {
+        "solid" => html! {
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                    {"Background Color"}
+                </label>
+                <input 
+                    type="color"
+                    value={customization.background_color.clone()}
+                    onchange={{
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![("background_color".to_string(), target.value())]);
+                        })
+                    }}
+                    style="
+                        width: 100%;
+                        height: 44px;
+                        border: 2px solid #e9ecef;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    "
+                />
+            </div>
+        },
+        "gradient" => html! {
+            <>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Start"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_start.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_start".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient End"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_end.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_end".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1; margin-top: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Direction"}
+                    </label>
+                    <select 
+                        value={customization.gradient_direction.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("gradient_direction".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="to-right">{"Left to Right →"}</option>
+                        <option value="to-left">{"Right to Left ←"}</option>
+                        <option value="to-bottom">{"Top to Bottom ↓"}</option>
+                        <option value="to-top">{"Bottom to Top ↑"}</option>
+                        <option value="to-bottom-right">{"Diagonal ↘"}</option>
+                        <option value="to-bottom-left">{"Diagonal ↙"}</option>
+                        <option value="to-top-right">{"Diagonal ↗"}</option>
+                        <option value="to-top-left">{"Diagonal ↖"}</option>
+                    </select>
+                </div>
+            </>
+        },
+        "image" => html! {
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                    {"Background Image URL"}
+                </label>
+                <input 
+                    type="text"
+                    value={customization.background_image.clone()}
+                    placeholder="https://example.com/image.jpg"
+                    onchange={{
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![("background_image".to_string(), target.value())]);
+                        })
+                    }}
+                    style="
+                        width: 100%;
+                        padding: 10px;
+                        border: 2px solid #e9ecef;
+                        border-radius: 8px;
+                        font-size: 14px;
+                    "
+                />
+            </div>
+        },
+        _ => html! {}
+    }
+}
+
+fn render_color_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <>
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                    {"Text Color"}
+                </label>
+                <input 
+                    type="color"
+                    value={customization.text_color.clone()}
+                    onchange={{
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![("text_color".to_string(), target.value())]);
+                        })
+                    }}
+                    style="
+                        width: 100%;
+                        height: 44px;
+                        border: 2px solid #e9ecef;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    "
+                />
+            </div>
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                    {"Hover Color"}
+                </label>
+                <input 
+                    type="color"
+                    value={customization.hover_color.clone()}
+                    onchange={{
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![("hover_color".to_string(), target.value())]);
+                        })
+                    }}
+                    style="
+                        width: 100%;
+                        height: 44px;
+                        border: 2px solid #e9ecef;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    "
+                />
+            </div>
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                    {"Active Color"}
+                </label>
+                <input 
+                    type="color"
+                    value={customization.active_color.clone()}
+                    onchange={{
+                        let update_customization = update_customization.clone();
+                        Callback::from(move |e: Event| {
+                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                            update_customization.emit(vec![("active_color".to_string(), target.value())]);
+                        })
+                    }}
+                    style="
+                        width: 100%;
+                        height: 44px;
+                        border: 2px solid #e9ecef;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    "
+                />
+            </div>
+        </>
+    }
+}
+
+fn render_animation_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="customization-section" style="
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        ">
+            <h3 style="margin: 0 0 16px 0; color: #495057; font-size: 18px; font-weight: 600;">
+                {"✨ Animation & Effects"}
+            </h3>
+            
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Animation Type"}
+                    </label>
+                    <select 
+                        value={customization.animation_type.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("animation_type".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="none">{"No Animation"}</option>
+                        <option value="slide">{"Slide"}</option>
+                        <option value="fade">{"Fade"}</option>
+                        <option value="bounce">{"Bounce"}</option>
+                        <option value="scale">{"Scale"}</option>
+                        <option value="rotate">{"Rotate"}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Animation Duration"}
+                    </label>
+                    <input 
+                        type="text"
+                        value={customization.animation_duration.clone()}
+                        placeholder="0.3s"
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("animation_duration".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Effects"}
+                    </label>
+                    <select 
+                        value={customization.effects.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("effects".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="none">{"No Effects"}</option>
+                        <option value="glassmorphism">{"Glassmorphism"}</option>
+                        <option value="neumorphism">{"Neumorphism"}</option>
+                        <option value="shadow">{"Drop Shadow"}</option>
+                        <option value="glow">{"Glow Effect"}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Effects Intensity (%)"}
+                    </label>
+                    <input 
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={customization.effects_intensity.clone()}
+                        oninput={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: InputEvent| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("effects_intensity".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                        "
+                    />
+                    <div style="text-align: center; margin-top: 4px; font-size: 12px; color: #6c757d;">
+                        {format!("{}%", customization.effects_intensity)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_layout_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="customization-section" style="
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        ">
+            <h3 style="margin: 0 0 16px 0; color: #495057; font-size: 18px; font-weight: 600;">
+                {"📐 Layout & Spacing"}
+            </h3>
+            
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Border Radius"}
+                    </label>
+                    <input 
+                        type="text"
+                        value={customization.border_radius.clone()}
+                        placeholder="8px"
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("border_radius".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Padding"}
+                    </label>
+                    <input 
+                        type="text"
+                        value={customization.padding.clone()}
+                        placeholder="16px"
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("padding".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Margin"}
+                    </label>
+                    <input 
+                        type="text"
+                        value={customization.margin.clone()}
+                        placeholder="0px"
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("margin".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Box Shadow"}
+                    </label>
+                    <input 
+                        type="text"
+                        value={customization.box_shadow.clone()}
+                        placeholder="0 2px 8px rgba(0,0,0,0.1)"
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("box_shadow".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                        "
+                    />
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_shape_masks_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="customization-section" style="
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        ">
+            <h3 style="margin: 0 0 16px 0; color: #495057; font-size: 18px; font-weight: 600;">
+                {"🎭 Shape Masks"}
+            </h3>
+            
+            <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Upper Shape"}
+                    </label>
+                    <select 
+                        value={customization.shape_mask_upper.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("shape_mask_upper".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="none">{"None"}</option>
+                        <option value="wave">{"Wave"}</option>
+                        <option value="tilt">{"Tilt"}</option>
+                        <option value="curve">{"Curve"}</option>
+                        <option value="zigzag">{"Zigzag"}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Lower Shape"}
+                    </label>
+                    <select 
+                        value={customization.shape_mask_lower.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("shape_mask_lower".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="none">{"None"}</option>
+                        <option value="wave">{"Wave"}</option>
+                        <option value="tilt">{"Tilt"}</option>
+                        <option value="curve">{"Curve"}</option>
+                        <option value="zigzag">{"Zigzag"}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Shape Scale (%)"}
+                    </label>
+                    <input 
+                        type="range"
+                        min="50"
+                        max="200"
+                        value={customization.shape_mask_scale.clone()}
+                        oninput={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: InputEvent| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("shape_mask_scale".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                        "
+                    />
+                    <div style="text-align: center; margin-top: 4px; font-size: 12px; color: #6c757d;">
+                        {format!("{}%", customization.shape_mask_scale)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_live_preview_section(customization: &MenuAreaCustomization, area_name: &str) -> Html {
+    let generated_css = generate_menu_css(customization, area_name);
+    
+    html! {
+        <div class="customization-section" style="
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+        ">
+            <h3 style="margin: 0 0 16px 0; color: #495057; font-size: 18px; font-weight: 600;">
+                {"👁️ Live Preview"}
+            </h3>
+            
+            <div class="preview-container" style="
+                background: #ffffff;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 16px;
+            ">
+                <div class="menu-preview" style={format!("
+                    {}
+                    display: flex;
+                    gap: 20px;
+                    align-items: center;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    min-height: 60px;
+                ", generated_css)}>
+                    <div class="logo-preview" style="
+                        font-weight: bold;
+                        font-size: 18px;
+                    ">
+                        {"🌟 Logo"}
+                    </div>
+                    <nav class="nav-preview" style="display: flex; gap: 16px;">
+                        <a href="#" style="
+                            text-decoration: none;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            transition: all 0.2s ease;
+                        ">{"Home"}</a>
+                        <a href="#" style="
+                            text-decoration: none;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            transition: all 0.2s ease;
+                        ">{"About"}</a>
+                        <a href="#" style="
+                            text-decoration: none;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            transition: all 0.2s ease;
+                            opacity: 0.8;
+                        ">{"Contact"}</a>
+                    </nav>
+                </div>
+            </div>
+            
+            <details style="margin-top: 16px;">
+                <summary style="
+                    cursor: pointer;
+                    font-weight: 600;
+                    color: #495057;
+                    padding: 8px 0;
+                ">
+                    {"🔧 Generated CSS"}
+                </summary>
+                <pre style="
+                    background: #f8f9fa;
+                    border: 1px solid #e9ecef;
+                    border-radius: 4px;
+                    padding: 12px;
+                    font-size: 12px;
+                    overflow-x: auto;
+                    margin-top: 8px;
+                    white-space: pre-wrap;
+                ">{generated_css}</pre>
+            </details>
+        </div>
+    }
+}
+
+fn generate_text_shadow_css(customization: &MenuAreaCustomization) -> String {
+    let intensity = customization.text_shadow_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+    let blur = customization.text_shadow_blur.parse::<f32>().unwrap_or(4.0);
+    let offset_x = customization.text_shadow_offset_x.parse::<f32>().unwrap_or(0.0);
+    let offset_y = customization.text_shadow_offset_y.parse::<f32>().unwrap_or(2.0);
+    let color = &customization.text_shadow_color;
+    
+    match customization.text_shadow_type.as_str() {
+        "glow" => {
+            // Multiple shadows for glow effect
+            let glow_blur = blur * intensity;
+            format!(
+                "text-shadow: 0 0 {}px {}, 0 0 {}px {}, {}px {}px {}px rgba(0,0,0,0.3)",
+                glow_blur,
+                color,
+                glow_blur * 2.0,
+                color,
+                offset_x,
+                offset_y,
+                blur * 0.5
+            )
+        },
+        "drop-shadow" => {
+            // Standard drop shadow
+            format!(
+                "text-shadow: {}px {}px {}px {}",
+                offset_x,
+                offset_y,
+                blur * intensity,
+                color
+            )
+        },
+        "outline" => {
+            // Text outline using multiple shadows
+            let outline_size = (blur * intensity).max(1.0);
+            format!(
+                "text-shadow: -{}px -{}px 0 {}, {}px -{}px 0 {}, -{}px {}px 0 {}, {}px {}px 0 {}",
+                outline_size, outline_size, color,
+                outline_size, outline_size, color,
+                outline_size, outline_size, color,
+                outline_size, outline_size, color
+            )
+        },
+        "neon" => {
+            // Neon glow effect with multiple colored shadows
+            let neon_blur = blur * intensity;
+            format!(
+                "text-shadow: 0 0 {}px {}, 0 0 {}px {}, 0 0 {}px {}, {}px {}px {}px rgba(0,0,0,0.8)",
+                neon_blur * 0.5,
+                color,
+                neon_blur,
+                color,
+                neon_blur * 2.0,
+                color,
+                offset_x,
+                offset_y,
+                blur * 0.3
+            )
+        },
+        _ => String::new()
+    }
+}
+
+fn generate_menu_css(customization: &MenuAreaCustomization, area_name: &str) -> String {
+    let mut css_rules: Vec<String> = Vec::new();
+    
+    // Generate shape mask clip-path if needed
+    let clip_path = generate_shape_mask_clip_path_admin(customization);
+    
+    // Main menu container styles
+    let mut container_styles = Vec::new();
+    
+    // Background
+    match customization.background_type.as_str() {
+        "solid" => {
+            container_styles.push(format!("background: {}", customization.background_color));
+        },
+        "gradient" => {
+            container_styles.push(format!(
+                "background: linear-gradient({}, {}, {})",
+                customization.gradient_direction.replace("-", " "),
+                customization.gradient_start,
+                customization.gradient_end
+            ));
+        },
+        "image" => {
+            if !customization.background_image.is_empty() {
+                container_styles.push(format!(
+                    "background: url('{}') center/cover",
+                    customization.background_image
+                ));
+            }
+        },
+        _ => {}
+    }
+    
+    // Colors
+    container_styles.push(format!("color: {}", customization.text_color));
+    
+    // Text Shadow Effects
+    if customization.text_shadow_enabled {
+        let shadow_css = generate_text_shadow_css(customization);
+        if !shadow_css.is_empty() {
+            container_styles.push(shadow_css);
+        }
+    }
+    
+    // Layout
+    container_styles.push(format!("border-radius: {}", customization.border_radius));
+    container_styles.push(format!("padding: {}", customization.padding));
+    container_styles.push(format!("margin: {}", customization.margin));
+    
+    // Shape mask
+    if !clip_path.is_empty() {
+        container_styles.push(format!("clip-path: {}", clip_path));
+    }
+    
+    // Effects
+    match customization.effects.as_str() {
+        "glassmorphism" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            container_styles.push(format!("backdrop-filter: blur({}px)", 10.0 * intensity));
+            container_styles.push(format!("background: rgba(255, 255, 255, {})", 0.1 * intensity));
+            container_styles.push(format!("border: 1px solid rgba(255, 255, 255, {})", 0.2 * intensity));
+        },
+        "neumorphism" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            container_styles.push(format!(
+                "box-shadow: {}px {}px {}px rgba(0, 0, 0, {}), -{}px -{}px {}px rgba(255, 255, 255, {})",
+                (8.0 * intensity) as i32,
+                (8.0 * intensity) as i32,
+                (16.0 * intensity) as i32,
+                0.1 * intensity,
+                (8.0 * intensity) as i32,
+                (8.0 * intensity) as i32,
+                (16.0 * intensity) as i32,
+                0.5 * intensity
+            ));
+        },
+        "shadow" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            container_styles.push(format!(
+                "box-shadow: 0 {}px {}px rgba(0, 0, 0, {})",
+                (4.0 * intensity) as i32,
+                (8.0 * intensity) as i32,
+                0.15 * intensity
+            ));
+        },
+        "glow" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            container_styles.push(format!(
+                "box-shadow: 0 0 {}px {}",
+                (20.0 * intensity) as i32,
+                customization.text_color
+            ));
+        },
+        _ => {}
+    }
+    
+    // Animation
+    if customization.animation_type != "none" {
+        container_styles.push(format!("transition: all {}", customization.animation_duration));
+    }
+    
+    // Navigation link styles with hover gradients
+    let nav_styles = generate_nav_link_styles_admin(customization);
+    let hover_styles = generate_hover_gradient_styles_admin(customization);
+    
+    format!("{}; nav a {{ {} }} nav a:hover {{ {} }}", 
+        container_styles.join("; "),
+        nav_styles,
+        hover_styles
+    )
+}
+
+
+
+fn generate_shape_mask_clip_path_admin(customization: &MenuAreaCustomization) -> String {
+    let mut points = Vec::new();
+    
+    // Start with basic rectangle points
+    let mut top_points = vec!["0% 0%".to_string(), "100% 0%".to_string()];
+    let mut bottom_points = vec!["100% 100%".to_string(), "0% 100%".to_string()];
+    
+    // Apply upper shape mask
+    if customization.shape_mask_upper != "none" {
+        top_points = generate_shape_points_admin(&customization.shape_mask_upper, true, &customization.shape_mask_scale);
+    }
+    
+    // Apply lower shape mask
+    if customization.shape_mask_lower != "none" {
+        bottom_points = generate_shape_points_admin(&customization.shape_mask_lower, false, &customization.shape_mask_scale);
+    }
+    
+    // Combine points for polygon
+    points.extend(top_points);
+    points.extend(bottom_points);
+    
+    if points.len() > 4 {
+        format!("polygon({})", points.join(", "))
+    } else {
+        String::new()
+    }
+}
+
+fn generate_shape_points_admin(shape_type: &str, is_upper: bool, scale: &str) -> Vec<String> {
+    let scale_factor = scale.parse::<f32>().unwrap_or(100.0) / 100.0;
+    let amplitude = 10.0 * scale_factor;
+    
+    match shape_type {
+        "wave" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("25% {}%", amplitude),
+                    format!("50% 0%"),
+                    format!("75% {}%", amplitude),
+                    "100% 0%".to_string(),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    format!("75% 100%"),
+                    format!("50% {}%", 100.0 - amplitude),
+                    format!("25% 100%"),
+                    format!("0% {}%", 100.0 - amplitude),
+                ]
+            }
+        },
+        "tilt" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("100% {}%", amplitude),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    "0% 100%".to_string(),
+                ]
+            }
+        },
+        "curve" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("50% {}%", amplitude),
+                    "100% 0%".to_string(),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    format!("50% 100%"),
+                    format!("0% {}%", 100.0 - amplitude),
+                ]
+            }
+        },
+        "zigzag" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("20% {}%", amplitude),
+                    format!("40% 0%"),
+                    format!("60% {}%", amplitude),
+                    format!("80% 0%"),
+                    "100% 0%".to_string(),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    format!("80% 100%"),
+                    format!("60% {}%", 100.0 - amplitude),
+                    format!("40% 100%"),
+                    format!("20% {}%", 100.0 - amplitude),
+                    "0% 100%".to_string(),
+                ]
+            }
+        },
+        _ => vec!["0% 0%".to_string(), "100% 0%".to_string()]
+    }
+}
+
+fn generate_nav_link_styles_admin(customization: &MenuAreaCustomization) -> String {
+    let mut styles = vec![
+        format!("color: {}", customization.text_color),
+        "text-decoration: none".to_string(),
+        "padding: 8px 16px".to_string(),
+        "border-radius: 6px".to_string(),
+        "display: inline-block".to_string(),
+    ];
+    
+    if customization.animation_type != "none" {
+        styles.push(format!("transition: all {} ease", customization.animation_duration));
+    }
+    
+    styles.join("; ")
+}
+
+fn generate_hover_gradient_styles_admin(customization: &MenuAreaCustomization) -> String {
+    let hover_bg = if customization.background_type == "gradient" {
+        format!(
+            "linear-gradient({}, {}, {})",
+            customization.gradient_direction.replace("-", " "),
+            customization.hover_color,
+            customization.active_color
+        )
+    } else {
+        customization.hover_color.clone()
+    };
+    
+    let styles = vec![
+        format!("background: {}", hover_bg),
+        "color: white".to_string(),
+        "transform: translateY(-2px)".to_string(),
+        "box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15)".to_string(),
+    ];
+    
+    styles.join("; ")
+}
+
+fn reset_to_defaults(area_customizations: UseStateHandle<HashMap<String, MenuAreaCustomization>>, area_name: String) {
+    let mut customizations = (*area_customizations).clone();
+    customizations.insert(area_name, MenuAreaCustomization::default());
+    area_customizations.set(customizations);
+    web_sys::console::log_1(&"🔄 Reset menu customization to defaults".into());
+}
+
+fn apply_menu_customizations(area_customizations: UseStateHandle<HashMap<String, MenuAreaCustomization>>) {
+    let customizations = (*area_customizations).clone();
+    
+    // Generate and inject CSS for each menu area
+    for (area_name, customization) in customizations.iter() {
+        let css = generate_menu_css(customization, area_name);
+        inject_menu_css(area_name, &css);
+        
+        // Store in localStorage for persistence
+        store_menu_customization(area_name, customization);
+    }
+    
+    web_sys::console::log_1(&"✅ Applied menu customizations to public pages".into());
+}
+
+fn inject_menu_css(area_name: &str, css: &str) {
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            // Remove existing style element for this area
+            let style_id = format!("menu-customization-{}", area_name);
+            if let Some(existing_style) = document.get_element_by_id(&style_id) {
+                existing_style.remove();
+            }
+            
+            // Create new style element
+            if let Ok(style_element) = document.create_element("style") {
+                style_element.set_id(&style_id);
+                
+                let css_selector = match area_name {
+                    "header" => ".site-header nav, .site-header .header-nav",
+                    "footer" => ".site-footer nav, .site-footer .footer-nav", 
+                    "floating" => ".floating-menu, .floating-nav",
+                    _ => &format!(".{}-menu", area_name)
+                };
+                
+                let full_css = format!("{} {{ {} }}", css_selector, css);
+                style_element.set_text_content(Some(&full_css));
+                
+                if let Some(head) = document.head() {
+                    let _ = head.append_child(&style_element);
+                }
+            }
+        }
+    }
+}
+
+fn store_menu_customization(area_name: &str, customization: &MenuAreaCustomization) {
+    if let Some(window) = web_sys::window() {
+        if let Some(storage) = window.local_storage().ok().flatten() {
+            let key = format!("menu_customization_{}", area_name);
+            if let Ok(json) = serde_json::to_string(customization) {
+                let _ = storage.set_item(&key, &json);
+            }
+        }
+    }
+}
+
+fn load_menu_customizations() -> HashMap<String, MenuAreaCustomization> {
+    let mut customizations = HashMap::new();
+    
+    if let Some(window) = web_sys::window() {
+        if let Some(storage) = window.local_storage().ok().flatten() {
+            for area_name in &["header", "footer", "floating"] {
+                let key = format!("menu_customization_{}", area_name);
+                if let Ok(Some(json)) = storage.get_item(&key) {
+                    if let Ok(customization) = serde_json::from_str::<MenuAreaCustomization>(&json) {
+                        customizations.insert(area_name.to_string(), customization);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Fill in defaults for any missing areas
+    for area_name in &["header", "footer", "floating"] {
+        if !customizations.contains_key(*area_name) {
+            customizations.insert(area_name.to_string(), MenuAreaCustomization {
+                area_name: area_name.to_string(),
+                ..MenuAreaCustomization::default()
+            });
+        }
+    }
+    
+    customizations
+}
 
 // Helper functions for rendering component templates
 fn render_component_preview(component_type: &str, header_navigation: &UseStateHandle<Vec<NavigationItem>>, footer_navigation: &UseStateHandle<Vec<NavigationItem>>) -> Html {
@@ -4756,12 +8089,16 @@ pub fn container_settings_view() -> Html {
                     filter_images_only={true}
                     on_close={close_image_picker}
                     on_select={on_image_selected}
+                    on_multi_select={None::<Callback<Vec<MediaItem>>>}
+                    allow_multi_select={false}
                 />
                 <crate::components::MediaPicker 
                     show={*show_video_picker}
                     filter_images_only={false}
                     on_close={close_video_picker}
                     on_select={on_video_selected}
+                    on_multi_select={None::<Callback<Vec<MediaItem>>>}
+                    allow_multi_select={false}
                 />
             </div>
             
@@ -4785,3 +8122,237 @@ pub fn container_settings_view() -> Html {
         </div>
     }
 }
+
+fn render_text_shadow_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="customization-section" style="
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            margin-top: 16px;
+        ">
+            <h4 style="margin: 0 0 16px 0; color: #495057; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span>{"✨"}</span>
+                {"Text Shadow Effects"}
+            </h4>
+            
+            <div style="display: grid; gap: 16px;">
+                // Text Shadow Toggle
+                <div>
+                    <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #374151; cursor: pointer;">
+                        <input 
+                            type="checkbox"
+                            checked={customization.text_shadow_enabled}
+                            onchange={{
+                                let update_customization = update_customization.clone();
+                                Callback::from(move |e: Event| {
+                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                    update_customization.emit(vec![("text_shadow_enabled".to_string(), target.checked().to_string())]);
+                                })
+                            }}
+                            style="
+                                width: 18px;
+                                height: 18px;
+                                accent-color: #8b5cf6;
+                            "
+                        />
+                        {"Enable Text Shadow Effects"}
+                    </label>
+                </div>
+
+                {if customization.text_shadow_enabled {
+                    html! {
+                        <>
+                            // Shadow Type Selection
+                            <div>
+                                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                                    {"Shadow Type"}
+                                </label>
+                                <div class="shadow-type-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+                                    {["glow", "drop-shadow", "outline", "neon"].iter().map(|&shadow_type| {
+                                        let is_active = customization.text_shadow_type == shadow_type;
+                                        let update_customization = update_customization.clone();
+                                        html! {
+                                            <button
+                                                style={format!("
+                                                    background: {};
+                                                    border: 1px solid {};
+                                                    color: {};
+                                                    padding: 8px 10px;
+                                                    border-radius: 6px;
+                                                    cursor: pointer;
+                                                    font-size: 11px;
+                                                    font-weight: 600;
+                                                    transition: all 0.2s ease;
+                                                    display: flex;
+                                                    align-items: center;
+                                                    justify-content: center;
+                                                    gap: 4px;
+                                                ",
+                                                    if is_active { "#8b5cf6" } else { "white" },
+                                                    if is_active { "#8b5cf6" } else { "#d1d5db" },
+                                                    if is_active { "white" } else { "#6b7280" }
+                                                )}
+                                                onclick={Callback::from(move |_| {
+                                                    update_customization.emit(vec![("text_shadow_type".to_string(), shadow_type.to_string())]);
+                                                })}
+                                            >
+                                                <span>{match shadow_type {
+                                                    "glow" => "✨",
+                                                    "drop-shadow" => "🌑",
+                                                    "outline" => "📝",
+                                                    "neon" => "🌈",
+                                                    _ => "✨"
+                                                }}</span>
+                                                {shadow_type.to_uppercase()}
+                                            </button>
+                                        }
+                                    }).collect::<Html>()}
+                                </div>
+                            </div>
+
+                            // Shadow Color
+                            <div>
+                                <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                                    {"Shadow Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={customization.text_shadow_color.clone()}
+                                    onchange={{
+                                        let update_customization = update_customization.clone();
+                                        Callback::from(move |e: Event| {
+                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                            update_customization.emit(vec![("text_shadow_color".to_string(), target.value())]);
+                                        })
+                                    }}
+                                    style="
+                                        width: 100%;
+                                        height: 40px;
+                                        border: 2px solid #e9ecef;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                    "
+                                />
+                            </div>
+
+                            // Shadow Intensity and Blur Controls
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                                        {"Intensity: "}{&customization.text_shadow_intensity}{"%"}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        value={customization.text_shadow_intensity.clone()}
+                                        oninput={{
+                                            let update_customization = update_customization.clone();
+                                            Callback::from(move |e: InputEvent| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                update_customization.emit(vec![("text_shadow_intensity".to_string(), target.value())]);
+                                            })
+                                        }}
+                                        style="
+                                            width: 100%;
+                                            height: 6px;
+                                            border-radius: 3px;
+                                            background: linear-gradient(to right, #e2e8f0, #8b5cf6);
+                                            outline: none;
+                                            cursor: pointer;
+                                        "
+                                    />
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                                        {"Blur: "}{&customization.text_shadow_blur}{"px"}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="20"
+                                        value={customization.text_shadow_blur.clone()}
+                                        oninput={{
+                                            let update_customization = update_customization.clone();
+                                            Callback::from(move |e: InputEvent| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                update_customization.emit(vec![("text_shadow_blur".to_string(), target.value())]);
+                                            })
+                                        }}
+                                        style="
+                                            width: 100%;
+                                            height: 6px;
+                                            border-radius: 3px;
+                                            background: linear-gradient(to right, #e2e8f0, #8b5cf6);
+                                            outline: none;
+                                            cursor: pointer;
+                                        "
+                                    />
+                                </div>
+                            </div>
+
+                            // Shadow Offset Controls
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                                        {"X Offset: "}{&customization.text_shadow_offset_x}{"px"}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="-10"
+                                        max="10"
+                                        value={customization.text_shadow_offset_x.clone()}
+                                        oninput={{
+                                            let update_customization = update_customization.clone();
+                                            Callback::from(move |e: InputEvent| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                update_customization.emit(vec![("text_shadow_offset_x".to_string(), target.value())]);
+                                            })
+                                        }}
+                                        style="
+                                            width: 100%;
+                                            height: 6px;
+                                            border-radius: 3px;
+                                            background: linear-gradient(to right, #e2e8f0, #8b5cf6);
+                                            outline: none;
+                                            cursor: pointer;
+                                        "
+                                    />
+                                </div>
+                                <div>
+                                    <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">
+                                        {"Y Offset: "}{&customization.text_shadow_offset_y}{"px"}
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="-10"
+                                        max="10"
+                                        value={customization.text_shadow_offset_y.clone()}
+                                        oninput={{
+                                            let update_customization = update_customization.clone();
+                                            Callback::from(move |e: InputEvent| {
+                                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                                update_customization.emit(vec![("text_shadow_offset_y".to_string(), target.value())]);
+                                            })
+                                        }}
+                                        style="
+                                            width: 100%;
+                                            height: 6px;
+                                            border-radius: 3px;
+                                            background: linear-gradient(to right, #e2e8f0, #8b5cf6);
+                                            outline: none;
+                                            cursor: pointer;
+                                        "
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    }
+                } else { html! {} }}
+            </div>
+        </div>
+    }
+}
+

@@ -1,5 +1,5 @@
 use yew::prelude::*;
-use crate::components::{PublicLayout, PostsListWidget, CommentsSection};
+use crate::components::{PublicLayout, PostsListWidget, CommentsSection, EnhancedGallery, EnhancedGalleryImage};
 use crate::services::page_service::{get_page_by_slug, Page};
 use crate::components::page_builder::{PageComponent, ComponentType};
 use crate::services::default_pages::{get_default_home_page_components, get_default_posts_page_components};
@@ -312,18 +312,9 @@ fn page_content(props: &PageContentProps) -> Html {
             } else if let Some(ref error_msg) = *error {
                 <div class="error">{"Error loading page: "}{error_msg}</div>
             } else if let Some(ref page_data) = *page {
-                <>
-                    <h1>{page_data.title.clone()}</h1>
-                    <div class="page-meta">
-                        <span class="page-status">{page_data.status.clone()}</span>
-                        if let Some(ref created_at) = page_data.created_at {
-                            <span class="page-date">{" • "}{created_at.clone()}</span>
-                        }
-                    </div>
-                    <div class="page-content">
-                        {render_page_builder_content_with_navigation_and_context(&page_data.content, None, page_data.id)}
-                    </div>
-                </>
+                <div class="page-content">
+                    {render_page_builder_content_with_navigation_and_context(&page_data.content, None, page_data.id)}
+                </div>
             } else {
                 <div class="error">{"Page not found"}</div>
             }
@@ -1104,33 +1095,27 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
             }
         }
         ComponentType::Gallery => {
-            let columns = component.properties.gallery_columns;
-            let _layout = &component.properties.gallery_layout;
-            
             html! {
                 <div class="component gallery-component" style={format_component_styles(&component.styles)}>
-                    <div class="gallery-grid" style={format!(
-                        "display: grid; grid-template-columns: repeat({}, 1fr); gap: 16px;",
-                        columns
-                    )}>
-                        {component.properties.gallery_images.iter().map(|image| {
-                            html! {
-                                <div class="gallery-item">
-                                    <img 
-                                        src={image.url.clone()} 
-                                        alt={image.alt.clone()}
-                                        title={image.title.clone()}
-                                        style="width: 100%; height: auto; border-radius: 8px;"
-                                    />
-                                    if !image.caption.is_empty() {
-                                        <p class="caption" style="margin: 8px 0 0 0; font-size: 14px; color: #666;">
-                                            {&image.caption}
-                                        </p>
-                                    }
-                                </div>
-                            }
-                        }).collect::<Html>()}
-                    </div>
+                    <EnhancedGallery 
+                        images={component.properties.gallery_images.iter().map(|img| EnhancedGalleryImage {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            url: img.url.clone(),
+                            alt: img.alt.clone(),
+                            caption: img.caption.clone(),
+                            title: img.title.clone(),
+                            media_id: None,
+                        }).collect::<Vec<_>>()}
+                        on_images_change={Callback::noop()} // Read-only for public pages
+                        layout={component.properties.gallery_layout.clone()}
+                        columns={component.properties.gallery_columns}
+                        gap={component.properties.gallery_gap}
+                        border_radius={component.properties.gallery_border_radius}
+                        show_captions={component.properties.gallery_show_captions}
+                        enable_lightbox={component.properties.gallery_enable_lightbox}
+                        enable_drag_reorder={false} // Disable drag reorder on public pages
+                        is_admin_mode={false} // Public view behavior
+                    />
                 </div>
             }
         }
@@ -1215,6 +1200,66 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
                         page_id={final_page_id}
                         show_auth_prompt={show_auth_prompt}
                     />
+                </div>
+            }
+        }
+        ComponentType::PageTitle => {
+            let tag = &component.properties.page_title_tag;
+            let prefix = if component.properties.page_title_show_prefix && !component.properties.page_title_prefix.is_empty() {
+                format!("{} ", component.properties.page_title_prefix)
+            } else {
+                String::new()
+            };
+            let suffix = if component.properties.page_title_show_suffix && !component.properties.page_title_suffix.is_empty() {
+                format!(" {}", component.properties.page_title_suffix)
+            } else {
+                String::new()
+            };
+            
+            // Use placeholder text for now - users can edit this in the page builder
+            let page_title = "Page Title".to_string();
+            
+            let title_content = format!("{}{}{}", prefix, page_title, suffix);
+            
+            match tag.as_str() {
+                "h1" => html! { <h1 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h1> },
+                "h2" => html! { <h2 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h2> },
+                "h3" => html! { <h3 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h3> },
+                "h4" => html! { <h4 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h4> },
+                "h5" => html! { <h5 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h5> },
+                "h6" => html! { <h6 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h6> },
+                _ => html! { <h1 class="page-title" style={format_component_styles(&component.styles)}>{title_content}</h1> },
+            }
+        }
+        ComponentType::PublishedDate => {
+            let prefix = if component.properties.published_date_show_prefix && !component.properties.published_date_prefix.is_empty() {
+                format!("{} ", component.properties.published_date_prefix)
+            } else {
+                String::new()
+            };
+            
+            // In a real implementation, this would get the actual page published date
+            let date_content = if component.properties.published_date_relative {
+                format!("{}2 days ago", prefix)
+            } else {
+                match component.properties.published_date_format.as_str() {
+                    "YYYY-MM-DD" => format!("{}2024-08-25", prefix),
+                    "DD/MM/YYYY" => format!("{}25/08/2024", prefix),
+                    "MM/DD/YYYY" => format!("{}08/25/2024", prefix),
+                    "Month DD, YYYY" => format!("{}August 25, 2024", prefix),
+                    _ => format!("{}August 25, 2024", prefix),
+                }
+            };
+            
+            let time_suffix = if component.properties.published_date_show_time {
+                " at 2:30 PM"
+            } else {
+                ""
+            };
+            
+            html! {
+                <div class="published-date" style={format!("color: var(--public-text-secondary, #666); font-size: 0.9em; {}", format_component_styles(&component.styles))}>
+                    {format!("{}{}", date_content, time_suffix)}
                 </div>
             }
         }

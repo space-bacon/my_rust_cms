@@ -1,5 +1,6 @@
 use yew::prelude::*;
 use crate::services::navigation_service::{get_navigation_by_area, get_component_templates, ComponentTemplate};
+use crate::services::modern_menu_service::load_and_apply_saved_menu_styles;
 use crate::services::api_service::get_public_settings;
 use std::collections::HashMap;
 use crate::pages::public::PublicPage;
@@ -44,16 +45,70 @@ fn render_site_logo(component_templates: &[ComponentTemplate], site_title: &str)
                     let is_svg = logo_url.to_lowercase().ends_with(".svg") || 
                                 logo_url.to_lowercase().contains("image/svg+xml");
                     
+                    // Get logo effects settings
+                    let logo_effect = template.template_data.get("logo_effect")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("none");
+                    
+                    // Build logo effects class and styles
+                    let mut logo_classes = vec!["site-logo"];
+                    let mut logo_css_vars = Vec::new();
+                    
+                    if is_svg && logo_effect == "pulsate" {
+                        logo_classes.push("logo-effect-pulsate");
+                        logo_classes.push("has-svg-logo");
+                        
+                        // Add CSS variables for pulsate effect
+                        if let Some(frequency) = template.template_data.get("logo_pulsate_frequency").and_then(|v| v.as_str()) {
+                            logo_css_vars.push(format!("--logo-pulsate-frequency: {}", frequency));
+                        }
+                        if let Some(decay) = template.template_data.get("logo_pulsate_decay").and_then(|v| v.as_str()) {
+                            logo_css_vars.push(format!("--logo-pulsate-decay: {}", decay));
+                        }
+                        if let Some(opacity) = template.template_data.get("logo_pulsate_opacity").and_then(|v| v.as_str()) {
+                            let opacity_decimal = opacity.parse::<f32>().unwrap_or(70.0) / 100.0;
+                            logo_css_vars.push(format!("--logo-pulsate-opacity: {}", opacity_decimal));
+                        }
+                        if let Some(duration) = template.template_data.get("logo_pulsate_duration").and_then(|v| v.as_str()) {
+                            logo_css_vars.push(format!("--logo-pulsate-duration: {}", duration));
+                        }
+                        if let Some(anim_freq) = template.template_data.get("logo_pulsate_anim_frequency").and_then(|v| v.as_str()) {
+                            logo_css_vars.push(format!("--logo-pulsate-anim-frequency: {}", anim_freq));
+                        }
+                        
+                        // Store SVG URL for JavaScript to fetch and create ripples
+                        logo_css_vars.push(format!("--logo-svg-url: {}", logo_url));
+                    }
+                    
+                    let logo_class_str = logo_classes.join(" ");
+                    // Get logo width setting or use auto for flexible sizing
+                    let logo_width = template.template_data.get("logo_width")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("auto");
+                    
+                    let logo_style = if logo_css_vars.is_empty() {
+                        format!(
+                            "height: {}; width: {}; object-fit: contain;{}",
+                            logo_height,
+                            logo_width,
+                            if is_svg { " vector-effect: non-scaling-stroke;" } else { "" }
+                        )
+                    } else {
+                        format!(
+                            "height: {}; width: {}; object-fit: contain;{}; {}",
+                            logo_height,
+                            logo_width,
+                            if is_svg { " vector-effect: non-scaling-stroke;" } else { "" },
+                            logo_css_vars.join("; ")
+                        )
+                    };
+                    
                     html! {
-                        <div class="site-logo">
+                        <div class={logo_class_str} style={logo_style}>
                             <img 
                                 src={logo_url.to_string()} 
                                 alt={site_title.to_string()} 
-                                style={format!(
-                                    "height: {}; max-width: 200px; object-fit: contain;{}",
-                                    logo_height,
-                                    if is_svg { " vector-effect: non-scaling-stroke;" } else { "" }
-                                )}
+                                style="height: 100%; width: 100%; object-fit: contain;"
                                 // Add loading and decoding attributes for better performance
                                 loading="eager"  // Logo should load immediately
                                 decoding={if is_svg { "sync" } else { "async" }}
@@ -92,6 +147,60 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let live_edit_enabled = use_state(|| false);
     let current_page_data = use_state(|| None::<Page>);
     let current_page_components = use_state(Vec::new);
+
+    // Load and apply saved menu styles on component mount
+    {
+        use_effect_with_deps(move |_| {
+            // Use a small delay to ensure DOM is ready
+            let timeout = gloo_timers::callback::Timeout::new(100, move || {
+                load_and_apply_saved_menu_styles();
+            });
+            timeout.forget();
+            || ()
+        }, ());
+    }
+
+    // Initialize logo effects after component templates are loaded
+    {
+        let component_templates_for_effect = component_templates.clone();
+        use_effect_with_deps(move |_| {
+            if !component_templates_for_effect.is_empty() {
+                // Initialize SVG ripples for logo effects
+                wasm_bindgen_futures::spawn_local(async move {
+                    if let Some(window) = web_sys::window() {
+                        if let Ok(document) = window.document().ok_or("No document") {
+                            if let Some(logo_element) = document.query_selector(".logo-effect-pulsate.has-svg-logo").ok().flatten() {
+                                if let Ok(logo_html) = logo_element.dyn_into::<web_sys::HtmlElement>() {
+                                    // Get SVG URL from style attribute (simpler approach)
+                                    let style_attr = logo_html.get_attribute("style").unwrap_or_default();
+                                    if let Some(start) = style_attr.find("--logo-svg-url: ") {
+                                        let url_start = start + "--logo-svg-url: ".len();
+                                        if let Some(end) = style_attr[url_start..].find(';') {
+                                            let svg_url = &style_attr[url_start..url_start + end];
+                                            crate::components::enhanced_live_edit_system::create_svg_ripples(&logo_html, svg_url);
+                                        } else {
+                                            // URL might be at the end of the style attribute
+                                            let svg_url = style_attr[url_start..].trim();
+                                            if !svg_url.is_empty() {
+                                                crate::components::enhanced_live_edit_system::create_svg_ripples(&logo_html, svg_url);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            || ()
+        }, component_templates.clone());
+    }
+
+    // Apply menu customizations on public pages
+    use_effect_with_deps(move |_| {
+        crate::services::modern_menu_service::load_and_apply_saved_menu_styles();
+        || ()
+    }, ());
 
     // Load current page data for live editing
     {
@@ -1179,13 +1288,22 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     let key = key.trim().to_lowercase();
                                     let value = value.trim();
                                     if !key.is_empty() && !value.is_empty() {
-                                        // Keep non-scroll related styles
-                                        if !matches!(key.as_str(), "transition" | "--logo-scale" | "height" | "overflow" | "--scroll-duration") {
-                                            style_map.insert(key, value.to_string());
+                                        // Keep non-scroll related styles - preserve essential header styles
+                                        if !matches!(key.as_str(), 
+                                            "transition" | "--logo-scale" | "height" | "overflow" | 
+                                            "--scroll-duration" | "--scroll-easing"
+                                        ) {
+                                            // Only remove transform and dynamic background properties, keep core background
+                                            if !key.contains("transform") && !key.starts_with("background-") {
+                                                style_map.insert(key, value.to_string());
+                                            }
                                         }
                                     }
                                 }
                             }
+                            
+                            // Reset logo scale to default
+                            style_map.insert("--logo-scale".to_string(), "1".to_string());
                             
                             // Rebuild style without scroll properties
                             let clean_style: Vec<String> = style_map.iter()
@@ -1225,8 +1343,8 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                         // Shrink effect specific properties
                         let shrink_height = if scroll_effect == "shrink" {
                             header_template.template_data.get("shrink_height")
-                                .and_then(|v| v.as_str()).unwrap_or("60").parse::<f64>().unwrap_or(60.0)
-                        } else { 60.0 };
+                                .and_then(|v| v.as_str()).unwrap_or("500").parse::<f64>().unwrap_or(500.0)
+                        } else { 500.0 };
                         let shrink_logo_scale = if scroll_effect == "shrink" {
                             header_template.template_data.get("shrink_logo_scale")
                                 .and_then(|v| v.as_str()).unwrap_or("80").parse::<f64>().unwrap_or(80.0) / 100.0
@@ -1308,9 +1426,12 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                                 let key = key.trim().to_lowercase();
                                                                 let value = value.trim();
                                                                 if !key.is_empty() && !value.is_empty() {
-                                                                    // Skip scroll-related properties to avoid conflicts
-                                                                    if !matches!(key.as_str(), "transition" | "--logo-scale" | "height" | "overflow") {
-                                                                        style_map.insert(key, value.to_string());
+                                                                    // Skip scroll-related properties to avoid conflicts, but preserve core background
+                                                                    if !matches!(key.as_str(), "transition" | "--logo-scale" | "height" | "overflow" | "--scroll-duration" | "--scroll-easing") {
+                                                                        // Keep core background but remove dynamic background properties
+                                                                        if !key.contains("transform") && !key.starts_with("background-") {
+                                                                            style_map.insert(key, value.to_string());
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -1343,6 +1464,13 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                             // Expanded state - set explicit original height for smooth transition
                                                             style_map.insert("height".to_string(), format!("{}px", original_height));
                                                             style_map.remove("overflow"); // Remove overflow hidden in expanded state
+                                                            
+                                                            // When fully scrolled to top, clean up any stuck styles
+                                                            if scroll_y <= 5.0 {
+                                                                // Remove only dynamic background and transform styles, keep core background
+                                                                style_map.retain(|key, _| !key.contains("transform") && !key.starts_with("background-"));
+                                                                web_sys::console::log_1(&"🧹 Cleaned up stuck dynamic styles at top of page".into());
+                                                            }
                                                             
                                                             web_sys::console::log_1(&format!("🔼 Expanding header to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, scroll_y, scroll_duration, css_easing).into());
                                                         }
@@ -1388,6 +1516,54 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                 let _ = header.set_attribute("style", &new_style);
                                                 
                                                 web_sys::console::log_1(&format!("✅ Set data-scroll-effect-active=true and CSS variables (duration={}ms, easing={}) on header", scroll_duration, css_easing).into());
+                                                
+                                                // CRITICAL: Set initial expanded state immediately when page loads
+                                                let current_scroll = window.scroll_y().unwrap_or(0.0);
+                                                web_sys::console::log_1(&format!("🚀 Setting initial header state at scroll position: {}", current_scroll).into());
+                                                
+                                                // Force expanded state on initial load for shrink effect
+                                                if scroll_effect == "shrink" {
+                                                    let existing_style = header.get_attribute("style").unwrap_or_default();
+                                                    let mut style_parts: Vec<String> = existing_style
+                                                        .split(';')
+                                                        .filter(|s| !s.trim().is_empty())
+                                                        .map(|s| s.trim().to_string())
+                                                        .collect();
+                                                    
+                                                    // Remove any existing height and logo scale properties
+                                                    style_parts.retain(|s| !s.starts_with("height:") && !s.starts_with("--logo-scale:") && !s.starts_with("overflow:"));
+                                                    
+                                                    // Add initial expanded state properties
+                                                    style_parts.push(format!("height: {}px", original_height));
+                                                    style_parts.push("--logo-scale: 1".to_string());
+                                                    // Don't add overflow: hidden in expanded state
+                                                    
+                                                    let initial_style = style_parts.join("; ");
+                                                    let _ = header.set_attribute("style", &initial_style);
+                                                    
+                                                    // ALSO apply logo scale directly to logo element for consistency
+                                                    if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {
+                                                        if let Ok(logo_html) = logo_element.dyn_into::<web_sys::HtmlElement>() {
+                                                            let current_logo_style = logo_html.get_attribute("style").unwrap_or_default();
+                                                            let mut logo_style_parts: Vec<String> = current_logo_style
+                                                                .split(';')
+                                                                .filter(|s| !s.trim().is_empty())
+                                                                .map(|s| s.trim().to_string())
+                                                                .collect();
+                                                            
+                                                            // Remove existing logo scale
+                                                            logo_style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                                            
+                                                            // Add initial logo scale
+                                                            logo_style_parts.push("--logo-scale: 1".to_string());
+                                                            
+                                                            let initial_logo_style = logo_style_parts.join("; ");
+                                                            let _ = logo_html.set_attribute("style", &initial_logo_style);
+                                                        }
+                                                    }
+                                                    
+                                                    web_sys::console::log_1(&format!("🎯 Initial expanded state set: height={}px, logo-scale=1", original_height).into());
+                                                }
                                     }
                                 }
                             }
@@ -2023,4 +2199,565 @@ fn get_effects_style(component_type: &str, component_templates: &UseStateHandle<
         }
     }
     String::new()
-} 
+}
+
+fn load_and_apply_menu_customizations() {
+    if let Some(window) = web_sys::window() {
+        if let Some(storage) = window.local_storage().ok().flatten() {
+            for area_name in &["header", "footer", "floating"] {
+                let key = format!("menu_customization_{}", area_name);
+                if let Ok(Some(json)) = storage.get_item(&key) {
+                    if let Ok(customization) = serde_json::from_str::<MenuAreaCustomization>(&json) {
+                        let css = generate_menu_css_public(&customization, area_name);
+                        inject_menu_css_public(area_name, &css);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct MenuAreaCustomization {
+    area_name: String,
+    background_type: String,
+    background_color: String,
+    gradient_start: String,
+    gradient_end: String,
+    gradient_direction: String,
+    background_image: String,
+    text_color: String,
+    hover_color: String,
+    active_color: String,
+    animation_type: String,
+    animation_duration: String,
+    border_radius: String,
+    padding: String,
+    margin: String,
+    box_shadow: String,
+    effects: String,
+    effects_intensity: String,
+    shape_mask_upper: String,
+    shape_mask_lower: String,
+    shape_mask_scale: String,
+}
+
+fn generate_menu_css_public(customization: &MenuAreaCustomization, area_name: &str) -> String {
+    let mut css_parts = Vec::new();
+    
+    // Generate comprehensive CSS with multiple targeting strategies
+    match area_name {
+        "header" => {
+            // Container styles with shape masks and effects
+            let container_css = generate_container_css_comprehensive(customization);
+            
+            // Navigation link reset and custom styles
+            let nav_css = generate_nav_css_comprehensive(customization);
+            
+            // Hover and interaction states
+            let interaction_css = generate_interaction_css_comprehensive(customization);
+            
+            // CSS variable overrides
+            let variable_overrides = generate_css_variable_overrides();
+            
+            // Pseudo-element cleanup
+            let cleanup_css = generate_cleanup_css();
+            
+            css_parts.push(variable_overrides);
+            css_parts.push(container_css);
+            css_parts.push(nav_css);
+            css_parts.push(interaction_css);
+            css_parts.push(cleanup_css);
+        },
+        _ => {
+            // Fallback for other areas
+            css_parts.push(format!(".{}-menu {{ background: {}; color: {}; }}", 
+                area_name, 
+                customization.background_color, 
+                customization.text_color
+            ));
+        }
+    }
+    
+    css_parts.join(" ")
+}
+
+fn generate_container_css_comprehensive(customization: &MenuAreaCustomization) -> String {
+    let mut styles = Vec::new();
+    
+    // Background with multiple fallbacks
+    match customization.background_type.as_str() {
+        "solid" => {
+            styles.push(format!("background: {} !important", customization.background_color));
+            styles.push(format!("background-color: {} !important", customization.background_color));
+        },
+        "gradient" => {
+            let gradient = format!(
+                "linear-gradient({}, {}, {})",
+                customization.gradient_direction.replace("-", " "),
+                customization.gradient_start,
+                customization.gradient_end
+            );
+            styles.push(format!("background: {} !important", gradient));
+            styles.push(format!("background-image: {} !important", gradient));
+        },
+        "image" => {
+            if !customization.background_image.is_empty() {
+                styles.push(format!("background: url('{}') center/cover !important", customization.background_image));
+                styles.push(format!("background-image: url('{}') !important", customization.background_image));
+            }
+        },
+        _ => {}
+    }
+    
+    // Colors
+    styles.push(format!("color: {} !important", customization.text_color));
+    
+    // Layout
+    styles.push(format!("border-radius: {} !important", customization.border_radius));
+    styles.push(format!("padding: {} !important", customization.padding));
+    styles.push(format!("margin: {} !important", customization.margin));
+    
+    // Shape mask
+    let clip_path = generate_shape_mask_clip_path(customization);
+    if !clip_path.is_empty() {
+        styles.push(format!("clip-path: {} !important", clip_path));
+        styles.push(format!("-webkit-clip-path: {} !important", clip_path));
+    }
+    
+    // Effects
+    apply_effects_to_styles(&mut styles, customization);
+    
+    // Animation
+    if customization.animation_type != "none" {
+        styles.push(format!("transition: all {} ease !important", customization.animation_duration));
+    }
+    
+    // Multiple selectors for maximum coverage
+    format!(
+        "#site-header.site-header, \
+        .site-header, \
+        header.site-header, \
+        [id=\"site-header\"] {{ {} }}",
+        styles.join("; ")
+    )
+}
+
+fn generate_nav_css_comprehensive(customization: &MenuAreaCustomization) -> String {
+    let mut nav_styles = Vec::new();
+    
+    // Reset all existing styles
+    nav_styles.push("all: unset !important".to_string());
+    nav_styles.push("display: inline-block !important".to_string());
+    nav_styles.push("position: relative !important".to_string());
+    
+    // Apply custom styles
+    nav_styles.push(format!("color: {} !important", customization.text_color));
+    nav_styles.push("text-decoration: none !important".to_string());
+    nav_styles.push("padding: 8px 16px !important".to_string());
+    nav_styles.push("border-radius: 6px !important".to_string());
+    nav_styles.push("font-weight: 500 !important".to_string());
+    nav_styles.push("font-family: inherit !important".to_string());
+    nav_styles.push("font-size: inherit !important".to_string());
+    nav_styles.push("line-height: inherit !important".to_string());
+    nav_styles.push("cursor: pointer !important".to_string());
+    nav_styles.push("box-sizing: border-box !important".to_string());
+    
+    if customization.animation_type != "none" {
+        nav_styles.push(format!("transition: all {} ease !important", customization.animation_duration));
+    }
+    
+    // Multiple selectors for comprehensive coverage
+    format!(
+        "#site-header.site-header .site-nav a, \
+        #site-header.site-header .site-nav .nav-link, \
+        .site-header .site-nav a, \
+        .site-header .site-nav .nav-link, \
+        .site-header nav a, \
+        .site-header nav .nav-link, \
+        header.site-header .site-nav a, \
+        header.site-header nav a, \
+        [id=\"site-header\"] .site-nav a, \
+        [id=\"site-header\"] nav a {{ {} }}",
+        nav_styles.join("; ")
+    )
+}
+
+fn generate_interaction_css_comprehensive(customization: &MenuAreaCustomization) -> String {
+    let mut css_parts = Vec::new();
+    
+    // Hover styles
+    let hover_bg = if customization.background_type == "gradient" {
+        format!(
+            "linear-gradient({}, {}, {})",
+            customization.gradient_direction.replace("-", " "),
+            customization.hover_color,
+            customization.active_color
+        )
+    } else {
+        customization.hover_color.clone()
+    };
+    
+    let hover_styles = vec![
+        format!("background: {} !important", hover_bg),
+        format!("background-color: {} !important", hover_bg),
+        "color: white !important".to_string(),
+        "transform: translateY(-2px) !important".to_string(),
+        "box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important".to_string(),
+        "text-decoration: none !important".to_string(),
+    ];
+    
+    // Active styles
+    let active_styles = vec![
+        format!("background: {} !important", customization.active_color),
+        format!("background-color: {} !important", customization.active_color),
+        "color: white !important".to_string(),
+        "transform: translateY(0) !important".to_string(),
+        "text-decoration: none !important".to_string(),
+    ];
+    
+    // Focus styles
+    let focus_styles = vec![
+        "outline: 2px solid rgba(59, 130, 246, 0.5) !important".to_string(),
+        "outline-offset: 2px !important".to_string(),
+    ];
+    
+    // Hover selectors
+    css_parts.push(format!(
+        "#site-header.site-header .site-nav a:hover, \
+        #site-header.site-header .site-nav .nav-link:hover, \
+        .site-header .site-nav a:hover, \
+        .site-header .site-nav .nav-link:hover, \
+        .site-header nav a:hover, \
+        header.site-header .site-nav a:hover, \
+        header.site-header nav a:hover, \
+        [id=\"site-header\"] .site-nav a:hover, \
+        [id=\"site-header\"] nav a:hover {{ {} }}",
+        hover_styles.join("; ")
+    ));
+    
+    // Active selectors
+    css_parts.push(format!(
+        "#site-header.site-header .site-nav a:active, \
+        #site-header.site-header .site-nav a.active, \
+        #site-header.site-header .site-nav .nav-link:active, \
+        #site-header.site-header .site-nav .nav-link.active, \
+        .site-header .site-nav a:active, \
+        .site-header .site-nav a.active, \
+        .site-header nav a:active, \
+        .site-header nav a.active, \
+        header.site-header .site-nav a:active, \
+        header.site-header .site-nav a.active, \
+        [id=\"site-header\"] .site-nav a:active, \
+        [id=\"site-header\"] .site-nav a.active {{ {} }}",
+        active_styles.join("; ")
+    ));
+    
+    // Focus selectors
+    css_parts.push(format!(
+        "#site-header.site-header .site-nav a:focus, \
+        .site-header .site-nav a:focus, \
+        .site-header nav a:focus, \
+        header.site-header .site-nav a:focus, \
+        [id=\"site-header\"] .site-nav a:focus {{ {} }}",
+        focus_styles.join("; ")
+    ));
+    
+    css_parts.join(" ")
+}
+
+fn generate_css_variable_overrides() -> String {
+    ":root { \
+        --header-text: inherit !important; \
+        --nav-hover-color: inherit !important; \
+        --public-header-text: inherit !important; \
+        --public-header-text-hover: inherit !important; \
+        --nav-underline-color: transparent !important; \
+        --nav-underline-thickness: 0px !important; \
+    }".to_string()
+}
+
+fn generate_cleanup_css() -> String {
+    // Remove all pseudo-elements and unwanted decorations
+    "#site-header.site-header .site-nav a::before, \
+    #site-header.site-header .site-nav a::after, \
+    .site-header .site-nav a::before, \
+    .site-header .site-nav a::after, \
+    .site-header nav a::before, \
+    .site-header nav a::after, \
+    header.site-header .site-nav a::before, \
+    header.site-header .site-nav a::after, \
+    [id=\"site-header\"] .site-nav a::before, \
+    [id=\"site-header\"] .site-nav a::after { \
+        display: none !important; \
+        content: none !important; \
+        width: 0 !important; \
+        height: 0 !important; \
+        opacity: 0 !important; \
+    }".to_string()
+}
+
+fn apply_effects_to_styles(styles: &mut Vec<String>, customization: &MenuAreaCustomization) {
+    match customization.effects.as_str() {
+        "glassmorphism" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            styles.push(format!("backdrop-filter: blur({}px) !important", 10.0 * intensity));
+            styles.push(format!("-webkit-backdrop-filter: blur({}px) !important", 10.0 * intensity));
+            if customization.background_type != "solid" {
+                styles.push(format!("background: rgba(255, 255, 255, {}) !important", 0.1 * intensity));
+            }
+            styles.push(format!("border: 1px solid rgba(255, 255, 255, {}) !important", 0.2 * intensity));
+        },
+        "neumorphism" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            styles.push(format!(
+                "box-shadow: {}px {}px {}px rgba(0, 0, 0, {}), -{}px -{}px {}px rgba(255, 255, 255, {}) !important",
+                (8.0 * intensity) as i32,
+                (8.0 * intensity) as i32,
+                (16.0 * intensity) as i32,
+                0.1 * intensity,
+                (8.0 * intensity) as i32,
+                (8.0 * intensity) as i32,
+                (16.0 * intensity) as i32,
+                0.5 * intensity
+            ));
+        },
+        "shadow" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            styles.push(format!(
+                "box-shadow: 0 {}px {}px rgba(0, 0, 0, {}) !important",
+                (4.0 * intensity) as i32,
+                (8.0 * intensity) as i32,
+                0.15 * intensity
+            ));
+        },
+        "glow" => {
+            let intensity = customization.effects_intensity.parse::<f32>().unwrap_or(50.0) / 100.0;
+            styles.push(format!(
+                "box-shadow: 0 0 {}px {} !important",
+                (20.0 * intensity) as i32,
+                customization.text_color
+            ));
+        },
+        _ => {}
+    }
+}
+
+fn generate_shape_mask_clip_path(customization: &MenuAreaCustomization) -> String {
+    let mut points = Vec::new();
+    
+    // Start with basic rectangle points
+    let mut top_points = vec!["0% 0%".to_string(), "100% 0%".to_string()];
+    let mut bottom_points = vec!["100% 100%".to_string(), "0% 100%".to_string()];
+    
+    // Apply upper shape mask
+    if customization.shape_mask_upper != "none" {
+        top_points = generate_shape_points(&customization.shape_mask_upper, true, &customization.shape_mask_scale);
+    }
+    
+    // Apply lower shape mask
+    if customization.shape_mask_lower != "none" {
+        bottom_points = generate_shape_points(&customization.shape_mask_lower, false, &customization.shape_mask_scale);
+    }
+    
+    // Combine points for polygon
+    points.extend(top_points);
+    points.extend(bottom_points);
+    
+    if points.len() > 4 {
+        format!("polygon({})", points.join(", "))
+    } else {
+        String::new()
+    }
+}
+
+fn generate_shape_points(shape_type: &str, is_upper: bool, scale: &str) -> Vec<String> {
+    let scale_factor = scale.parse::<f32>().unwrap_or(100.0) / 100.0;
+    let amplitude = 10.0 * scale_factor;
+    
+    match shape_type {
+        "wave" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("25% {}%", amplitude),
+                    format!("50% 0%"),
+                    format!("75% {}%", amplitude),
+                    "100% 0%".to_string(),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    format!("75% 100%"),
+                    format!("50% {}%", 100.0 - amplitude),
+                    format!("25% 100%"),
+                    format!("0% {}%", 100.0 - amplitude),
+                ]
+            }
+        },
+        "tilt" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("100% {}%", amplitude),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    "0% 100%".to_string(),
+                ]
+            }
+        },
+        "curve" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("50% {}%", amplitude),
+                    "100% 0%".to_string(),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    format!("50% 100%"),
+                    format!("0% {}%", 100.0 - amplitude),
+                ]
+            }
+        },
+        "zigzag" => {
+            if is_upper {
+                vec![
+                    "0% 0%".to_string(),
+                    format!("20% {}%", amplitude),
+                    format!("40% 0%"),
+                    format!("60% {}%", amplitude),
+                    format!("80% 0%"),
+                    "100% 0%".to_string(),
+                ]
+            } else {
+                vec![
+                    format!("100% {}%", 100.0 - amplitude),
+                    format!("80% 100%"),
+                    format!("60% {}%", 100.0 - amplitude),
+                    format!("40% 100%"),
+                    format!("20% {}%", 100.0 - amplitude),
+                    "0% 100%".to_string(),
+                ]
+            }
+        },
+        _ => vec!["0% 0%".to_string(), "100% 0%".to_string()]
+    }
+}
+
+fn generate_nav_link_styles(customization: &MenuAreaCustomization, area_name: &str) -> String {
+    let nav_selector = match area_name {
+        "header" => ".site-header nav a",
+        "footer" => ".site-footer nav a",
+        "floating" => ".floating-menu a",
+        _ => ".menu-area a"
+    };
+    
+    let mut styles = vec![
+        format!("color: {} !important", customization.text_color),
+        "text-decoration: none !important".to_string(),
+        "position: relative !important".to_string(),
+        "display: inline-block !important".to_string(),
+        "padding: 8px 16px !important".to_string(),
+        "border-radius: 6px !important".to_string(),
+    ];
+    
+    if customization.animation_type != "none" {
+        styles.push(format!("transition: all {} ease !important", customization.animation_duration));
+    }
+    
+    format!("{} {{ {} }}", nav_selector, styles.join("; "))
+}
+
+fn generate_hover_gradient_styles(customization: &MenuAreaCustomization, area_name: &str) -> String {
+    let nav_selector = match area_name {
+        "header" => ".site-header nav a",
+        "footer" => ".site-footer nav a",
+        "floating" => ".floating-menu a",
+        _ => ".menu-area a"
+    };
+    
+    let mut hover_rules = Vec::new();
+    
+    // Hover state with gradient background
+    let hover_bg = if customization.background_type == "gradient" {
+        format!(
+            "linear-gradient({}, {}, {})",
+            customization.gradient_direction.replace("-", " "),
+            customization.hover_color,
+            customization.active_color
+        )
+    } else {
+        customization.hover_color.clone()
+    };
+    
+    let hover_styles = vec![
+        format!("background: {} !important", hover_bg),
+        format!("color: white !important"),
+        "transform: translateY(-2px) !important".to_string(),
+        "box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important".to_string(),
+    ];
+    
+    hover_rules.push(format!("{}:hover {{ {} }}", nav_selector, hover_styles.join("; ")));
+    
+    // Active state
+    let active_styles = vec![
+        format!("background: {} !important", customization.active_color),
+        "color: white !important".to_string(),
+        "transform: translateY(0) !important".to_string(),
+    ];
+    
+    hover_rules.push(format!("{}:active, {}.active {{ {} }}", nav_selector, nav_selector, active_styles.join("; ")));
+    
+    hover_rules.join(" ")
+}
+
+fn generate_animation_keyframes(animation_type: &str) -> String {
+    match animation_type {
+        "bounce" => {
+            "@keyframes menuBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }".to_string()
+        },
+        "scale" => {
+            "@keyframes menuScale { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }".to_string()
+        },
+        "rotate" => {
+            "@keyframes menuRotate { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }".to_string()
+        },
+        _ => String::new()
+    }
+}
+
+fn inject_menu_css_public(area_name: &str, css: &str) {
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            // Remove existing style element for this area
+            let style_id = format!("menu-customization-{}", area_name);
+            if let Some(existing_style) = document.get_element_by_id(&style_id) {
+                existing_style.remove();
+            }
+            
+            // Create new style element with high specificity
+            if let Ok(style_element) = document.create_element("style") {
+                style_element.set_id(&style_id);
+                
+                // Use comprehensive CSS generation with aggressive overrides
+                let full_css = format!("/* 🎨 COMPREHENSIVE MENU CUSTOMIZATION OVERRIDES */ {}", css);
+                
+                style_element.set_text_content(Some(&full_css));
+                
+                // Debug logging
+                web_sys::console::log_1(&format!("🎨 Injecting menu CSS for {}: {}", area_name, full_css).into());
+                
+                if let Some(head) = document.head() {
+                    let _ = head.append_child(&style_element);
+                    web_sys::console::log_1(&format!("✅ Menu CSS injected successfully for {}", area_name).into());
+                }
+            }
+        }
+    }
+}
+
+ 

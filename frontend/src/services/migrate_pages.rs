@@ -79,6 +79,11 @@ fn default_properties() -> ComponentProperties {
         gallery_images: vec![],
         gallery_layout: "grid".to_string(),
         gallery_columns: 3,
+        gallery_gap: 16,
+        gallery_border_radius: 8,
+        gallery_show_captions: true,
+        gallery_enable_lightbox: true,
+        gallery_enable_drag_reorder: true,
 
         container_max_width: "1200px".to_string(),
         container_align: "center".to_string(),
@@ -202,6 +207,20 @@ fn default_properties() -> ComponentProperties {
         comments_avatar_size: 48,
         comments_show_auth_prompt: true,
         comments_post_id: 1,
+        
+        // Page Title specific properties
+        page_title_tag: "h1".to_string(),
+        page_title_show_prefix: false,
+        page_title_prefix: "".to_string(),
+        page_title_show_suffix: false,
+        page_title_suffix: "".to_string(),
+        
+        // Published Date specific properties
+        published_date_format: "Month DD, YYYY".to_string(),
+        published_date_show_prefix: true,
+        published_date_prefix: "Published on".to_string(),
+        published_date_show_time: false,
+        published_date_relative: false,
     }
 }
 

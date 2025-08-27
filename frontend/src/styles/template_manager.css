@@ -27,8 +27,6 @@
 .template-tabs {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 2rem;
-    border-bottom: 2px solid var(--admin-border-color);
 }
 
 .template-tabs .tab-button {
@@ -385,7 +383,7 @@ input:checked + .slider:before {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1000;
+    z-index: 250000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -700,7 +698,7 @@ input:checked + .slider:before {
     background: var(--admin-surface);
     border: 1px solid var(--admin-border-light);
     border-radius: 6px;
-    width: 160px;
+    width: 100%;
     box-shadow: var(--admin-shadow-md);
 }
 
@@ -876,7 +874,7 @@ input:checked + .slider:before {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1000;
+    z-index: 250000;
     display: flex;
     align-items: center;
     justify-content: center;

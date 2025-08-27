@@ -9,6 +9,7 @@ pub mod setting;
 pub mod template;
 pub mod component;
 pub mod navigation;
+// pub mod backup; // Temporarily disabled until schema is updated
 
 pub use user::*;
 pub use post::*;
@@ -20,4 +21,5 @@ pub use session::*;
 pub use setting::*;
 pub use template::*;
 pub use component::*;
-pub use navigation::*; 
+pub use navigation::*;
+// pub use backup::*; // Temporarily disabled until schema is updated 

@@ -5,6 +5,9 @@
 
 set -e
 
+# Ensure PostgreSQL 15 is in PATH for backup compatibility
+export PATH="/opt/homebrew/opt/postgresql@15/bin:$PATH"
+
 # Colors for better output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
