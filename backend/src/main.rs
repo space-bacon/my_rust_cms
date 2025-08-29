@@ -530,6 +530,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/pages/:id", get(controllers::pages::get_page))
         .route("/api/pages/slug/:slug", get(controllers::pages::get_page_by_slug))
         .route("/api/comments/public", get(controllers::comments::get_post_comments))
+        .route("/api/plugins/active", get(controllers::plugins::get_active_plugins))
+        .route("/api/plugins/base-template", get(controllers::plugins::download_base_plugin))
         .route("/api/test", get(test_endpoint));
 
     // Authenticated routes (requires valid session)
@@ -588,6 +590,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/system/backups", get(controllers::system::list_backups))
         .route("/api/system/backup/:id/restore", post(controllers::system::restore_backup))
         .route("/api/system/snapshot", get(controllers::system::get_data_snapshot))
+        // Plugin management routes
+        .route("/api/plugins", get(controllers::plugins::get_plugins).post(controllers::plugins::create_plugin))
+        .route("/api/plugins/:id", get(controllers::plugins::get_plugin).put(controllers::plugins::update_plugin).delete(controllers::plugins::delete_plugin))
+        .route("/api/plugins/:id/action", post(controllers::plugins::plugin_action))
+        .route("/api/plugins/seed-samples", post(controllers::plugins::seed_sample_plugins))
+        .route("/api/plugins/upload-zip", post(controllers::plugins::upload_plugin_zip))
         .layer(axum_middleware::from_fn_with_state(app_services.clone(), admin_auth_middleware_with_services));
 
     // Combine all routes

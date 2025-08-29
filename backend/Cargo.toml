@@ -42,4 +42,12 @@ lettre = "0.11"
 # URL handling for verification links
 url = "2.4"
 # Gravatar hash generation
-md5 = "0.7" 
+md5 = "0.7"
+# Plugin system dependencies
+async-trait = "0.1"
+thiserror = "1.0"
+# ZIP handling
+zip = "0.6"
+tempfile = "3.8"
+# File operations
+walkdir = "2.4" 

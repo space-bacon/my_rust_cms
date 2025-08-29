@@ -8,6 +8,7 @@ pub mod navigation;
 pub mod sessions;
 pub mod admin;
 pub mod system;
+pub mod plugins;
 
 // Export controller modules for direct access
 // Individual functions are accessed via module::function syntax

@@ -12,6 +12,7 @@ pub enum AdminTab {
     Navigation,
     Templates,
     Analytics,
+    Plugins,
     SystemSettings,
     DesignSystem,
 }
@@ -68,6 +69,11 @@ pub fn admin_sidebar(props: &AdminSidebarProps) -> Html {
     let on_analytics_click = {
         let on_tab_click = props.on_tab_click.clone();
         Callback::from(move |_| on_tab_click.emit(AdminTab::Analytics))
+    };
+
+    let on_plugins_click = {
+        let on_tab_click = props.on_tab_click.clone();
+        Callback::from(move |_| on_tab_click.emit(AdminTab::Plugins))
     };
 
     let on_system_settings_click = {
@@ -237,6 +243,19 @@ pub fn admin_sidebar(props: &AdminSidebarProps) -> Html {
                                 </svg>
                             </span>
                             <span class="nav-text">{"Analytics"}</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button 
+                            class={if props.active_tab == AdminTab::Plugins { "admin-nav-link active" } else { "admin-nav-link" }}
+                            onclick={on_plugins_click}
+                        >
+                            <span class="nav-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-2 .9-2 2v3.8h1.5c1.1 0 2 .9 2 2s-.9 2-2 2H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.1.9-2 2-2s2 .9 2 2V22H17c1.1 0 2-.9 2-2v-4h1.5c1.1 0 2-.9 2-2s-.9-2-2-2z"/>
+                                </svg>
+                            </span>
+                            <span class="nav-text">{"Plugins"}</span>
                         </button>
                     </li>
                     <li>

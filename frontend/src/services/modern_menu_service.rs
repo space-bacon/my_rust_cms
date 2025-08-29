@@ -1,5 +1,5 @@
 use crate::components::{MenuStyle, MenuProperties};
-use crate::services::api_service::{SettingData, update_settings, get_settings};
+use crate::services::api_service::{SettingData, update_settings, get_settings, get_public_settings};
 
 pub async fn save_menu_style(area: &str, style: &MenuStyle) -> Result<(), String> {
     web_sys::console::log_1(&format!("💾 SAVE_MENU_STYLE: Saving style for area '{}' to DATABASE", area).into());
@@ -52,8 +52,8 @@ pub async fn save_menu_style(area: &str, style: &MenuStyle) -> Result<(), String
 pub async fn load_menu_style(area: &str) -> Result<Option<MenuStyle>, String> {
     web_sys::console::log_1(&format!("📂 LOAD_MENU_STYLE: Loading style for area '{}' from DATABASE", area).into());
     
-    // Try to load from database first
-    match get_settings(Some("menu")).await {
+    // Try to load from database first using public endpoint (no auth required)
+    match get_public_settings(Some("menu")).await {
         Ok(settings) => {
             let key = format!("menu_style_{}", area);
             
@@ -385,10 +385,8 @@ fn generate_hover_box_shadow(properties: &MenuProperties) -> String {
         shadows.push(format!("0 0 {} {}", intensity, properties.hover_glow_color));
     }
     
-    // Add lift shadow
-    if properties.hover_animation_type == "lift" || properties.hover_lift_distance != "0px" {
-        shadows.push("0 4px 12px rgba(0, 0, 0, 0.15)".to_string());
-    }
+    // Add lift shadow - removed automatic shadow for lift animation
+    // Users can add their own shadow via the glow effect if desired
     
     // Add scale shadow
     if properties.hover_animation_type == "scale" {

@@ -19,6 +19,7 @@ pub mod page_builder;
 pub mod performance_monitor;
 pub mod comment_item;
 pub mod comments_section;
+pub mod plugin_modal;
 
 // Export essential components that are used across the app
 pub use sidebar::ActiveTab;
@@ -36,3 +37,4 @@ pub use enhanced_gallery::{EnhancedGallery, EnhancedGalleryImage};
 pub use modern_menu_designer::{ModernMenuDesigner, MenuStyle, MenuProperties};
 // pub use comment_item::CommentItem; // Used internally by CommentsSection
 pub use comments_section::CommentsSection;
+pub use plugin_modal::PluginModal;

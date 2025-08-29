@@ -108,7 +108,7 @@ fn render_site_logo(component_templates: &[ComponentTemplate], site_title: &str)
                             <img 
                                 src={logo_url.to_string()} 
                                 alt={site_title.to_string()} 
-                                style="height: 100%; width: 100%; object-fit: contain;"
+                                style="height: 100%; width: 100%; object-fit: contain; transform: inherit;"
                                 // Add loading and decoding attributes for better performance
                                 loading="eager"  // Logo should load immediately
                                 decoding={if is_svg { "sync" } else { "async" }}
@@ -1443,13 +1443,26 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         
                                                         web_sys::console::log_1(&format!("🎭 Scroll handler: duration={}ms, easing={}", scroll_duration, css_easing).into());
                                                         
-                                                        // Handle logo scaling
+                                                        // Handle logo scaling - use the stored shrink logo scale from CSS variable or fallback to closure value
+                                                        let target_logo_scale = if let Some(stored_scale) = existing_style
+                                                            .split(';')
+                                                            .find(|s| s.trim().starts_with("--shrink-logo-scale:"))
+                                                            .and_then(|s| s.split(':').nth(1))
+                                                            .map(|s| s.trim().to_string()) {
+                                                            stored_scale
+                                                        } else {
+                                                            format!("{}", shrink_logo_scale)
+                                                        };
+                                                        
                                                         let logo_scale = if scroll_y > scroll_trigger { 
-                                                            format!("{}", shrink_logo_scale) 
+                                                            target_logo_scale.clone()
                                                         } else { 
                                                             "1".to_string() 
                                                         };
-                                                        style_map.insert("--logo-scale".to_string(), logo_scale);
+                                                        style_map.insert("--logo-scale".to_string(), logo_scale.clone());
+                                                        
+                                                        web_sys::console::log_1(&format!("🎯 Logo scaling: scroll_y={}, trigger={}, target_scale={}, applied_scale={}", 
+                                                            scroll_y, scroll_trigger, target_logo_scale, logo_scale).into());
                                                         
                                                         // Handle height changes with smooth interpolation
                                                         // Use the original height extracted before the closure
@@ -1484,6 +1497,31 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         web_sys::console::log_1(&format!("🎨 Final style: {}", final_style).into());
                                                         
                                                         let _ = header.set_attribute("style", &final_style);
+                                                        
+                                                        // Also check if logo element exists and clean up its --logo-scale
+                                                        if let Some(document) = window.document() {
+                                                            if let Some(logo) = document.query_selector(".site-logo").ok().flatten() {
+                                                                if let Ok(logo_element) = logo.dyn_into::<web_sys::HtmlElement>() {
+                                                                    let style_attr = logo_element.get_attribute("style").unwrap_or_default();
+                                                                    web_sys::console::log_1(&format!("🎯 Logo element style BEFORE: {}", style_attr).into());
+                                                                    
+                                                                    // Remove --logo-scale from logo element so it inherits from header
+                                                                    let mut logo_style_parts: Vec<String> = style_attr
+                                                                        .split(';')
+                                                                        .filter(|s| !s.trim().is_empty())
+                                                                        .map(|s| s.trim().to_string())
+                                                                        .collect();
+                                                                    
+                                                                    // Remove any --logo-scale from logo element
+                                                                    logo_style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                                                    
+                                                                    let clean_logo_style = logo_style_parts.join("; ");
+                                                                    let _ = logo_element.set_attribute("style", &clean_logo_style);
+                                                                    
+                                                                    web_sys::console::log_1(&format!("🎯 Logo element style AFTER: {}", clean_logo_style).into());
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                     _ => {}
                                                 }
@@ -2403,7 +2441,6 @@ fn generate_interaction_css_comprehensive(customization: &MenuAreaCustomization)
         format!("background-color: {} !important", hover_bg),
         "color: white !important".to_string(),
         "transform: translateY(-2px) !important".to_string(),
-        "box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important".to_string(),
         "text-decoration: none !important".to_string(),
     ];
     

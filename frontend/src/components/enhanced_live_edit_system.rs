@@ -807,9 +807,9 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                 if let Some(shrink_logo_scale) = template_data.get("shrink_logo_scale").and_then(|v| v.as_str()) {
                                     let scale_value = shrink_logo_scale.parse::<f64>().unwrap_or(80.0) / 100.0;
                                     
-                                    // Apply logo scale immediately for live preview - apply to logo element directly
+                                    // Store the logo scale as a CSS variable but don't apply it immediately
+                                    // The scroll handler will apply it when the scroll threshold is reached
                                     if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-                                        // Apply to both header (for scroll effect compatibility) and logo (for direct control)
                                         if let Some(header) = document.get_element_by_id("site-header") {
                                             let current_style = header.get_attribute("style").unwrap_or_default();
                                             let mut style_parts: Vec<String> = current_style
@@ -818,41 +818,40 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                                 .map(|s| s.trim().to_string())
                                                 .collect();
                                             
-                                            // Remove existing logo scale
-                                            style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                            // Remove existing shrink logo scale variable
+                                            style_parts.retain(|s| !s.starts_with("--shrink-logo-scale:"));
                                             
-                                            // Add new logo scale
-                                            style_parts.push(format!("--logo-scale: {}", scale_value));
+                                            // Store the target logo scale as a CSS variable for the scroll handler to use
+                                            style_parts.push(format!("--shrink-logo-scale: {}", scale_value));
+                                            
+                                            // Check current scroll position to determine if we should apply the scale now
+                                            let scroll_y = web_sys::window().and_then(|w| w.scroll_y().ok()).unwrap_or(0.0);
+                                            let scroll_trigger = template_data.get("scroll_trigger")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("100")
+                                                .parse::<f64>()
+                                                .unwrap_or(100.0);
+                                            
+                                            // Only apply the logo scale if we're currently past the scroll trigger
+                                            if scroll_y > scroll_trigger {
+                                                // Remove existing logo scale
+                                                style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                                // Apply the shrink scale since we're past the trigger
+                                                style_parts.push(format!("--logo-scale: {}", scale_value));
+                                            } else {
+                                                // Reset to normal scale since we're above the trigger
+                                                style_parts.retain(|s| !s.starts_with("--logo-scale:"));
+                                                style_parts.push("--logo-scale: 1".to_string());
+                                            }
                                             
                                             let new_style = style_parts.join("; ");
                                             let _ = header.set_attribute("style", &new_style);
-                                        }
-                                        
-                                        // ALSO apply directly to logo element to ensure it takes precedence
-                                        if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {
-                                            if let Ok(logo_html) = logo_element.dyn_into::<HtmlElement>() {
-                                                let current_logo_style = logo_html.get_attribute("style").unwrap_or_default();
-                                                let mut logo_style_parts: Vec<String> = current_logo_style
-                                                    .split(';')
-                                                    .filter(|s| !s.trim().is_empty())
-                                                    .map(|s| s.trim().to_string())
-                                                    .collect();
-                                                
-                                                // Remove existing logo scale
-                                                logo_style_parts.retain(|s| !s.starts_with("--logo-scale:"));
-                                                
-                                                // Add new logo scale
-                                                logo_style_parts.push(format!("--logo-scale: {}", scale_value));
-                                                
-                                                let new_logo_style = logo_style_parts.join("; ");
-                                                let _ = logo_html.set_attribute("style", &new_logo_style);
-                                                
-                                                web_sys::console::log_1(&format!("🎨 Applied logo scale {} directly to logo element", scale_value).into());
-                                            }
+                                            
+                                            web_sys::console::log_1(&format!("🎨 Live Edit: Set header style to: {}", new_style).into());
                                         }
                                     }
                                     
-                                    web_sys::console::log_1(&format!("🎨 Live Preview: Updated shrink logo scale to {}% (scale: {})", shrink_logo_scale, scale_value).into());
+                                    web_sys::console::log_1(&format!("🎨 Live Preview: Updated shrink logo scale to {}% (scale: {}) - will apply at scroll trigger", shrink_logo_scale, scale_value).into());
                                 }
                                 
                                 // Handle scroll trigger
@@ -1055,21 +1054,8 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                                     }
                                                 }
                                                 
-                                                // Ensure logo scale is preserved from header if not already set
-                                                if !style_map.contains_key("--logo-scale") {
-                                                    if let Some(header) = document.get_element_by_id("site-header") {
-                                                        let header_style = header.get_attribute("style").unwrap_or_default();
-                                                        for style_pair in header_style.split(';') {
-                                                            if let Some((key, value)) = style_pair.split_once(':') {
-                                                                let key = key.trim().to_lowercase();
-                                                                if key == "--logo-scale" {
-                                                                    style_map.insert(key, value.trim().to_string());
-                                                                    break;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                                // Remove any --logo-scale from logo element so it inherits from header
+                                                style_map.remove("--logo-scale");
                                                 
                                                 // Rebuild style string
                                                 let new_logo_style: Vec<String> = style_map.iter()

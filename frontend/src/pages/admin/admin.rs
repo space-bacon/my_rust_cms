@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use crate::components::admin::{AdminSidebar, AdminHeader};
 use crate::components::admin::sidebar::AdminTab;
-use crate::pages::admin::{dashboard::AdminDashboard, post_list::PostList, post_editor::PostEditor, page_builder::PageBuilder, media_library::MediaLibrary, enhanced_user_management::EnhancedUserManagement, comment_moderation::CommentModeration, navigation_manager::NavigationManager, template_manager::TemplateManager, analytics::Analytics, system_settings::SystemSettings, design_system::DesignSystemPage};
+use crate::pages::admin::{dashboard::AdminDashboard, post_list::PostList, post_editor::PostEditor, page_builder::PageBuilder, media_library::MediaLibrary, enhanced_user_management::EnhancedUserManagement, comment_moderation::CommentModeration, navigation_manager::NavigationManager, template_manager::TemplateManager, analytics::Analytics, system_settings::SystemSettings, design_system::DesignSystemPage, plugin_manager::PluginManager};
 use crate::services::migrate_pages::create_essential_pages;
 use crate::pages::admin::design_system::{AdminColorScheme, apply_admin_css_variables};
 use crate::services::navigation_service::get_component_templates;
@@ -183,6 +183,7 @@ pub fn admin(props: &AdminProps) -> Html {
                         AdminTab::Navigation => html! { <NavigationManager /> },
                         AdminTab::Templates => html! { <TemplateManager /> },
                         AdminTab::Analytics => html! { <Analytics /> },
+                        AdminTab::Plugins => html! { <PluginManager /> },
                         AdminTab::DesignSystem => html! { <DesignSystemPage /> },
                         AdminTab::SystemSettings => html! { <SystemSettings /> },
                     }}

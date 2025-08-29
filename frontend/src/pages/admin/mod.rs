@@ -12,6 +12,7 @@ pub mod navigation_manager;
 pub mod template_manager;
 pub mod analytics;
 pub mod design_system;
+pub mod plugin_manager;
 
 // Keeping all admin page exports available for future use
 #[allow(unused_imports)]
@@ -37,4 +38,6 @@ pub use navigation_manager::NavigationManager;
 #[allow(unused_imports)]
 pub use analytics::Analytics;
 #[allow(unused_imports)]
-pub use design_system::DesignSystemPage; 
+pub use design_system::DesignSystemPage;
+#[allow(unused_imports)]
+pub use plugin_manager::PluginManager; 

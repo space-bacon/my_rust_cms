@@ -6,6 +6,10 @@ pub mod simple_backup_service;
 pub mod input_sanitization;
 pub mod db_service;
 pub mod session_signing;
+pub mod plugin_interface;
+pub mod sample_plugins;
+pub mod plugin_seeder;
+pub mod plugin_zip_handler;
 // Temporarily disabled for Docker build
 // pub mod email_service;
 

@@ -11,6 +11,8 @@ pub mod default_pages;
 pub mod migrate_pages;
 pub mod modern_menu_service;
 pub mod user_service;
+pub mod plugin_service;
+pub mod plugin_seeder_service;
 
 // Export modules for direct access
 // Services are accessed via module::service syntax

@@ -169,25 +169,38 @@
     color: var(--header-text-hover);
 }
 
-/* Logo image scaling support for scroll effects */
+/* Logo scaling with scroll effect coordination */
 .site-logo {
-    transform: scale(var(--logo-scale, 1));
-    transform-origin: left center;
-    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
+    transform: scale(var(--logo-scale, 1)) !important;
+    transform-origin: left center !important;
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
 }
 
 .site-logo img {
-    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
 }
 
-/* Ensure logo scaling works within header context */
+/* Ensure logo scaling works within header context with scroll effects */
 .site-header .site-logo {
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
     transform: scale(var(--logo-scale, 1)) !important;
 }
 
-/* Additional specificity for logo images */
+/* Additional specificity for logo images with scroll coordination */
 .site-header .site-logo img {
-    transform: scale(var(--logo-scale, 1));
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55));
+    transform: scale(var(--logo-scale, 1)) !important;
+}
+
+/* When scroll effects are active, ensure logo uses the same timing */
+.site-header[data-scroll-effect-active="true"] .site-logo {
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
+    transform: scale(var(--logo-scale, 1)) !important;
+}
+
+.site-header[data-scroll-effect-active="true"] .site-logo img {
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, cubic-bezier(0.68, -0.55, 0.265, 1.55)) !important;
+    transform: scale(var(--logo-scale, 1)) !important;
 }
 
 

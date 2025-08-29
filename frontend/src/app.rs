@@ -36,6 +36,7 @@ fn admin_tab_to_path(tab: &AdminTab) -> String {
         AdminTab::Navigation => "/admin/navigation".to_string(),
         AdminTab::Templates => "/admin/templates".to_string(),
         AdminTab::Analytics => "/admin/analytics".to_string(),
+        AdminTab::Plugins => "/admin/plugins".to_string(),
         AdminTab::SystemSettings => "/admin/settings".to_string(),
         AdminTab::DesignSystem => "/admin/design".to_string(),
     }
@@ -55,6 +56,7 @@ fn path_to_admin_tab(path: &str) -> Option<AdminTab> {
         "/admin/navigation" => Some(AdminTab::Navigation),
         "/admin/templates" => Some(AdminTab::Templates),
         "/admin/analytics" => Some(AdminTab::Analytics),
+        "/admin/plugins" => Some(AdminTab::Plugins),
         "/admin/settings" => Some(AdminTab::SystemSettings),
         "/admin/design" => Some(AdminTab::DesignSystem),
         _ => None,
