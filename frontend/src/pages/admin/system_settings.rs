@@ -403,6 +403,77 @@ pub fn system_settings() -> Html {
         })
     };
 
+    // Function to load site settings
+    let do_load_site_settings = {
+        let loading = loading.clone();
+        let error_message = error_message.clone();
+        let site_settings = site_settings.clone();
+        
+        move || {
+            let loading = loading.clone();
+            let error_message = error_message.clone();
+            let site_settings = site_settings.clone();
+            
+            // Prevent multiple simultaneous loads
+            if *loading {
+                return;
+            }
+            
+            error_message.set(None);
+            loading.set(true);
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                match get_settings(Some("site")).await {
+                    Ok(settings) => {
+                        // Parse the settings and update the site_settings state
+                        let mut site_config = (*site_settings).clone();
+                        
+                        for setting in settings {
+                            match setting.setting_key.as_str() {
+                                "site_title" => site_config.site_title = setting.setting_value.unwrap_or_default(),
+                                "site_description" => site_config.site_description = setting.setting_value.unwrap_or_default(),
+                                "site_url" => site_config.site_url = setting.setting_value.unwrap_or_default(),
+                                "admin_email" => site_config.admin_email = setting.setting_value.unwrap_or_default(),
+                                "posts_per_page" => {
+                                    if let Some(value) = setting.setting_value {
+                                        if let Ok(parsed) = value.parse::<i32>() {
+                                            site_config.posts_per_page = parsed;
+                                        }
+                                    }
+                                },
+                                "allow_comments" => {
+                                    if let Some(value) = setting.setting_value {
+                                        site_config.allow_comments = value.parse::<bool>().unwrap_or(true);
+                                    }
+                                },
+                                "moderate_comments" => {
+                                    if let Some(value) = setting.setting_value {
+                                        site_config.moderate_comments = value.parse::<bool>().unwrap_or(true);
+                                    }
+                                },
+                                "admin_button_visible" => {
+                                    if let Some(value) = setting.setting_value {
+                                        site_config.admin_button_visible = value.parse::<bool>().unwrap_or(true);
+                                    }
+                                },
+                                "theme" => site_config.theme = setting.setting_value.unwrap_or_default(),
+                                _ => {}
+                            }
+                        }
+                        
+                        site_settings.set(site_config);
+                        web_sys::console::log_1(&"✅ Site settings loaded successfully".into());
+                    },
+                    Err(e) => {
+                        error_message.set(Some(format!("Unable to load site settings: {}", e)));
+                        web_sys::console::warn_1(&format!("⚠️ Site settings API error: {}", e).into());
+                    }
+                }
+                loading.set(false);
+            });
+        }
+    };
+
     // Function to load email settings
     let do_load_email_settings = {
         let loading = loading.clone();
@@ -457,6 +528,14 @@ pub fn system_settings() -> Html {
         }
     };
 
+    // Load site settings callback for button
+    let _load_site_settings = {
+        let do_load = do_load_site_settings.clone();
+        Callback::from(move |_: MouseEvent| {
+            do_load();
+        })
+    };
+
     // Load email settings callback for button
     let load_email_settings = {
         let do_load = do_load_email_settings.clone();
@@ -465,6 +544,17 @@ pub fn system_settings() -> Html {
         })
     };
     
+    // Auto-load site settings when component mounts
+    {
+        let do_load_site_settings = do_load_site_settings.clone();
+        
+        use_effect_with_deps(move |_| {
+            web_sys::console::log_1(&"Auto-loading site settings on component mount".into());
+            do_load_site_settings();
+            || () // cleanup function
+        }, ());
+    }
+
     // Auto-load email settings when switching to email tab
     {
         let active_tab = active_tab.clone();

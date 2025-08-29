@@ -82,7 +82,16 @@ pub struct ComponentProperties {
     pub divider_margin: String,
     pub divider_width: String,
     
-    // Animation
+    // Intro Animation
+    pub intro_animation_type: String,
+    pub intro_animation_duration: String,
+    pub intro_animation_delay: String,
+    pub intro_animation_easing: String,
+    pub intro_animation_trigger: String, // "load", "scroll", "hover", "click"
+    pub intro_animation_offset: String, // scroll offset for scroll trigger
+    pub intro_animation_repeat: bool,
+    
+    // Legacy Animation (keeping for backward compatibility)
     pub animation_type: String,
     pub animation_duration: String,
     pub animation_delay: String,
@@ -463,7 +472,16 @@ impl Default for ComponentProperties {
             divider_margin: "20px".to_string(),
             divider_width: "100%".to_string(),
             
-            // Animation
+            // Intro Animation
+            intro_animation_type: "none".to_string(),
+            intro_animation_duration: "0.6s".to_string(),
+            intro_animation_delay: "0s".to_string(),
+            intro_animation_easing: "ease-out".to_string(),
+            intro_animation_trigger: "scroll".to_string(),
+            intro_animation_offset: "100px".to_string(),
+            intro_animation_repeat: false,
+            
+            // Legacy Animation (keeping for backward compatibility)
             animation_type: "none".to_string(),
             animation_duration: "0.3s".to_string(),
             animation_delay: "0s".to_string(),
@@ -768,6 +786,52 @@ fn find_component_by_id<'a>(components: &'a [PageComponent], target_id: &str) ->
         }
     }
     None
+}
+
+// Helper function to generate animation classes and data attributes
+fn get_animation_classes_and_attributes(component: &PageComponent) -> (String, Vec<(&'static str, String)>) {
+    let mut classes = Vec::new();
+    let mut attributes = Vec::new();
+    
+    // Only add animation classes if animation type is not "none"
+    if component.properties.intro_animation_type != "none" && !component.properties.intro_animation_type.is_empty() {
+        // Add the base animation class
+        classes.push("intro-animation".to_string());
+        
+        // Add the specific animation type class
+        classes.push(format!("intro-{}", component.properties.intro_animation_type));
+        
+        // Add easing class if specified
+        if !component.properties.intro_animation_easing.is_empty() && component.properties.intro_animation_easing != "ease-out" {
+            let easing_class = match component.properties.intro_animation_easing.as_str() {
+                "ease" => "intro-ease",
+                "ease-in" => "intro-ease-in",
+                "ease-out" => "intro-ease-out",
+                "ease-in-out" => "intro-ease-in-out",
+                "linear" => "intro-linear",
+                "cubic-bezier(0.68, -0.55, 0.265, 1.55)" => "intro-bounce",
+                "cubic-bezier(0.25, 0.46, 0.45, 0.94)" => "intro-smooth",
+                _ => "intro-ease-out"
+            };
+            classes.push(easing_class.to_string());
+        }
+        
+        // Add data attributes for JavaScript
+        attributes.push(("data-intro-trigger", component.properties.intro_animation_trigger.clone()));
+        attributes.push(("data-intro-duration", component.properties.intro_animation_duration.clone()));
+        attributes.push(("data-intro-delay", component.properties.intro_animation_delay.clone()));
+        attributes.push(("data-intro-easing", component.properties.intro_animation_easing.clone()));
+        
+        if component.properties.intro_animation_trigger == "scroll" {
+            attributes.push(("data-intro-offset", component.properties.intro_animation_offset.clone()));
+        }
+        
+        if component.properties.intro_animation_repeat {
+            attributes.push(("data-intro-repeat", "true".to_string()));
+        }
+    }
+    
+    (classes.join(" "), attributes)
 }
 
 #[function_component(DragDropPageBuilder)]

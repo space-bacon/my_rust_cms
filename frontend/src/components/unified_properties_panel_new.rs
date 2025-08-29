@@ -456,21 +456,53 @@ fn render_component_specific_properties(properties: &ComponentProperties, on_cha
 fn render_common_styling_properties(properties: &ComponentProperties, on_change: Callback<InputEvent>) -> Html {
     html! {
         <div class="common-styling-properties">
-            // Animation Properties
+            // Intro Animation Properties
             <div class="property-section" style="margin-bottom: 16px;">
-                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Animation & Effects"}</h4>
-                {render_select_field("Animation Type", "animation_type", &properties.animation_type, vec![
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Intro Animation"}</h4>
+                {render_select_field("Animation Type", "intro_animation_type", &properties.intro_animation_type, vec![
                     ("none", "None"),
                     ("fade-in", "Fade In"),
+                    ("fade-in-up", "Fade In Up"),
+                    ("fade-in-down", "Fade In Down"),
+                    ("fade-in-left", "Fade In Left"),
+                    ("fade-in-right", "Fade In Right"),
                     ("slide-up", "Slide Up"),
                     ("slide-down", "Slide Down"),
                     ("slide-left", "Slide Left"),
                     ("slide-right", "Slide Right"),
                     ("zoom-in", "Zoom In"),
-                    ("zoom-out", "Zoom Out")
+                    ("zoom-out", "Zoom Out"),
+                    ("bounce-in", "Bounce In"),
+                    ("flip-in-x", "Flip In X"),
+                    ("flip-in-y", "Flip In Y"),
+                    ("rotate-in", "Rotate In"),
+                    ("scale-in", "Scale In")
                 ], on_change.clone())}
-                {render_input_field("Duration", "animation_duration", &properties.animation_duration, on_change.clone())}
-                {render_input_field("Delay", "animation_delay", &properties.animation_delay, on_change.clone())}
+                {render_input_field("Duration", "intro_animation_duration", &properties.intro_animation_duration, on_change.clone())}
+                {render_input_field("Delay", "intro_animation_delay", &properties.intro_animation_delay, on_change.clone())}
+                {render_select_field("Easing", "intro_animation_easing", &properties.intro_animation_easing, vec![
+                    ("ease", "Ease"),
+                    ("ease-in", "Ease In"),
+                    ("ease-out", "Ease Out"),
+                    ("ease-in-out", "Ease In Out"),
+                    ("linear", "Linear"),
+                    ("cubic-bezier(0.68, -0.55, 0.265, 1.55)", "Bounce"),
+                    ("cubic-bezier(0.25, 0.46, 0.45, 0.94)", "Smooth")
+                ], on_change.clone())}
+                {render_select_field("Trigger", "intro_animation_trigger", &properties.intro_animation_trigger, vec![
+                    ("load", "On Load"),
+                    ("scroll", "On Scroll"),
+                    ("hover", "On Hover"),
+                    ("click", "On Click")
+                ], on_change.clone())}
+                {if properties.intro_animation_trigger == "scroll" {
+                    html! {
+                        {render_input_field("Scroll Offset", "intro_animation_offset", &properties.intro_animation_offset, on_change.clone())}
+                    }
+                } else {
+                    html! {}
+                }}
+                {render_checkbox_field("Repeat Animation", "intro_animation_repeat", properties.intro_animation_repeat, on_change.clone())}
             </div>
             
             // SEO Properties
@@ -654,7 +686,16 @@ fn update_component_property(props: &mut ComponentProperties, name: &str, value:
         "hero_secondary_button_text" => props.hero_secondary_button_text = value.to_string(),
         "hero_secondary_button_url" => props.hero_secondary_button_url = value.to_string(),
         
-        // Animation properties
+        // Intro Animation properties
+        "intro_animation_type" => props.intro_animation_type = value.to_string(),
+        "intro_animation_duration" => props.intro_animation_duration = value.to_string(),
+        "intro_animation_delay" => props.intro_animation_delay = value.to_string(),
+        "intro_animation_easing" => props.intro_animation_easing = value.to_string(),
+        "intro_animation_trigger" => props.intro_animation_trigger = value.to_string(),
+        "intro_animation_offset" => props.intro_animation_offset = value.to_string(),
+        "intro_animation_repeat" => props.intro_animation_repeat = is_checkbox,
+        
+        // Legacy Animation properties (keeping for backward compatibility)
         "animation_type" => props.animation_type = value.to_string(),
         "animation_duration" => props.animation_duration = value.to_string(),
         "animation_delay" => props.animation_delay = value.to_string(),

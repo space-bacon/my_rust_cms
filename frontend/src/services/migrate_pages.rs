@@ -96,6 +96,16 @@ fn default_properties() -> ComponentProperties {
         divider_color: "var(--public-border-light, #ddd)".to_string(),
         divider_margin: "20px".to_string(),
         divider_width: "100%".to_string(),
+        // Intro Animation
+        intro_animation_type: "none".to_string(),
+        intro_animation_duration: "0.6s".to_string(),
+        intro_animation_delay: "0s".to_string(),
+        intro_animation_easing: "ease-out".to_string(),
+        intro_animation_trigger: "scroll".to_string(),
+        intro_animation_offset: "100px".to_string(),
+        intro_animation_repeat: false,
+        
+        // Legacy Animation (keeping for backward compatibility)
         animation_type: "none".to_string(),
         animation_duration: "0.3s".to_string(),
         animation_delay: "0s".to_string(),

@@ -900,6 +900,15 @@ pub struct MenuAreaCustomization {
     pub active_gradient_start: String,
     pub active_gradient_end: String,
     pub active_gradient_direction: String,
+    
+    // Intro Animation
+    pub intro_animation_type: String,
+    pub intro_animation_duration: String,
+    pub intro_animation_delay: String,
+    pub intro_animation_easing: String,
+    pub intro_animation_trigger: String,
+    pub intro_animation_offset: String,
+    pub intro_animation_repeat: bool,
     pub active_shape: String,
     pub active_shape_size: String,
     pub active_animation: String,
@@ -979,6 +988,15 @@ impl Default for MenuAreaCustomization {
             active_shape: "rectangle".to_string(),
             active_shape_size: "100%".to_string(),
             active_animation: "scale".to_string(),
+            
+            // Intro Animation
+            intro_animation_type: "none".to_string(),
+            intro_animation_duration: "0.6s".to_string(),
+            intro_animation_delay: "0s".to_string(),
+            intro_animation_easing: "ease-out".to_string(),
+            intro_animation_trigger: "scroll".to_string(),
+            intro_animation_offset: "100px".to_string(),
+            intro_animation_repeat: false,
             
             // Animation Targeting
             animation_type: "slide".to_string(),

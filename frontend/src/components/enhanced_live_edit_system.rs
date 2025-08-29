@@ -3,6 +3,35 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 use web_sys::{window, Element, MouseEvent};
 
+// Helper functions for class manipulation
+fn add_class(element: &Element, class_name: &str) {
+    let current_class = element.class_name();
+    if !current_class.contains(class_name) {
+        let new_class = if current_class.is_empty() {
+            class_name.to_string()
+        } else {
+            format!("{} {}", current_class, class_name)
+        };
+        element.set_class_name(&new_class);
+    }
+}
+
+fn remove_class(element: &Element, class_name: &str) {
+    let current_class = element.class_name();
+    if current_class.contains(class_name) {
+        let new_class = current_class
+            .split_whitespace()
+            .filter(|&c| c != class_name)
+            .collect::<Vec<&str>>()
+            .join(" ");
+        element.set_class_name(&new_class);
+    }
+}
+
+fn has_class(element: &Element, class_name: &str) -> bool {
+    element.class_name().split_whitespace().any(|c| c == class_name)
+}
+
 use crate::services::navigation_service::ComponentTemplate;
 use crate::services::api_service::PageItem;
 use crate::services::page_service::{get_page_by_slug, update_page_content};
@@ -42,6 +71,13 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
         use_effect_with_deps(move |enabled| {
             if *enabled {
                 if let Some(doc) = window().and_then(|w| w.document()) {
+                    // Add live-edit-mode class to body for global styling
+                    if let Some(body) = doc.body() {
+                        if let Ok(element) = body.dyn_into::<Element>() {
+                            add_class(&element, "live-edit-mode");
+                        }
+                    }
+                    
                     // Add highlighting to header, footer, and container
                     for (id, target_type) in [
                         ("site-header", EditTarget::Header),
@@ -51,13 +87,6 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                         if let Some(el) = doc.get_element_by_id(id) {
                             let _ = el.set_attribute("data-live-editable", "true");
                             
-                            // Apply consistent highlighting style
-                            if let Some(existing) = el.get_attribute("style") {
-                                let _ = el.set_attribute("style", &format!("{}; outline: 2px dashed rgba(0,150,255,0.8); outline-offset: -2px; cursor: pointer;", existing));
-                            } else {
-                                let _ = el.set_attribute("style", "outline: 2px dashed rgba(0,150,255,0.8); outline-offset: -2px; cursor: pointer;");
-                            }
-                            
                             // Add click handler
                             let selected_target_clone = selected_target.clone();
                             let show_properties_panel_clone = show_properties_panel.clone();
@@ -65,6 +94,26 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                             
                             let closure: Closure<dyn FnMut(web_sys::Event)> = Closure::wrap(Box::new(move |e: web_sys::Event| {
                                 e.stop_propagation();
+                                
+                                // Remove selected class from all elements
+                                if let Some(doc) = window().and_then(|w| w.document()) {
+                                    let selected_elements = doc.query_selector_all("[data-live-editable].selected, [data-live-component-editable].selected").unwrap();
+                                    for i in 0..selected_elements.length() {
+                                        if let Some(node) = selected_elements.item(i) {
+                                            if let Ok(el) = node.dyn_into::<Element>() {
+                                                remove_class(&el, "selected");
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Add selected class to clicked element
+                                    if let Some(target) = e.target() {
+                                        if let Ok(el) = target.dyn_into::<Element>() {
+                                            add_class(&el, "selected");
+                                        }
+                                    }
+                                }
+                                
                                 selected_target_clone.set(Some(target_type_clone.clone()));
                                 show_properties_panel_clone.set(true);
                             }) as Box<dyn FnMut(_)>);
@@ -125,22 +174,50 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                     
                                     web_sys::console::log_1(&"Live Edit: Component clicked!".into());
                                     
-                                    if let Some(target_element) = e.target().and_then(|t| t.dyn_into::<Element>().ok()) {
+                                    // Remove selected class from all elements first
+                                    if let Some(doc) = window().and_then(|w| w.document()) {
+                                        let selected_elements = doc.query_selector_all("[data-live-editable].selected, [data-live-component-editable].selected, .canvas-component.selected").unwrap();
+                                        for j in 0..selected_elements.length() {
+                                            if let Some(node) = selected_elements.item(j) {
+                                                if let Ok(el) = node.dyn_into::<Element>() {
+                                                    remove_class(&el, "selected");
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    if let Some(target_element) = e.target().and_then(|t| t.dyn_into::<web_sys::Element>().ok()) {
                                         web_sys::console::log_1(&format!("Live Edit: Click target - class: '{}', tag: '{}'", 
                                             target_element.class_name(), target_element.tag_name()).into());
+                                        
                                         // Try to find the component index from the clicked element or its parents
                                         let mut current_element = Some(target_element.clone());
                                         let mut component_index: Option<usize> = None;
+                                        let mut selected_element: Option<web_sys::Element> = None;
                                         
                                         while let Some(element) = current_element {
-                                            if let Some(index_str) = element.get_attribute("data-component-index") {
-                                                web_sys::console::log_1(&format!("Live Edit: Found component index: {}", index_str).into());
-                                                if let Ok(index) = index_str.parse::<usize>() {
-                                                    component_index = Some(index);
-                                                    break;
+                                            // Check if this element has component data or is a canvas component
+                                            let has_canvas_class = has_class(&element, "canvas-component");
+                                            
+                                            if element.has_attribute("data-component-index") || 
+                                               has_canvas_class ||
+                                               element.has_attribute("data-live-component-editable") {
+                                                selected_element = Some(element.clone());
+                                                
+                                                if let Some(index_str) = element.get_attribute("data-component-index") {
+                                                    web_sys::console::log_1(&format!("Live Edit: Found component index: {}", index_str).into());
+                                                    if let Ok(index) = index_str.parse::<usize>() {
+                                                        component_index = Some(index);
+                                                        break;
+                                                    }
                                                 }
                                             }
                                             current_element = element.parent_element();
+                                        }
+                                        
+                                        // Add selected class to the found element
+                                        if let Some(el) = selected_element {
+                                            add_class(&el, "selected");
                                         }
                                         
                                         if component_index.is_none() {
@@ -193,6 +270,22 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
             // Cleanup function
             || {
                 if let Some(doc) = window().and_then(|w| w.document()) {
+                    // Remove live-edit-mode class from body
+                    if let Some(body) = doc.body() {
+                        if let Ok(element) = body.dyn_into::<Element>() {
+                            remove_class(&element, "live-edit-mode");
+                        }
+                    }
+                    
+                    // Remove selected class from all elements
+                    let selected_elements = doc.query_selector_all("[data-live-editable].selected, [data-live-component-editable].selected, .canvas-component.selected").unwrap();
+                    for i in 0..selected_elements.length() {
+                        if let Some(node) = selected_elements.item(i) {
+                            if let Ok(el) = node.dyn_into::<Element>() {
+                                remove_class(&el, "selected");
+                            }
+                        }
+                    }
                     // Remove highlighting from header, footer, container
                     for id in ["site-header", "site-footer", "site-container"] {
                         if let Some(el) = doc.get_element_by_id(id) {

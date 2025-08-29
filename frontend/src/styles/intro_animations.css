@@ -1,0 +1,351 @@
+/* Pure CSS Intro Animation System */
+
+/* CSS Custom Properties for dynamic values */
+:root {
+    --intro-duration: 0.6s;
+    --intro-delay: 0s;
+    --intro-easing: ease-out;
+}
+
+/* Base animation class - triggers immediately when applied */
+.intro-animation {
+    animation-duration: var(--intro-duration, 0.6s);
+    animation-delay: var(--intro-delay, 0s);
+    animation-timing-function: var(--intro-easing, ease-out);
+    animation-fill-mode: both;
+}
+
+/* Fade In Animations */
+.intro-fade-in {
+    opacity: 0;
+}
+
+.intro-fade-in.animate {
+    opacity: 1;
+}
+
+.intro-fade-in-up {
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+.intro-fade-in-up.animate {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.intro-fade-in-down {
+    opacity: 0;
+    transform: translateY(-30px);
+}
+
+.intro-fade-in-down.animate {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.intro-fade-in-left {
+    opacity: 0;
+    transform: translateX(-30px);
+}
+
+.intro-fade-in-left.animate {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.intro-fade-in-right {
+    opacity: 0;
+    transform: translateX(30px);
+}
+
+.intro-fade-in-right.animate {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Slide Animations */
+.intro-slide-up {
+    opacity: 0;
+    transform: translateY(50px);
+}
+
+.intro-slide-up.animate {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Slide Down Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.intro-slide-down {
+    animation-name: slideDown;
+}
+
+.intro-slide-left {
+    opacity: 0;
+    transform: translateX(-50px);
+}
+
+.intro-slide-left.animate {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.intro-slide-right {
+    opacity: 0;
+    transform: translateX(50px);
+}
+
+.intro-slide-right.animate {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Zoom Animations */
+.intro-zoom-in {
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+.intro-zoom-in.animate {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.intro-zoom-out {
+    opacity: 0;
+    transform: scale(1.2);
+}
+
+.intro-zoom-out.animate {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Bounce In Animation */
+.intro-bounce-in {
+    opacity: 0;
+    transform: scale(0.3);
+    animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.intro-bounce-in.animate {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Flip Animations */
+.intro-flip-in-x {
+    opacity: 0;
+    transform: perspective(400px) rotateX(-90deg);
+    transform-origin: center bottom;
+}
+
+.intro-flip-in-x.animate {
+    opacity: 1;
+    transform: perspective(400px) rotateX(0deg);
+}
+
+.intro-flip-in-y {
+    opacity: 0;
+    transform: perspective(400px) rotateY(-90deg);
+    transform-origin: center center;
+}
+
+.intro-flip-in-y.animate {
+    opacity: 1;
+    transform: perspective(400px) rotateY(0deg);
+}
+
+/* Rotate In Animation */
+.intro-rotate-in {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.8);
+}
+
+.intro-rotate-in.animate {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Scale In Animation */
+.intro-scale-in {
+    opacity: 0;
+    transform: scale(0);
+}
+
+.intro-scale-in.animate {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Animation Keyframes for more complex animations */
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes flipInX {
+    0% {
+        opacity: 0;
+        transform: perspective(400px) rotateX(-90deg);
+    }
+    40% {
+        transform: perspective(400px) rotateX(-10deg);
+    }
+    70% {
+        transform: perspective(400px) rotateX(10deg);
+    }
+    100% {
+        opacity: 1;
+        transform: perspective(400px) rotateX(0deg);
+    }
+}
+
+@keyframes flipInY {
+    0% {
+        opacity: 0;
+        transform: perspective(400px) rotateY(-90deg);
+    }
+    40% {
+        transform: perspective(400px) rotateY(-10deg);
+    }
+    70% {
+        transform: perspective(400px) rotateY(10deg);
+    }
+    100% {
+        opacity: 1;
+        transform: perspective(400px) rotateY(0deg);
+    }
+}
+
+@keyframes rotateIn {
+    0% {
+        opacity: 0;
+        transform: rotate(-200deg);
+    }
+    100% {
+        opacity: 1;
+        transform: rotate(0deg);
+    }
+}
+
+/* Enhanced bounce animation with keyframes */
+.intro-bounce-in-keyframes {
+    animation-name: bounceIn;
+    animation-fill-mode: both;
+}
+
+.intro-flip-in-x-keyframes {
+    animation-name: flipInX;
+    animation-fill-mode: both;
+}
+
+.intro-flip-in-y-keyframes {
+    animation-name: flipInY;
+    animation-fill-mode: both;
+}
+
+.intro-rotate-in-keyframes {
+    animation-name: rotateIn;
+    animation-fill-mode: both;
+}
+
+/* Utility classes for different easing functions */
+.intro-ease { transition-timing-function: ease; }
+.intro-ease-in { transition-timing-function: ease-in; }
+.intro-ease-out { transition-timing-function: ease-out; }
+.intro-ease-in-out { transition-timing-function: ease-in-out; }
+.intro-linear { transition-timing-function: linear; }
+.intro-bounce { transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+.intro-smooth { transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+
+/* Duration classes */
+.intro-duration-fast { transition-duration: 0.3s; animation-duration: 0.3s; }
+.intro-duration-normal { transition-duration: 0.6s; animation-duration: 0.6s; }
+.intro-duration-slow { transition-duration: 1s; animation-duration: 1s; }
+.intro-duration-slower { transition-duration: 1.5s; animation-duration: 1.5s; }
+
+/* Delay classes */
+.intro-delay-0 { transition-delay: 0s; animation-delay: 0s; }
+.intro-delay-100 { transition-delay: 0.1s; animation-delay: 0.1s; }
+.intro-delay-200 { transition-delay: 0.2s; animation-delay: 0.2s; }
+.intro-delay-300 { transition-delay: 0.3s; animation-delay: 0.3s; }
+.intro-delay-500 { transition-delay: 0.5s; animation-delay: 0.5s; }
+.intro-delay-700 { transition-delay: 0.7s; animation-delay: 0.7s; }
+.intro-delay-1000 { transition-delay: 1s; animation-delay: 1s; }
+
+/* Repeat animation class */
+.intro-repeat {
+    animation-iteration-count: infinite;
+}
+
+/* Hover trigger animations */
+.intro-hover-trigger:hover .intro-animation {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1) rotateX(0deg) rotateY(0deg) rotate(0deg);
+}
+
+/* Click trigger animations */
+.intro-click-trigger.clicked .intro-animation {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1) rotateX(0deg) rotateY(0deg) rotate(0deg);
+}
+
+/* Stagger animation for multiple elements */
+.intro-stagger-children > * {
+    transition-delay: calc(var(--stagger-delay, 0.1s) * var(--stagger-index, 0));
+}
+
+/* Responsive animation controls */
+@media (prefers-reduced-motion: reduce) {
+    .intro-animation,
+    .intro-animation * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+    }
+}
+
+/* Debug mode for development */
+.intro-debug .intro-animation {
+    border: 2px dashed rgba(255, 0, 0, 0.3);
+    position: relative;
+}
+
+.intro-debug .intro-animation::before {
+    content: attr(data-animation-type);
+    position: absolute;
+    top: -20px;
+    left: 0;
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 2px 6px;
+    font-size: 10px;
+    border-radius: 3px;
+    z-index: 1000;
+}

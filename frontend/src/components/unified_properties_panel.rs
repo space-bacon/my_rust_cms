@@ -45,6 +45,21 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
     let has_unsaved_changes = use_state(|| false);
     let saving = use_state(|| false);
 
+    // Update working states when props change
+    {
+        let working_properties = working_properties.clone();
+        let working_content = working_content.clone();
+        let working_template_data = working_template_data.clone();
+        
+        use_effect_with_deps(move |component_opt| {
+            if let Some(component) = component_opt {
+                working_properties.set(component.properties.clone());
+                working_content.set(component.content.clone());
+            }
+            || ()
+        }, props.component.clone());
+    }
+
     // Update working template data when props change
     {
         let working_template_data = working_template_data.clone();
@@ -628,6 +643,26 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
                     }
                 } else { html! {} }}
             </div>
+
+            // Intro Animation Properties (as requested - this is the "legacy animation" section)
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Intro Animation"}</h4>
+                {render_select_field("Animation Type", "animation_type", 
+                    template_data.get("animation_type").and_then(|v| v.as_str()).unwrap_or("none"), vec![
+                    ("none", "None"),
+                    ("fade-in", "Fade In"),
+                    ("slide-up", "Slide Up"),
+                    ("slide-down", "Slide Down"),
+                    ("slide-left", "Slide Left"),
+                    ("slide-right", "Slide Right"),
+                    ("zoom-in", "Zoom In"),
+                    ("zoom-out", "Zoom Out")
+                ], on_change.clone())}
+                {render_input_field("Duration", "animation_duration", 
+                    template_data.get("animation_duration").and_then(|v| v.as_str()).unwrap_or("0.6s"), on_change.clone())}
+                {render_input_field("Delay", "animation_delay", 
+                    template_data.get("animation_delay").and_then(|v| v.as_str()).unwrap_or("0s"), on_change.clone())}
+            </div>
         </>
     }
 }
@@ -756,6 +791,82 @@ fn render_footer_properties(template_data: &UseStateHandle<serde_json::Value>, o
                     }
                 } else { html! {} }}
             </div>
+
+            // Intro Animation Properties
+            <div class="property-section" style="margin-top: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Intro Animation"}</h4>
+                {render_select_field("Animation Type", "intro_animation_type", 
+                    template_data.get("intro_animation_type").and_then(|v| v.as_str()).unwrap_or("none"), vec![
+                    ("none", "None"),
+                    ("fade-in", "Fade In"),
+                    ("fade-in-up", "Fade In Up"),
+                    ("fade-in-down", "Fade In Down"),
+                    ("fade-in-left", "Fade In Left"),
+                    ("fade-in-right", "Fade In Right"),
+                    ("slide-up", "Slide Up"),
+                    ("slide-down", "Slide Down"),
+                    ("slide-left", "Slide Left"),
+                    ("slide-right", "Slide Right"),
+                    ("zoom-in", "Zoom In"),
+                    ("zoom-out", "Zoom Out"),
+                    ("bounce-in", "Bounce In"),
+                    ("flip-in-x", "Flip In X"),
+                    ("flip-in-y", "Flip In Y"),
+                    ("rotate-in", "Rotate In"),
+                    ("scale-in", "Scale In")
+                ], on_change.clone())}
+                {render_input_field("Duration", "intro_animation_duration", 
+                    template_data.get("intro_animation_duration").and_then(|v| v.as_str()).unwrap_or("0.6s"), on_change.clone())}
+                {render_input_field("Delay", "intro_animation_delay", 
+                    template_data.get("intro_animation_delay").and_then(|v| v.as_str()).unwrap_or("0s"), on_change.clone())}
+                {render_select_field("Easing", "intro_animation_easing", 
+                    template_data.get("intro_animation_easing").and_then(|v| v.as_str()).unwrap_or("ease-out"), vec![
+                    ("ease", "Ease"),
+                    ("ease-in", "Ease In"),
+                    ("ease-out", "Ease Out"),
+                    ("ease-in-out", "Ease In Out"),
+                    ("linear", "Linear"),
+                    ("cubic-bezier(0.68, -0.55, 0.265, 1.55)", "Bounce"),
+                    ("cubic-bezier(0.25, 0.46, 0.45, 0.94)", "Smooth")
+                ], on_change.clone())}
+                {render_select_field("Trigger", "intro_animation_trigger", 
+                    template_data.get("intro_animation_trigger").and_then(|v| v.as_str()).unwrap_or("scroll"), vec![
+                    ("load", "On Load"),
+                    ("scroll", "On Scroll"),
+                    ("hover", "On Hover"),
+                    ("click", "On Click")
+                ], on_change.clone())}
+                {if template_data.get("intro_animation_trigger").and_then(|v| v.as_str()).unwrap_or("scroll") == "scroll" {
+                    html! {
+                        {render_input_field("Scroll Offset", "intro_animation_offset", 
+                            template_data.get("intro_animation_offset").and_then(|v| v.as_str()).unwrap_or("100px"), on_change.clone())}
+                    }
+                } else {
+                    html! {}
+                }}
+                {render_checkbox_field("Repeat Animation", "intro_animation_repeat", 
+                    template_data.get("intro_animation_repeat").and_then(|v| v.as_bool()).unwrap_or(false), on_change.clone())}
+                
+                // Legacy Animation (keeping for backward compatibility)
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <h5 style="margin: 0 0 8px 0; font-size: 12px; color: #666; font-weight: 600;">{"Legacy Animation"}</h5>
+                    {render_select_field("Animation Type", "animation_type", 
+                        template_data.get("animation_type").and_then(|v| v.as_str()).unwrap_or("none"), vec![
+                        ("none", "None"),
+                        ("fade-in", "Fade In"),
+                        ("slide-up", "Slide Up"),
+                        ("slide-down", "Slide Down"),
+                        ("slide-left", "Slide Left"),
+                        ("slide-right", "Slide Right"),
+                        ("zoom-in", "Zoom In"),
+                        ("zoom-out", "Zoom Out")
+                    ], on_change.clone())}
+                    {render_input_field("Duration", "animation_duration", 
+                        template_data.get("animation_duration").and_then(|v| v.as_str()).unwrap_or("0.6s"), on_change.clone())}
+                    {render_input_field("Delay", "animation_delay", 
+                        template_data.get("animation_delay").and_then(|v| v.as_str()).unwrap_or("0s"), on_change.clone())}
+                </div>
+            </div>
         </>
     }
 }
@@ -858,16 +969,80 @@ fn render_container_properties(template_data: &UseStateHandle<serde_json::Value>
                 </div>
             </div>
 
-            // Animation Properties
+            // Intro Animation Properties
             <div class="property-section" style="margin-top: 16px;">
-                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Animation"}</h4>
-                {render_select_field("Entrance Animation", "animation", animation, vec![
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Intro Animation"}</h4>
+                {render_select_field("Animation Type", "intro_animation_type", 
+                    template_data.get("intro_animation_type").and_then(|v| v.as_str()).unwrap_or("none"), vec![
                     ("none", "None"),
                     ("fade-in", "Fade In"),
+                    ("fade-in-up", "Fade In Up"),
+                    ("fade-in-down", "Fade In Down"),
+                    ("fade-in-left", "Fade In Left"),
+                    ("fade-in-right", "Fade In Right"),
                     ("slide-up", "Slide Up"),
                     ("slide-down", "Slide Down"),
-                    ("zoom-in", "Zoom In")
+                    ("slide-left", "Slide Left"),
+                    ("slide-right", "Slide Right"),
+                    ("zoom-in", "Zoom In"),
+                    ("zoom-out", "Zoom Out"),
+                    ("bounce-in", "Bounce In"),
+                    ("flip-in-x", "Flip In X"),
+                    ("flip-in-y", "Flip In Y"),
+                    ("rotate-in", "Rotate In"),
+                    ("scale-in", "Scale In")
                 ], on_change.clone())}
+                {render_input_field("Duration", "intro_animation_duration", 
+                    template_data.get("intro_animation_duration").and_then(|v| v.as_str()).unwrap_or("0.6s"), on_change.clone())}
+                {render_input_field("Delay", "intro_animation_delay", 
+                    template_data.get("intro_animation_delay").and_then(|v| v.as_str()).unwrap_or("0s"), on_change.clone())}
+                {render_select_field("Easing", "intro_animation_easing", 
+                    template_data.get("intro_animation_easing").and_then(|v| v.as_str()).unwrap_or("ease-out"), vec![
+                    ("ease", "Ease"),
+                    ("ease-in", "Ease In"),
+                    ("ease-out", "Ease Out"),
+                    ("ease-in-out", "Ease In Out"),
+                    ("linear", "Linear"),
+                    ("cubic-bezier(0.68, -0.55, 0.265, 1.55)", "Bounce"),
+                    ("cubic-bezier(0.25, 0.46, 0.45, 0.94)", "Smooth")
+                ], on_change.clone())}
+                {render_select_field("Trigger", "intro_animation_trigger", 
+                    template_data.get("intro_animation_trigger").and_then(|v| v.as_str()).unwrap_or("scroll"), vec![
+                    ("load", "On Load"),
+                    ("scroll", "On Scroll"),
+                    ("hover", "On Hover"),
+                    ("click", "On Click")
+                ], on_change.clone())}
+                {if template_data.get("intro_animation_trigger").and_then(|v| v.as_str()).unwrap_or("scroll") == "scroll" {
+                    html! {
+                        {render_input_field("Scroll Offset", "intro_animation_offset", 
+                            template_data.get("intro_animation_offset").and_then(|v| v.as_str()).unwrap_or("100px"), on_change.clone())}
+                    }
+                } else {
+                    html! {}
+                }}
+                {render_checkbox_field("Repeat Animation", "intro_animation_repeat", 
+                    template_data.get("intro_animation_repeat").and_then(|v| v.as_bool()).unwrap_or(false), on_change.clone())}
+                
+                // Legacy Animation (keeping for backward compatibility)
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee;">
+                    <h5 style="margin: 0 0 8px 0; font-size: 12px; color: #666; font-weight: 600;">{"Legacy Animation"}</h5>
+                    {render_select_field("Animation Type", "animation_type", 
+                        template_data.get("animation_type").and_then(|v| v.as_str()).unwrap_or("none"), vec![
+                        ("none", "None"),
+                        ("fade-in", "Fade In"),
+                        ("slide-up", "Slide Up"),
+                        ("slide-down", "Slide Down"),
+                        ("slide-left", "Slide Left"),
+                        ("slide-right", "Slide Right"),
+                        ("zoom-in", "Zoom In"),
+                        ("zoom-out", "Zoom Out")
+                    ], on_change.clone())}
+                    {render_input_field("Duration", "animation_duration", 
+                        template_data.get("animation_duration").and_then(|v| v.as_str()).unwrap_or("0.6s"), on_change.clone())}
+                    {render_input_field("Delay", "animation_delay", 
+                        template_data.get("animation_delay").and_then(|v| v.as_str()).unwrap_or("0s"), on_change.clone())}
+                </div>
             </div>
 
             // Effects Properties
@@ -1094,9 +1269,58 @@ fn render_component_specific_properties(properties: &ComponentProperties, compon
 fn render_common_styling_properties(properties: &ComponentProperties, on_change: Callback<InputEvent>) -> Html {
     html! {
         <div class="common-styling-properties">
-            // Animation Properties
+            // Intro Animation Properties
             <div class="property-section" style="margin-bottom: 16px;">
-                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Animation & Effects"}</h4>
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Intro Animation"}</h4>
+                {render_select_field("Animation Type", "intro_animation_type", &properties.intro_animation_type, vec![
+                    ("none", "None"),
+                    ("fade-in", "Fade In"),
+                    ("fade-in-up", "Fade In Up"),
+                    ("fade-in-down", "Fade In Down"),
+                    ("fade-in-left", "Fade In Left"),
+                    ("fade-in-right", "Fade In Right"),
+                    ("slide-up", "Slide Up"),
+                    ("slide-down", "Slide Down"),
+                    ("slide-left", "Slide Left"),
+                    ("slide-right", "Slide Right"),
+                    ("zoom-in", "Zoom In"),
+                    ("zoom-out", "Zoom Out"),
+                    ("bounce-in", "Bounce In"),
+                    ("flip-in-x", "Flip In X"),
+                    ("flip-in-y", "Flip In Y"),
+                    ("rotate-in", "Rotate In"),
+                    ("scale-in", "Scale In")
+                ], on_change.clone())}
+                {render_input_field("Duration", "intro_animation_duration", &properties.intro_animation_duration, on_change.clone())}
+                {render_input_field("Delay", "intro_animation_delay", &properties.intro_animation_delay, on_change.clone())}
+                {render_select_field("Easing", "intro_animation_easing", &properties.intro_animation_easing, vec![
+                    ("ease", "Ease"),
+                    ("ease-in", "Ease In"),
+                    ("ease-out", "Ease Out"),
+                    ("ease-in-out", "Ease In Out"),
+                    ("linear", "Linear"),
+                    ("cubic-bezier(0.68, -0.55, 0.265, 1.55)", "Bounce"),
+                    ("cubic-bezier(0.25, 0.46, 0.45, 0.94)", "Smooth")
+                ], on_change.clone())}
+                {render_select_field("Trigger", "intro_animation_trigger", &properties.intro_animation_trigger, vec![
+                    ("load", "On Load"),
+                    ("scroll", "On Scroll"),
+                    ("hover", "On Hover"),
+                    ("click", "On Click")
+                ], on_change.clone())}
+                {if properties.intro_animation_trigger == "scroll" {
+                    html! {
+                        {render_input_field("Scroll Offset", "intro_animation_offset", &properties.intro_animation_offset, on_change.clone())}
+                    }
+                } else {
+                    html! {}
+                }}
+                {render_checkbox_field("Repeat Animation", "intro_animation_repeat", properties.intro_animation_repeat, on_change.clone())}
+            </div>
+
+            // Legacy Animation Properties (for backward compatibility)
+            <div class="property-section" style="margin-bottom: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Legacy Animation"}</h4>
                 {render_select_field("Animation Type", "animation_type", &properties.animation_type, vec![
                     ("none", "None"),
                     ("fade-in", "Fade In"),
@@ -1346,7 +1570,16 @@ fn update_component_property(props: &mut ComponentProperties, name: &str, value:
         "hero_secondary_button_text" => props.hero_secondary_button_text = value.to_string(),
         "hero_secondary_button_url" => props.hero_secondary_button_url = value.to_string(),
         
-        // Animation properties
+        // Intro Animation properties
+        "intro_animation_type" => props.intro_animation_type = value.to_string(),
+        "intro_animation_duration" => props.intro_animation_duration = value.to_string(),
+        "intro_animation_delay" => props.intro_animation_delay = value.to_string(),
+        "intro_animation_easing" => props.intro_animation_easing = value.to_string(),
+        "intro_animation_trigger" => props.intro_animation_trigger = value.to_string(),
+        "intro_animation_offset" => props.intro_animation_offset = value.to_string(),
+        "intro_animation_repeat" => props.intro_animation_repeat = if is_checkbox { value == "true" } else { value.parse().unwrap_or(false) },
+        
+        // Legacy Animation properties (for backward compatibility)
         "animation_type" => props.animation_type = value.to_string(),
         "animation_duration" => props.animation_duration = value.to_string(),
         "animation_delay" => props.animation_delay = value.to_string(),
@@ -1363,3 +1596,5 @@ fn update_component_property(props: &mut ComponentProperties, name: &str, value:
         }
     }
 }
+
+

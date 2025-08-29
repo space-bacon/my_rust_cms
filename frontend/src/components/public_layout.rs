@@ -667,6 +667,25 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         }
     };
 
+    // Helper function to get animation classes for templates
+    let get_animation_class = {
+        let component_templates = component_templates.clone();
+        move |component_type: &str| -> String {
+            if let Some(template) = component_templates.iter()
+                .find(|t| t.component_type == component_type && t.is_active) {
+                
+                if let Some(animation_type) = template.template_data.get("animation_type").and_then(|v| v.as_str()) {
+                    if animation_type != "none" {
+                        return format!("intro-animation intro-{}", animation_type);
+                    }
+                }
+            }
+            String::new()
+        }
+    };
+
+
+
     // Helper function to get template styles (safe subset for public UI)
     let get_component_style = {
         let component_templates = component_templates.clone();
@@ -1005,6 +1024,25 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                     styles.push(format!("box-shadow: {}", box_shadow));
                 }
                 
+                // Add animation properties support
+                if let Some(animation_type) = template.template_data.get("animation_type").and_then(|v| v.as_str()) {
+                    if animation_type != "none" {
+                        // Add animation CSS variables for pure CSS animations
+                        if let Some(duration) = template.template_data.get("animation_duration").and_then(|v| v.as_str()) {
+                            styles.push(format!("--intro-duration: {}", duration));
+                        }
+                        
+                        if let Some(delay) = template.template_data.get("animation_delay").and_then(|v| v.as_str()) {
+                            styles.push(format!("--intro-delay: {}", delay));
+                        }
+                        
+                        // Set easing to ease-out for smooth animations
+                        styles.push("--intro-easing: ease-out".to_string());
+                        
+                        web_sys::console::log_1(&format!("🎬 Adding {} CSS animation to {} template", animation_type, component_type).into());
+                    }
+                }
+                
                 let style_string = styles.join("; ");
                 if !style_string.is_empty() {
                     web_sys::console::log_1(&format!("Applying {} template styles: {}", component_type, style_string).into());
@@ -1182,6 +1220,8 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
             }
         }, has_header_effects);
     }
+
+
 
             // Add debug function to window for testing and immediate diagnostics
         {
@@ -1641,7 +1681,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         )}>
             {if is_component_active("header") {
                 html! {
-                    <header id="site-header" class={format!("site-header header-section {}", get_effects_class("header", &component_templates))} style={format!("{}; {}", get_component_style("header"), get_effects_style("header", &component_templates))}>
+                    <header id="site-header" class={format!("site-header header-section {} {}", get_effects_class("header", &component_templates), get_animation_class("header"))} style={format!("{}; {}", get_component_style("header"), get_effects_style("header", &component_templates))}>
                         <div class="container">
                             {render_site_logo(&component_templates, &site_title)}
                             <nav class="site-nav">
