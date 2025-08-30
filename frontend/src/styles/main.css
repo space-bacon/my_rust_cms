@@ -3,6 +3,8 @@
 /* Import component styles */
 @import url('./enhanced_gallery.css');
 @import url('./modern_menu_designer.css');
+@import url('./enhanced_mobile_designer.css');
+@import url('./typography_fonts.css');
 
 /* Reset and base styles */
 * {

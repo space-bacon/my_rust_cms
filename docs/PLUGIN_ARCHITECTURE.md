@@ -412,3 +412,4 @@ For more information, see:
 - [API Documentation](API_REFERENCE.md)
 - [Security Guidelines](SECURITY.md)
 - [Examples Repository](https://github.com/rust-cms/plugin-examples)
+

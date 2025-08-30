@@ -959,6 +959,25 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                     web_sys::console::log_1(&format!("🎨 Live Preview: Updated scroll duration to {}ms", scroll_duration).into());
                                 }
                                 
+                                // Handle animation properties
+                                if let Some(animation_type) = template_data.get("animation_type").and_then(|v| v.as_str()) {
+                                    if animation_type != "none" {
+                                        // Add animation CSS variables for pure CSS animations
+                                        if let Some(duration) = template_data.get("animation_duration").and_then(|v| v.as_str()) {
+                                            styles.push(format!("--intro-duration: {}", duration));
+                                        }
+                                        
+                                        if let Some(delay) = template_data.get("animation_delay").and_then(|v| v.as_str()) {
+                                            styles.push(format!("--intro-delay: {}", delay));
+                                        }
+                                        
+                                        // Set easing to ease-out for smooth animations
+                                        styles.push("--intro-easing: ease-out".to_string());
+                                        
+                                        web_sys::console::log_1(&format!("🎬 Live Edit: Adding {} CSS animation to {} template", animation_type, component_type).into());
+                                    }
+                                }
+                                
                                 // Handle scroll easing
                                 if let Some(scroll_easing) = template_data.get("scroll_easing").and_then(|v| v.as_str()) {
                                     let css_easing = match scroll_easing {
@@ -1400,6 +1419,36 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                         }
                     
                     let _ = html_element.set_attribute("style", &new_style);
+                    
+                    // Handle animation classes - apply them to the element
+                    if let Some(animation_type) = template_data.get("animation_type").and_then(|v| v.as_str()) {
+                        if animation_type != "none" {
+                            // Remove any existing animation classes first
+                            let current_class = html_element.class_name();
+                            let cleaned_classes = current_class
+                                .split_whitespace()
+                                .filter(|&c| !c.starts_with("intro-") && c != "intro-animation" && c != "animate")
+                                .collect::<Vec<&str>>()
+                                .join(" ");
+                            
+                            // Add new animation classes (no need for 'animate' class with keyframe animations)
+                            let new_classes = format!("{} intro-animation intro-{}", cleaned_classes, animation_type).trim().to_string();
+                            html_element.set_class_name(&new_classes);
+                            
+                            web_sys::console::log_1(&format!("🎬 Live Edit: Applied animation classes to {}: {}", component_type, new_classes).into());
+                        } else {
+                            // Remove animation classes if animation is set to "none"
+                            let current_class = html_element.class_name();
+                            let cleaned_classes = current_class
+                                .split_whitespace()
+                                .filter(|&c| !c.starts_with("intro-") && c != "intro-animation" && c != "animate")
+                                .collect::<Vec<&str>>()
+                                .join(" ");
+                            html_element.set_class_name(&cleaned_classes);
+                            
+                            web_sys::console::log_1(&format!("🎬 Live Edit: Removed animation classes from {}", component_type).into());
+                        }
+                    }
                     
                     // Verify the styles were applied
                     if let Some(applied_style) = html_element.get_attribute("style") {

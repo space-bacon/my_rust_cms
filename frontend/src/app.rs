@@ -5,7 +5,7 @@ use crate::components::admin::sidebar::AdminTab;
 use web_sys::window;
 use std::ops::Deref;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum AppView {
     Public,
     Login,
@@ -131,11 +131,26 @@ pub fn app() -> Html {
     
     // Determine current view from route
     let current_view = match current_route.deref() {
-        AppRoute::Public(_) => AppView::Public,
-        AppRoute::Admin(tab) => AppView::Admin(tab.clone()),
-        AppRoute::Login => AppView::Login,
-        AppRoute::Signup => AppView::Signup,
-        AppRoute::VerifyEmail => AppView::VerifyEmail,
+        AppRoute::Public(_) => {
+            log::info!("🎯 APP: Current route is Public");
+            AppView::Public
+        },
+        AppRoute::Admin(tab) => {
+            log::info!("🎯 APP: Current route is Admin({:?})", tab);
+            AppView::Admin(tab.clone())
+        },
+        AppRoute::Login => {
+            log::info!("🎯 APP: Current route is Login");
+            AppView::Login
+        },
+        AppRoute::Signup => {
+            log::info!("🎯 APP: Current route is Signup");
+            AppView::Signup
+        },
+        AppRoute::VerifyEmail => {
+            log::info!("🎯 APP: Current route is VerifyEmail");
+            AppView::VerifyEmail
+        },
     };
 
     // TODO: Add browser back/forward navigation support later
@@ -304,9 +319,11 @@ pub fn app() -> Html {
             </div>
         }
     } else {
-        html! {
-            <div>
-                {match current_view {
+        {
+            log::info!("🎯 APP: Rendering view: {:?}", current_view);
+            html! {
+                <div>
+                    {match current_view {
                     AppView::Public => {
                         if let AppRoute::Public(public_page) = current_route.deref() {
                             html! {
@@ -352,8 +369,9 @@ pub fn app() -> Html {
                             />
                         </crate::components::AdminGuard>
                     },
-                }}
-            </div>
+                    }}
+                </div>
+            }
         }
     }
 } 

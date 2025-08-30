@@ -139,3 +139,4 @@ This starts both the backend (port 8080) and frontend (port 8081).
 **Happy Plugin Development!** 🦀✨
 
 Your Rust CMS now has a powerful, extensible plugin system that grows with your needs!
+

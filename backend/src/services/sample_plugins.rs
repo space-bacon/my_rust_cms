@@ -561,3 +561,4 @@ pub fn get_sample_plugins() -> Vec<Box<dyn Plugin>> {
         Box::new(NewsletterPlugin::new()),
     ]
 }
+

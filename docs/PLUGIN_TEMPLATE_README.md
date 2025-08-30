@@ -177,3 +177,4 @@ This template is provided under the MIT License. You can use it as a starting po
 ---
 
 Happy plugin development! 🦀✨
+

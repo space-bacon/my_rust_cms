@@ -1853,22 +1853,71 @@ fn render_animation_effects_section(customization: &MenuAreaCustomization, updat
 
 fn render_mobile_menu_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
-        <div class="section-card" style="
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        <div class="section-card enhanced-mobile-designer" style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 0;
+            border: none;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+            overflow: hidden;
+            position: relative;
         ">
-            <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #1f2937; display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 20px;">{"📱"}</span>
-                {"Mobile Menu Designer"}
-            </h3>
+            // Header with gradient overlay
+            <div style="
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                padding: 24px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            ">
+                <h3 style="
+                    margin: 0 0 8px 0; 
+                    font-size: 24px; 
+                    font-weight: 800; 
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    background-clip: text;
+                    display: flex; 
+                    align-items: center; 
+                    gap: 12px;
+                ">
+                    <span style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">{"📱"}</span>
+                    {"Enhanced Mobile Menu Designer"}
+                </h3>
+                <p style="
+                    margin: 0;
+                    color: #64748b;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">
+                    {"Design responsive mobile navigation with advanced controls and live preview"}
+                </p>
+            </div>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-                {render_mobile_hamburger_controls(customization, update_customization.clone())}
-                {render_mobile_dropdown_controls(customization, update_customization.clone())}
-                {render_mobile_styling_controls(customization, update_customization.clone())}
+            // Content area with improved layout
+            <div style="
+                background: white;
+                padding: 32px;
+                display: grid; 
+                gap: 24px;
+            ">
+                // Top row - Hamburger and Layout controls
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    {render_enhanced_hamburger_controls(customization, update_customization.clone())}
+                    {render_mobile_layout_controls(customization, update_customization.clone())}
+                </div>
+                
+                // Middle row - Animation and behavior
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    {render_enhanced_animation_controls(customization, update_customization.clone())}
+                    {render_mobile_behavior_controls(customization, update_customization.clone())}
+                </div>
+                
+                // Bottom row - Styling and preview
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    {render_enhanced_styling_controls(customization, update_customization.clone())}
+                    {render_mobile_preview_panel(customization)}
+                </div>
             </div>
         </div>
     }
@@ -2822,6 +2871,1034 @@ fn render_mobile_dropdown_controls(customization: &MenuAreaCustomization, update
                             }
                         }).collect::<Html>()}
                     </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// Enhanced Mobile Menu Control Functions
+fn render_enhanced_hamburger_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-control-panel" style="
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #0ea5e9;
+            position: relative;
+            overflow: hidden;
+        ">
+            // Decorative background element
+            <div style="
+                position: absolute;
+                top: -20px;
+                right: -20px;
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(45deg, #0ea5e9, #06b6d4);
+                border-radius: 50%;
+                opacity: 0.1;
+            "></div>
+            
+            <h4 style="
+                margin: 0 0 20px 0; 
+                font-size: 18px; 
+                font-weight: 700; 
+                color: #0c4a6e; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                position: relative;
+                z-index: 1;
+            ">
+                <span style="
+                    font-size: 22px; 
+                    background: linear-gradient(45deg, #0ea5e9, #06b6d4);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">{"🍔"}</span>
+                {"Hamburger Icon"}
+            </h4>
+            
+            <div style="display: grid; gap: 20px; position: relative; z-index: 1;">
+                // Icon Style with enhanced visuals
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Icon Style"}
+                    </label>
+                    <div class="enhanced-button-grid" style="
+                        display: grid; 
+                        grid-template-columns: repeat(2, 1fr); 
+                        gap: 12px;
+                    ">
+                        {["lines", "dots", "arrow", "custom"].iter().map(|&style| {
+                            let is_active = customization.mobile_hamburger_style == style;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    class="enhanced-style-button"
+                                    style={format!("
+                                        background: {};
+                                        border: 2px solid {};
+                                        color: {};
+                                        padding: 16px 20px;
+                                        border-radius: 12px;
+                                        cursor: pointer;
+                                        font-size: 13px;
+                                        font-weight: 700;
+                                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: center;
+                                        gap: 8px;
+                                        transform: {};
+                                        box-shadow: {};
+                                        position: relative;
+                                        overflow: hidden;
+                                    ",
+                                        if is_active { 
+                                            "linear-gradient(135deg, #0ea5e9, #06b6d4)" 
+                                        } else { 
+                                            "white" 
+                                        },
+                                        if is_active { "#0ea5e9" } else { "#e2e8f0" },
+                                        if is_active { "white" } else { "#0c4a6e" },
+                                        if is_active { "scale(1.05)" } else { "scale(1)" },
+                                        if is_active { 
+                                            "0 8px 25px rgba(14, 165, 233, 0.3)" 
+                                        } else { 
+                                            "0 2px 8px rgba(0, 0, 0, 0.1)" 
+                                        }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_hamburger_style".to_string(), style.to_string())]);
+                                    })}
+
+                                >
+                                    // Ripple effect background
+                                    {if is_active {
+                                        html! {
+                                            <div style="
+                                                position: absolute;
+                                                top: 0;
+                                                left: 0;
+                                                right: 0;
+                                                bottom: 0;
+                                                background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+                                                animation: pulse 2s infinite;
+                                            "></div>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }}
+                                    
+                                    <div style="
+                                        font-size: 24px; 
+                                        position: relative; 
+                                        z-index: 1;
+                                        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+                                    ">
+                                        {match style {
+                                            "lines" => "☰",
+                                            "dots" => "⋮",
+                                            "arrow" => "▶",
+                                            "custom" => "✦",
+                                            _ => "☰"
+                                        }}
+                                    </div>
+                                    <span style="
+                                        position: relative; 
+                                        z-index: 1;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.5px;
+                                    ">
+                                        {style}
+                                    </span>
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Interactive Preview with animation
+                <div style="
+                    background: linear-gradient(135deg, white 0%, #f8fafc 100%);
+                    border: 2px solid #e2e8f0;
+                    border-radius: 12px;
+                    padding: 20px;
+                    text-align: center;
+                    position: relative;
+                    overflow: hidden;
+                ">
+                    <div style="
+                        font-size: 12px; 
+                        color: #64748b; 
+                        margin-bottom: 12px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                    ">
+                        {"Live Preview"}
+                    </div>
+                    <div class="hamburger-preview" style="
+                        display: inline-block;
+                        padding: 12px 16px;
+                        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                        border-radius: 8px;
+                        font-size: 24px;
+                        color: white;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 12px rgba(30, 41, 59, 0.3);
+                        position: relative;
+                        overflow: hidden;
+                    "
+                    onclick={Callback::from(|_e: MouseEvent| {
+                        // Click animation handled by CSS
+                    })}
+                    >
+                        // Shine effect
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: -100%;
+                            width: 100%;
+                            height: 100%;
+                            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                            animation: shine 3s infinite;
+                        "></div>
+                        
+                        <span style="position: relative; z-index: 1;">
+                            {match customization.mobile_hamburger_style.as_str() {
+                                "lines" => "☰",
+                                "dots" => "⋮",
+                                "arrow" => "▶",
+                                "custom" => "✦",
+                                _ => "☰"
+                            }}
+                        </span>
+                    </div>
+                    <div style="
+                        font-size: 11px; 
+                        color: #94a3b8; 
+                        margin-top: 8px;
+                        font-style: italic;
+                    ">
+                        {"Click to test interaction"}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_mobile_layout_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-control-panel" style="
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #22c55e;
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="
+                position: absolute;
+                top: -20px;
+                right: -20px;
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(45deg, #22c55e, #16a34a);
+                border-radius: 50%;
+                opacity: 0.1;
+            "></div>
+            
+            <h4 style="
+                margin: 0 0 20px 0; 
+                font-size: 18px; 
+                font-weight: 700; 
+                color: #14532d; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                position: relative;
+                z-index: 1;
+            ">
+                <span style="
+                    font-size: 22px; 
+                    background: linear-gradient(45deg, #22c55e, #16a34a);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">{"📐"}</span>
+                {"Layout & Position"}
+            </h4>
+            
+            <div style="display: grid; gap: 20px; position: relative; z-index: 1;">
+                // Menu Position
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Menu Position"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        {["left", "right", "center", "full"].iter().map(|&position| {
+                            let is_active = customization.mobile_dropdown_direction == position;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 2px solid {};
+                                        color: {};
+                                        padding: 12px 16px;
+                                        border-radius: 10px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.3s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 6px;
+                                        transform: {};
+                                    ",
+                                        if is_active { "#22c55e" } else { "white" },
+                                        if is_active { "#22c55e" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#14532d" },
+                                        if is_active { "scale(1.05)" } else { "scale(1)" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_dropdown_direction".to_string(), position.to_string())]);
+                                    })}
+                                >
+                                    <span>{match position {
+                                        "left" => "⬅️",
+                                        "right" => "➡️",
+                                        "center" => "🎯",
+                                        "full" => "📱",
+                                        _ => "📍"
+                                    }}</span>
+                                    {position.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Width Control
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Menu Width"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        {["narrow", "medium", "wide"].iter().map(|&width| {
+                            let is_active = customization.mobile_background_type == width; // Reusing field for demo
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 12px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                    ",
+                                        if is_active { "#16a34a" } else { "white" },
+                                        if is_active { "#16a34a" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#14532d" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_background_type".to_string(), width.to_string())]);
+                                    })}
+                                >
+                                    {width.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_enhanced_animation_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-control-panel" style="
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #f59e0b;
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="
+                position: absolute;
+                top: -20px;
+                right: -20px;
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(45deg, #f59e0b, #d97706);
+                border-radius: 50%;
+                opacity: 0.1;
+            "></div>
+            
+            <h4 style="
+                margin: 0 0 20px 0; 
+                font-size: 18px; 
+                font-weight: 700; 
+                color: #92400e; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                position: relative;
+                z-index: 1;
+            ">
+                <span style="
+                    font-size: 22px; 
+                    background: linear-gradient(45deg, #f59e0b, #d97706);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">{"✨"}</span>
+                {"Animations & Effects"}
+            </h4>
+            
+            <div style="display: grid; gap: 20px; position: relative; z-index: 1;">
+                // Animation Type
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Animation Style"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        {["slide", "fade", "scale", "bounce"].iter().map(|&animation| {
+                            let is_active = customization.mobile_dropdown_animation == animation;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 2px solid {};
+                                        color: {};
+                                        padding: 14px 18px;
+                                        border-radius: 10px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.3s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 8px;
+                                        transform: {};
+                                    ",
+                                        if is_active { "#f59e0b" } else { "white" },
+                                        if is_active { "#f59e0b" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#92400e" },
+                                        if is_active { "scale(1.05)" } else { "scale(1)" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_dropdown_animation".to_string(), animation.to_string())]);
+                                    })}
+                                >
+                                    <span style="font-size: 16px;">{match animation {
+                                        "slide" => "📐",
+                                        "fade" => "👻",
+                                        "scale" => "🔍",
+                                        "bounce" => "🏀",
+                                        _ => "✨"
+                                    }}</span>
+                                    {animation.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Speed Control
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Animation Speed"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        {["slow", "normal", "fast"].iter().map(|&speed| {
+                            let is_active = speed == "normal"; // Default selection for demo
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 12px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                    ",
+                                        if is_active { "#d97706" } else { "white" },
+                                        if is_active { "#d97706" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#92400e" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        // Add speed control logic here
+                                        web_sys::console::log_1(&format!("Animation speed: {}", speed).into());
+                                    })}
+                                >
+                                    {speed.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_mobile_behavior_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-control-panel" style="
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #ec4899;
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="
+                position: absolute;
+                top: -20px;
+                right: -20px;
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(45deg, #ec4899, #db2777);
+                border-radius: 50%;
+                opacity: 0.1;
+            "></div>
+            
+            <h4 style="
+                margin: 0 0 20px 0; 
+                font-size: 18px; 
+                font-weight: 700; 
+                color: #831843; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                position: relative;
+                z-index: 1;
+            ">
+                <span style="
+                    font-size: 22px; 
+                    background: linear-gradient(45deg, #ec4899, #db2777);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">{"⚙️"}</span>
+                {"Behavior & Interaction"}
+            </h4>
+            
+            <div style="display: grid; gap: 20px; position: relative; z-index: 1;">
+                // Close Behavior
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Close Behavior"}
+                    </label>
+                    <div style="display: grid; gap: 8px;">
+                        {[("auto", "Auto-close on navigate"), ("manual", "Manual close only"), ("outside", "Close on outside click")].iter().map(|(value, label)| {
+                            let is_active = *value == "outside"; // Default for demo
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <label style="
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 12px;
+                                    padding: 12px;
+                                    background: white;
+                                    border: 2px solid #f3f4f6;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    transition: all 0.2s ease;
+                                    font-size: 13px;
+                                    font-weight: 500;
+                                ">
+                                    <input 
+                                        type="radio" 
+                                        name="close-behavior"
+                                        checked={is_active}
+                                        style="
+                                            width: 16px;
+                                            height: 16px;
+                                            accent-color: #ec4899;
+                                        "
+                                        onchange={Callback::from(move |_| {
+                                            web_sys::console::log_1(&format!("Close behavior: {}", value).into());
+                                        })}
+                                    />
+                                    <span style="color: #374151;">{*label}</span>
+                                </label>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Overlay Settings
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Overlay Effect"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        {["blur", "darken", "none", "custom"].iter().map(|&overlay| {
+                            let is_active = overlay == "blur"; // Default for demo
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 10px 14px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        text-transform: uppercase;
+                                    ",
+                                        if is_active { "#ec4899" } else { "white" },
+                                        if is_active { "#ec4899" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#831843" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        web_sys::console::log_1(&format!("Overlay: {}", overlay).into());
+                                    })}
+                                >
+                                    {overlay}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_enhanced_styling_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-control-panel" style="
+            background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #a855f7;
+            position: relative;
+            overflow: hidden;
+        ">
+            <div style="
+                position: absolute;
+                top: -20px;
+                right: -20px;
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(45deg, #a855f7, #9333ea);
+                border-radius: 50%;
+                opacity: 0.1;
+            "></div>
+            
+            <h4 style="
+                margin: 0 0 20px 0; 
+                font-size: 18px; 
+                font-weight: 700; 
+                color: #581c87; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                position: relative;
+                z-index: 1;
+            ">
+                <span style="
+                    font-size: 22px; 
+                    background: linear-gradient(45deg, #a855f7, #9333ea);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">{"🎨"}</span>
+                {"Visual Styling"}
+            </h4>
+            
+            <div style="display: grid; gap: 20px; position: relative; z-index: 1;">
+                // Theme Presets
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Theme Presets"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        {[("modern", "#3b82f6"), ("elegant", "#1f2937"), ("vibrant", "#f59e0b"), ("minimal", "#6b7280")].iter().map(|(theme, color)| {
+                            let is_active = *theme == "modern"; // Default for demo
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 2px solid {};
+                                        color: white;
+                                        padding: 12px 16px;
+                                        border-radius: 10px;
+                                        cursor: pointer;
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        transition: all 0.3s ease;
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        gap: 6px;
+                                        transform: {};
+                                        box-shadow: {};
+                                    ",
+                                        color,
+                                        if is_active { "#a855f7" } else { color },
+                                        if is_active { "scale(1.05)" } else { "scale(1)" },
+                                        if is_active { "0 4px 12px rgba(168, 85, 247, 0.3)" } else { "0 2px 4px rgba(0,0,0,0.1)" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        web_sys::console::log_1(&format!("Theme: {}", theme).into());
+                                    })}
+                                >
+                                    <div style="
+                                        width: 12px;
+                                        height: 12px;
+                                        border-radius: 50%;
+                                        background: rgba(255,255,255,0.3);
+                                    "></div>
+                                    {theme.to_uppercase()}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Background Style
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Background Style"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        {["solid", "gradient", "glass"].iter().map(|&bg_style| {
+                            let is_active = customization.mobile_background_type == bg_style;
+                            let update_customization = update_customization.clone();
+                            html! {
+                                <button
+                                    style={format!("
+                                        background: {};
+                                        border: 1px solid {};
+                                        color: {};
+                                        padding: 8px 12px;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        transition: all 0.2s ease;
+                                        text-transform: uppercase;
+                                    ",
+                                        if is_active { "#a855f7" } else { "white" },
+                                        if is_active { "#a855f7" } else { "#d1d5db" },
+                                        if is_active { "white" } else { "#581c87" }
+                                    )}
+                                    onclick={Callback::from(move |_| {
+                                        update_customization.emit(vec![("mobile_background_type".to_string(), bg_style.to_string())]);
+                                    })}
+                                >
+                                    {bg_style}
+                                </button>
+                            }
+                        }).collect::<Html>()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+fn render_mobile_preview_panel(customization: &MenuAreaCustomization) -> Html {
+    html! {
+        <div class="mobile-preview-panel" style="
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #475569;
+            position: relative;
+            overflow: hidden;
+            min-height: 400px;
+        ">
+            // Decorative elements
+            <div style="
+                position: absolute;
+                top: -50px;
+                right: -50px;
+                width: 120px;
+                height: 120px;
+                background: radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%);
+                border-radius: 50%;
+            "></div>
+            <div style="
+                position: absolute;
+                bottom: -30px;
+                left: -30px;
+                width: 80px;
+                height: 80px;
+                background: radial-gradient(circle, rgba(34, 197, 94, 0.3) 0%, transparent 70%);
+                border-radius: 50%;
+            "></div>
+            
+            <h4 style="
+                margin: 0 0 20px 0; 
+                font-size: 18px; 
+                font-weight: 700; 
+                color: white; 
+                display: flex; 
+                align-items: center; 
+                gap: 10px;
+                position: relative;
+                z-index: 1;
+            ">
+                <span style="
+                    font-size: 22px; 
+                    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">{"📱"}</span>
+                {"Live Preview"}
+            </h4>
+            
+            // Mobile mockup
+            <div style="
+                position: relative;
+                z-index: 1;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 300px;
+            ">
+                <div class="mobile-mockup" style="
+                    width: 200px;
+                    height: 350px;
+                    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+                    border-radius: 24px;
+                    padding: 20px 16px;
+                    border: 3px solid #64748b;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                    position: relative;
+                    overflow: hidden;
+                ">
+                    // Screen content
+                    <div style="
+                        width: 100%;
+                        height: 100%;
+                        background: white;
+                        border-radius: 16px;
+                        position: relative;
+                        overflow: hidden;
+                        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+                    ">
+                        // Header bar
+                        <div style="
+                            height: 40px;
+                            background: linear-gradient(135deg, #1e293b, #334155);
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            padding: 0 12px;
+                            color: white;
+                        ">
+                            <div style="font-size: 12px; font-weight: 600;">{"My Site"}</div>
+                            <div style="
+                                font-size: 16px;
+                                cursor: pointer;
+                                padding: 4px;
+                                border-radius: 4px;
+                                transition: all 0.2s ease;
+                            "
+                            onclick={Callback::from(|_e: MouseEvent| {
+                                // Click animation handled by CSS
+                            })}
+                            >
+                                {match customization.mobile_hamburger_style.as_str() {
+                                    "lines" => "☰",
+                                    "dots" => "⋮",
+                                    "arrow" => "▶",
+                                    "custom" => "✦",
+                                    _ => "☰"
+                                }}
+                            </div>
+                        </div>
+                        
+                        // Content area
+                        <div style="
+                            padding: 16px 12px;
+                            height: calc(100% - 40px);
+                            display: flex;
+                            flex-direction: column;
+                            gap: 8px;
+                        ">
+                            <div style="
+                                height: 20px;
+                                background: linear-gradient(90deg, #e2e8f0, #f1f5f9);
+                                border-radius: 4px;
+                                animation: shimmer 2s infinite;
+                            "></div>
+                            <div style="
+                                height: 16px;
+                                background: linear-gradient(90deg, #f1f5f9, #e2e8f0);
+                                border-radius: 4px;
+                                width: 80%;
+                                animation: shimmer 2s infinite 0.5s;
+                            "></div>
+                            <div style="
+                                height: 16px;
+                                background: linear-gradient(90deg, #e2e8f0, #f1f5f9);
+                                border-radius: 4px;
+                                width: 60%;
+                                animation: shimmer 2s infinite 1s;
+                            "></div>
+                        </div>
+                    </div>
+                    
+                    // Home indicator (for modern phones)
+                    <div style="
+                        position: absolute;
+                        bottom: 8px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 40px;
+                        height: 4px;
+                        background: #64748b;
+                        border-radius: 2px;
+                    "></div>
+                </div>
+            </div>
+            
+            // Settings summary
+            <div style="
+                position: relative;
+                z-index: 1;
+                margin-top: 20px;
+                padding: 16px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                backdrop-filter: blur(10px);
+            ">
+                <div style="
+                    font-size: 12px;
+                    color: #cbd5e1;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                ">
+                    {"Current Settings"}
+                </div>
+                <div style="
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                    font-size: 11px;
+                    color: #e2e8f0;
+                ">
+                    <div>{"Icon: "}<span style="color: #60a5fa;">{&customization.mobile_hamburger_style}</span></div>
+                    <div>{"Animation: "}<span style="color: #34d399;">{&customization.mobile_dropdown_animation}</span></div>
+                    <div>{"Position: "}<span style="color: #fbbf24;">{&customization.mobile_dropdown_direction}</span></div>
+                    <div>{"Background: "}<span style="color: #f472b6;">{&customization.mobile_background_type}</span></div>
                 </div>
             </div>
         </div>

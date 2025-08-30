@@ -1,0 +1,112 @@
+/* Google Fonts and Custom Font Imports */
+
+/* Modern Sans-Serif Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&display=swap');
+
+/* Serif Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&display=swap');
+
+/* Monospace & Code Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@300;400;500;600;700&display=swap');
+
+/* Pixel & Retro Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800&display=swap');
+
+/* Display & Creative Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+/* Custom Pixel Fonts (fallback to available alternatives) */
+@font-face {
+    font-family: 'Pixel Operator';
+    src: url('data:font/woff2;base64,') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    /* Fallback to Press Start 2P for pixel fonts */
+}
+
+@font-face {
+    font-family: 'VCR OSD Mono';
+    src: url('data:font/woff2;base64,') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    /* Fallback to monospace */
+}
+
+@font-face {
+    font-family: 'Pixel Millennium';
+    src: url('data:font/woff2;base64,') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    /* Fallback to Press Start 2P */
+}
+
+@font-face {
+    font-family: 'Dogica';
+    src: url('data:font/woff2;base64,') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    /* Fallback to Press Start 2P */
+}
+
+/* Global Typography Variables */
+:root {
+    --global-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --global-font-size: 16px;
+    --global-line-height: 1.6;
+    --global-font-weight: 400;
+}
+
+/* Apply global typography */
+html, body {
+    font-family: var(--global-font-family);
+    font-size: var(--global-font-size);
+    line-height: var(--global-line-height);
+    font-weight: var(--global-font-weight);
+}
+
+/* Pixel font rendering optimization */
+.pixel-font,
+[style*="pixel"],
+[style*="Press Start"],
+[style*="Silkscreen"] {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    font-smooth: never;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+}
+
+/* Enhanced font loading performance */
+.font-loading {
+    font-display: swap;
+}
+
+/* Typography utility classes */
+.font-system { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
+.font-inter { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+.font-roboto { font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+.font-poppins { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+.font-pixel { font-family: 'Press Start 2P', 'Courier New', monospace !important; }
+.font-mono { font-family: 'Fira Code', 'Monaco', 'Consolas', monospace !important; }

@@ -426,3 +426,4 @@ pub fn plugin_manager() -> Html {
         </div>
     }
 }
+

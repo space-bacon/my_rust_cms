@@ -459,3 +459,4 @@ We welcome plugin contributions! Please:
 4. Submit a pull request with your plugin
 
 Happy plugin development! 🦀
+

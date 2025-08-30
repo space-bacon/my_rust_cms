@@ -1,0 +1,181 @@
+/* Enhanced Mobile Menu Designer Animations */
+
+/* Pulse animation for active elements */
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+}
+
+/* Shine effect for preview elements */
+@keyframes shine {
+    0% {
+        left: -100%;
+    }
+    50% {
+        left: 100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Shimmer effect for loading placeholders */
+@keyframes shimmer {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+/* Enhanced control panel hover effects */
+.enhanced-control-panel {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.enhanced-control-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced button grid animations */
+.enhanced-button-grid button {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.enhanced-button-grid button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.enhanced-button-grid button:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Mobile preview panel animations */
+.mobile-preview-panel .mobile-mockup {
+    transition: all 0.3s ease;
+}
+
+.mobile-preview-panel:hover .mobile-mockup {
+    transform: scale(1.02);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Responsive design for the enhanced designer */
+@media (max-width: 1200px) {
+    .enhanced-mobile-designer .content-area {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
+    }
+    
+    .enhanced-control-panel {
+        padding: 20px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .enhanced-mobile-designer {
+        margin: 0 -16px;
+        border-radius: 16px !important;
+    }
+    
+    .enhanced-mobile-designer .content-area {
+        padding: 24px !important;
+    }
+    
+    .enhanced-control-panel {
+        padding: 16px !important;
+    }
+    
+    .enhanced-button-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+    
+    .mobile-preview-panel {
+        min-height: 300px !important;
+    }
+    
+    .mobile-mockup {
+        width: 160px !important;
+        height: 280px !important;
+    }
+}
+
+/* Focus states for accessibility */
+.enhanced-control-panel button:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+.enhanced-control-panel input:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .enhanced-control-panel {
+        border-width: 2px;
+    }
+    
+    .enhanced-control-panel button {
+        border-width: 2px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .enhanced-control-panel,
+    .enhanced-button-grid button,
+    .mobile-preview-panel .mobile-mockup {
+        transition: none;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 0.6;
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes shine {
+        0%, 100% {
+            left: -100%;
+        }
+    }
+    
+    @keyframes shimmer {
+        0%, 100% {
+            background-position: -200px 0;
+        }
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .enhanced-mobile-designer {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+    }
+    
+    .enhanced-mobile-designer .header {
+        background: rgba(15, 23, 42, 0.95) !important;
+        backdrop-filter: blur(10px);
+    }
+    
+    .enhanced-mobile-designer .content-area {
+        background: #0f172a !important;
+    }
+}

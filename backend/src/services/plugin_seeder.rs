@@ -115,3 +115,4 @@ pub async fn remove_sample_plugins(db_pool: Arc<DbPool>) -> Result<(), Box<dyn s
     println!("🧹 Sample plugin cleanup completed!");
     Ok(())
 }
+

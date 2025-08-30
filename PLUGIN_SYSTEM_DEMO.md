@@ -261,3 +261,4 @@ Your Rust CMS now has a production-ready plugin system that:
 5. **Develop**: Create your own plugins using the provided interface
 
 The plugin system is ready for community contributions and will help your CMS ecosystem grow! 🦀✨
+

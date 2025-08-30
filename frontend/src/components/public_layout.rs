@@ -5,6 +5,7 @@ use crate::services::api_service::get_public_settings;
 use std::collections::HashMap;
 use crate::pages::public::PublicPage;
 use crate::pages::admin::design_system::{PublicColorScheme, apply_public_css_variables};
+use crate::pages::admin::typography_system::load_and_apply_typography_settings;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 use crate::services::auth_context::use_auth;
@@ -145,6 +146,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let inner_container_style = use_state(|| String::new());
     let container_animation = use_state(|| "none".to_string());
     let live_edit_enabled = use_state(|| false);
+    let mobile_menu_open = use_state(|| false);
     let current_page_data = use_state(|| None::<Page>);
     let current_page_components = use_state(Vec::new);
 
@@ -617,12 +619,25 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         }, ());
     }
 
-    // Apply default public theme on component mount
+    // Apply default public theme and typography on component mount
     {
         use_effect_with_deps(move |_| {
-            web_sys::console::log_1(&"PublicLayout: Applying default public theme".into());
+            web_sys::console::log_1(&"PublicLayout: Applying default public theme and typography".into());
             let default_scheme = PublicColorScheme::default();
             apply_public_css_variables(&default_scheme);
+            log::info!("🎨 Applied default public theme");
+            
+            // Load and apply typography settings
+            log::info!("🎨 PUBLIC: Loading typography settings...");
+            load_and_apply_typography_settings();
+            
+            // Also apply typography with a slight delay to ensure DOM is ready
+            let timeout = gloo_timers::callback::Timeout::new(100, move || {
+                log::info!("🎨 PUBLIC: Re-applying typography settings after delay...");
+                load_and_apply_typography_settings();
+            });
+            timeout.forget();
+            
             || ()
         }, ());
     }
@@ -655,7 +670,26 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
 
     let on_admin_click = {
         let callback = props.on_admin_click.clone();
-        Callback::from(move |_| callback.emit(()))
+        Callback::from(move |_: MouseEvent| callback.emit(()))
+    };
+
+    // Mobile menu toggle callback
+    let on_mobile_menu_toggle = {
+        let mobile_menu_open = mobile_menu_open.clone();
+        Callback::from(move |_| {
+            let is_open = !*mobile_menu_open;
+            mobile_menu_open.set(is_open);
+            
+            // Body scroll prevention will be handled by CSS
+        })
+    };
+
+    // Close mobile menu when clicking outside
+    let on_mobile_menu_overlay_click = {
+        let mobile_menu_open = mobile_menu_open.clone();
+        Callback::from(move |_| {
+            mobile_menu_open.set(false);
+        })
     };
 
     // Helper function to check if component is active
@@ -676,6 +710,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 
                 if let Some(animation_type) = template.template_data.get("animation_type").and_then(|v| v.as_str()) {
                     if animation_type != "none" {
+                        // Add animation classes (keyframe animations don't need animate trigger)
                         return format!("intro-animation intro-{}", animation_type);
                     }
                 }
@@ -1040,6 +1075,61 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                         styles.push("--intro-easing: ease-out".to_string());
                         
                         web_sys::console::log_1(&format!("🎬 Adding {} CSS animation to {} template", animation_type, component_type).into());
+                    }
+                }
+                
+                // Add animation cleanup after animation completes
+                if let Some(animation_type) = template.template_data.get("animation_type").and_then(|v| v.as_str()) {
+                    if animation_type != "none" {
+                        // Add JavaScript to clean up animation classes after completion
+                        
+                        if let Some(window) = web_sys::window() {
+                            // Use a more direct approach to set up animation cleanup
+                            let cleanup_closure = {
+                                let animation_type = animation_type.to_string();
+                                let component_type = component_type.to_string();
+                                wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                                    if let Some(window) = web_sys::window() {
+                                        if let Some(document) = window.document() {
+                                            if let Some(element) = document.get_element_by_id(&format!("site-{}", component_type)) {
+                                                let animation_class = format!("intro-{}", animation_type);
+                                                let classes_to_remove = vec![
+                                                    "intro-animation",
+                                                    &animation_class,
+                                                    "animate"
+                                                ];
+                                                
+                                                for class in classes_to_remove {
+                                                    let current_class = element.class_name();
+                                                    if current_class.contains(class) {
+                                                        let new_class = current_class
+                                                            .split_whitespace()
+                                                            .filter(|&c| c != class)
+                                                            .collect::<Vec<&str>>()
+                                                            .join(" ");
+                                                        element.set_class_name(&new_class);
+                                                    }
+                                                }
+                                                
+                                                // Reset will-change property by updating the style attribute
+                                                if let Some(style_attr) = element.get_attribute("style") {
+                                                    let new_style = format!("{}; will-change: auto", style_attr);
+                                                    let _ = element.set_attribute("style", &new_style);
+                                                } else {
+                                                    let _ = element.set_attribute("style", "will-change: auto");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }) as Box<dyn FnMut()>)
+                            };
+                            
+                            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                cleanup_closure.as_ref().unchecked_ref(),
+                                1000 // Clean up after 1 second
+                            );
+                            cleanup_closure.forget();
+                        }
                     }
                 }
                 
@@ -1684,7 +1774,9 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                     <header id="site-header" class={format!("site-header header-section {} {}", get_effects_class("header", &component_templates), get_animation_class("header"))} style={format!("{}; {}", get_component_style("header"), get_effects_style("header", &component_templates))}>
                         <div class="container">
                             {render_site_logo(&component_templates, &site_title)}
-                            <nav class="site-nav">
+                            
+                            // Desktop Navigation
+                            <nav class="site-nav desktop-nav">
                                 if !*loading {
                                     {{
                                         let items: Vec<_> = header_navigation_items.iter().filter(|item| item.is_active).collect();
@@ -1708,7 +1800,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                 
                                 {if *admin_button_visible {
                                     html! {
-                                        <button class="nav-button admin-button" onclick={on_admin_click}>
+                                        <button class="nav-button admin-button" onclick={on_admin_click.clone()}>
                                             {"Admin"}
                                         </button>
                                     }
@@ -1716,7 +1808,117 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     html! {}
                                 }}
                             </nav>
+
+                            // Mobile Hamburger Menu Button
+                            <div class={format!("hamburger-menu-container {}", if *mobile_menu_open { "active" } else { "" })}>
+                                <button 
+                                    class="hamburger-button"
+                                    onclick={on_mobile_menu_toggle.clone()}
+                                    aria-label="Toggle mobile menu"
+                                    aria-expanded={mobile_menu_open.to_string()}
+                                >
+                                    <div class="hamburger-icon">
+                                        <svg class={format!("hamburger-svg {}", if *mobile_menu_open { "open" } else { "" })} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line class="hamburger-line top-line" x1="3" y1="6" x2="21" y2="6"/>
+                                            <line class="hamburger-line middle-line" x1="3" y1="12" x2="21" y2="12"/>
+                                            <line class="hamburger-line bottom-line" x1="3" y1="18" x2="21" y2="18"/>
+                                        </svg>
+                                    </div>
+                                </button>
+                            </div>
                         </div>
+                        
+                        // Mobile Menu Overlay
+                        {if *mobile_menu_open {
+                            html! {
+                                <div class="mobile-menu-overlay" onclick={on_mobile_menu_overlay_click.clone()} aria-hidden="false">
+                                    <div class="mobile-menu-content" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
+                                        <div class="mobile-menu-header">
+                                            <h3>{(*site_title).clone()}</h3>
+                                            <button 
+                                                class="close-button"
+                                                onclick={on_mobile_menu_toggle.clone()}
+                                                aria-label="Close mobile menu"
+                                            >
+                                                {"×"}
+                                            </button>
+                                        </div>
+                                        <nav class="mobile-menu-nav">
+                                            <ul class="mobile-nav-list">
+                                                {if !*loading {
+                                                    header_navigation_items.iter().filter(|item| item.is_active && item.mobile_visible).map(|item| {
+                                                        let is_active = props.current_page == item.url.trim_start_matches('/');
+                                                        let item_url = item.url.clone();
+                                                        let on_nav_click = {
+                                                            let on_nav_item_click = on_nav_item_click.clone();
+                                                            let mobile_menu_open = mobile_menu_open.clone();
+                                                            Callback::from(move |e: MouseEvent| {
+                                                                // Close mobile menu
+                                                                mobile_menu_open.set(false);
+                                                                // Navigate
+                                                                on_nav_item_click.emit(e);
+                                                            })
+                                                        };
+                                                        html! {
+                                                            <li class="mobile-nav-item">
+                                                                <a 
+                                                                    href="#" 
+                                                                    class={format!("mobile-nav-link {}", if is_active { "active" } else { "" })}
+                                                                    data-url={item_url}
+                                                                    onclick={on_nav_click}
+                                                                >
+                                                                    {if let Some(icon) = &item.icon {
+                                                                        html! { <span class="nav-icon">{icon}</span> }
+                                                                    } else {
+                                                                        html! {}
+                                                                    }}
+                                                                    <span class="nav-text">{&item.title}</span>
+                                                                    {if let Some(description) = &item.description {
+                                                                        html! { <span class="nav-description">{description}</span> }
+                                                                    } else {
+                                                                        html! {}
+                                                                    }}
+                                                                </a>
+                                                            </li>
+                                                        }
+                                                    }).collect::<Html>()
+                                                } else {
+                                                    html! {}
+                                                }}
+                                                
+                                                {if *admin_button_visible {
+                                                    html! {
+                                                        <li class="mobile-nav-item">
+                                                            <a 
+                                                                href="#" 
+                                                                class="mobile-nav-link admin-nav-link"
+                                                                onclick={{
+                                                                    let on_admin_click = on_admin_click.clone();
+                                                                    let mobile_menu_open = mobile_menu_open.clone();
+                                                                    Callback::from(move |e: MouseEvent| {
+                                                                        e.prevent_default();
+                                                                        mobile_menu_open.set(false);
+                                                                        on_admin_click.emit(e);
+                                                                    })
+                                                                }}
+                                                            >
+                                                                <span class="nav-icon">{"⚙️"}</span>
+                                                                <span class="nav-text">{"Admin"}</span>
+                                                                <span class="nav-description">{"Manage your site"}</span>
+                                                            </a>
+                                                        </li>
+                                                    }
+                                                } else {
+                                                    html! {}
+                                                }}
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                            }
+                        } else {
+                            html! {}
+                        }}
                     </header>
                 }
             } else {
