@@ -54,8 +54,7 @@ node_modules/
 
 # dotenv environment variables file
 .env
-# Keep master Docker configuration but ignore active env
-!.env.docker
+.env.docker
 
 # Database
 *.db
