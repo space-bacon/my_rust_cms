@@ -74,7 +74,7 @@ pub fn admin(props: &AdminProps) -> Html {
                     let mut found_current_theme = false;
 
                     for setting in theme_settings {
-                        if setting.setting_key == "current_admin_theme" {
+                        if setting.setting_key == "theme_current_admin" {
                             if let Some(theme_name) = setting.setting_value {
                                 current_theme = theme_name;
                                 found_current_theme = true;

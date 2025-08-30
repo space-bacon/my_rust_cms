@@ -292,10 +292,10 @@ pub fn apply_admin_css_variables(scheme: &AdminColorScheme) {
                     scheme.header_text_color, scheme.header_border_color, scheme.header_shadow,
                     scheme.sidebar_border_color, scheme.sidebar_shadow, scheme.nav_link_text_color,
                     scheme.nav_link_hover_bg, scheme.nav_link_hover_text, scheme.card_bg,
-                    scheme.shadow_color, scheme.accent_color, scheme.header_gradient,
+                    scheme.shadow_color, scheme.accent_color, scheme.primary_gradient,
                     scheme.sidebar_bg, scheme.background, scheme.text_primary,
                     scheme.sidebar_bg, scheme.sidebar_border_color, scheme.sidebar_shadow,
-                    scheme.header_gradient, scheme.header_text_color, scheme.header_border_color,
+                    scheme.primary_gradient, scheme.header_text_color, scheme.header_border_color,
                     scheme.header_shadow, scheme.nav_link_text_color, scheme.nav_link_hover_bg,
                     scheme.nav_link_hover_text, scheme.card_bg, scheme.border, scheme.shadow_color,
                     scheme.primary, scheme.primary, scheme.success, scheme.success,
@@ -601,6 +601,7 @@ pub fn design_system_page() -> Html {
         let admin_scheme = admin_scheme.clone();
         let public_scheme = public_scheme.clone();
         let selected_preset = selected_preset.clone();
+        let saved_themes = saved_themes.clone();
         
         use_effect_with_deps(move |_| {
             wasm_bindgen_futures::spawn_local(async move {
@@ -609,32 +610,58 @@ pub fn design_system_page() -> Html {
                     Ok(theme_settings) => {
                         let mut current_theme = String::new();
                         let mut found_current_theme = false;
+                        let mut custom_themes: std::collections::HashMap<String, AdminColorScheme> = std::collections::HashMap::new();
+                        let mut all_theme_names = vec!["Light Preset".to_string(), "Dark Preset".to_string()];
 
                         for setting in theme_settings {
-                            if setting.setting_key == "current_admin_theme" {
+                            if setting.setting_key == "theme_current_admin" {
                                 if let Some(theme_name) = setting.setting_value {
                                     current_theme = theme_name;
                                     found_current_theme = true;
                                 }
+                            } else if setting.setting_key.starts_with("admin_theme_") {
+                                if let Some(theme_data) = setting.setting_value {
+                                    if let Ok(scheme) = serde_json::from_str::<AdminColorScheme>(&theme_data) {
+                                        let theme_name = setting.setting_key.strip_prefix("admin_theme_").unwrap_or("Unknown").to_string();
+                                        custom_themes.insert(theme_name.clone(), scheme);
+                                        if !all_theme_names.contains(&theme_name) {
+                                            all_theme_names.push(theme_name);
+                                        }
+                                    }
+                                }
                             }
                         }
+
+                        // Update saved themes list
+                        saved_themes.set(all_theme_names);
 
                         if found_current_theme {
                             let scheme = match current_theme.as_str() {
                                 "Dark Preset" => AdminColorScheme::dark_mode(),
-                                _ => AdminColorScheme::default(),
+                                "Light Preset" => AdminColorScheme::default(),
+                                custom_name => {
+                                    custom_themes.get(custom_name)
+                                        .cloned()
+                                        .unwrap_or_else(|| {
+                                            log::warn!("Custom theme '{}' not found, using default", custom_name);
+                                            AdminColorScheme::default()
+                                        })
+                                }
                             };
                             selected_preset.set(current_theme.clone());
                             admin_scheme.set(scheme.clone());
                             apply_admin_css_variables(&scheme);
+                            log::info!("🎨 Loaded theme: {}", current_theme);
                         } else {
                             let default_scheme = AdminColorScheme::default();
+                            selected_preset.set("Light Preset".to_string());
                             admin_scheme.set(default_scheme.clone());
                             apply_admin_css_variables(&default_scheme);
                         }
                     },
                     Err(_) => {
                         let default_scheme = AdminColorScheme::default();
+                        selected_preset.set("Light Preset".to_string());
                         admin_scheme.set(default_scheme.clone());
                         apply_admin_css_variables(&default_scheme);
                     }
@@ -658,11 +685,15 @@ pub fn design_system_page() -> Html {
 
     let on_admin_color_change = {
         let admin_scheme = admin_scheme.clone();
+        let selected_preset = selected_preset.clone();
         Callback::from(move |(field, value): (String, String)| {
             let mut scheme = (*admin_scheme).clone();
             match field.as_str() {
                 "primary" => scheme.primary = value,
-                "primary_gradient" => scheme.primary_gradient = value,
+                "primary_gradient" => {
+                    scheme.primary_gradient = value.clone();
+                    scheme.header_gradient = value;
+                },
                 "secondary" => scheme.secondary = value,
                 "secondary_gradient" => scheme.secondary_gradient = value,
                 "success" => scheme.success = value,
@@ -681,6 +712,24 @@ pub fn design_system_page() -> Html {
             }
             admin_scheme.set(scheme.clone());
             apply_admin_css_variables(&scheme);
+            
+            // Auto-save if it's a custom theme (not a preset)
+            let current_theme = (*selected_preset).clone();
+            if !current_theme.is_empty() && current_theme != "Light Preset" && current_theme != "Dark Preset" {
+                let scheme_clone = scheme.clone();
+                let theme_name = current_theme.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    let theme_data = serde_json::to_string(&scheme_clone).unwrap_or_default();
+                    let setting = SettingData {
+                        key: format!("admin_theme_{}", theme_name),
+                        value: theme_data,
+                        setting_type: "theme".to_string(),
+                        description: Some(format!("Custom admin theme: {}", theme_name)),
+                    };
+                    let _ = update_settings(vec![setting]).await;
+                    log::debug!("🎨 Auto-saved changes to custom theme: {}", theme_name);
+                });
+            }
         })
     };
 
@@ -718,25 +767,65 @@ pub fn design_system_page() -> Html {
             let select = event.target().unwrap().dyn_into::<web_sys::HtmlSelectElement>().unwrap();
             let theme_name = select.value();
             
-            let scheme = match theme_name.as_str() {
-                "Dark Preset" => AdminColorScheme::dark_mode(),
-                _ => AdminColorScheme::default(),
-            };
-            
             selected_preset.set(theme_name.clone());
-            admin_scheme.set(scheme.clone());
-            apply_admin_css_variables(&scheme);
             
-            // Save to database
+            // Load the theme (either preset or custom)
             let theme_name_clone = theme_name.clone();
+            let admin_scheme_clone = admin_scheme.clone();
             wasm_bindgen_futures::spawn_local(async move {
+                match theme_name_clone.as_str() {
+                    "Dark Preset" => {
+                        let scheme = AdminColorScheme::dark_mode();
+                        admin_scheme_clone.set(scheme.clone());
+                        apply_admin_css_variables(&scheme);
+                    },
+                    "Light Preset" => {
+                        let scheme = AdminColorScheme::default();
+                        admin_scheme_clone.set(scheme.clone());
+                        apply_admin_css_variables(&scheme);
+                    },
+                    custom_name => {
+                        // Load custom theme from database
+                        match get_settings(Some("theme")).await {
+                            Ok(theme_settings) => {
+                                let mut found_custom_theme = false;
+                                for setting in theme_settings {
+                                    if setting.setting_key == format!("admin_theme_{}", custom_name) {
+                                        if let Some(theme_data) = setting.setting_value {
+                                            if let Ok(scheme) = serde_json::from_str::<AdminColorScheme>(&theme_data) {
+                                                admin_scheme_clone.set(scheme.clone());
+                                                apply_admin_css_variables(&scheme);
+                                                found_custom_theme = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                if !found_custom_theme {
+                                    log::warn!("Custom theme '{}' not found, using default", custom_name);
+                                    let scheme = AdminColorScheme::default();
+                                    admin_scheme_clone.set(scheme.clone());
+                                    apply_admin_css_variables(&scheme);
+                                }
+                            },
+                            Err(_) => {
+                                let scheme = AdminColorScheme::default();
+                                admin_scheme_clone.set(scheme.clone());
+                                apply_admin_css_variables(&scheme);
+                            }
+                        }
+                    }
+                }
+                
+                // Save current theme selection to database
                 let setting = SettingData {
-                    key: "current_admin_theme".to_string(),
-                    value: theme_name_clone,
+                    key: "theme_current_admin".to_string(),
+                    value: theme_name_clone.clone(),
                     setting_type: "theme".to_string(),
                     description: Some("Current admin theme".to_string()),
                 };
                 let _ = update_settings(vec![setting]).await;
+                log::info!("🎨 Switched to theme: {}", theme_name_clone);
             });
         })
     };
@@ -745,6 +834,7 @@ pub fn design_system_page() -> Html {
         let theme_name_input = theme_name_input.clone();
         let admin_scheme = admin_scheme.clone();
         let saved_themes = saved_themes.clone();
+        let selected_preset = selected_preset.clone();
         Callback::from(move |_| {
             let theme_name = (*theme_name_input).clone();
             if !theme_name.is_empty() {
@@ -757,18 +847,32 @@ pub fn design_system_page() -> Html {
                     saved_themes.set(themes);
                 }
                 
+                // Set as current theme
+                selected_preset.set(theme_name.clone());
+                
                 // Save to database
                 let theme_name_clone = theme_name.clone();
                 let scheme_clone = scheme.clone();
                 wasm_bindgen_futures::spawn_local(async move {
                     let theme_data = serde_json::to_string(&scheme_clone).unwrap_or_default();
-                    let setting = SettingData {
-                        key: format!("admin_theme_{}", theme_name_clone),
-                        value: theme_data,
-                        setting_type: "theme".to_string(),
-                        description: Some(format!("Custom admin theme: {}", theme_name_clone)),
-                    };
-                    let _ = update_settings(vec![setting]).await;
+                    
+                    // Save both the theme data and set it as current
+                    let settings = vec![
+                        SettingData {
+                            key: format!("admin_theme_{}", theme_name_clone),
+                            value: theme_data,
+                            setting_type: "theme".to_string(),
+                            description: Some(format!("Custom admin theme: {}", theme_name_clone)),
+                        },
+                        SettingData {
+                            key: "theme_current_admin".to_string(),
+                            value: theme_name_clone.clone(),
+                            setting_type: "theme".to_string(),
+                            description: Some("Current admin theme".to_string()),
+                        }
+                    ];
+                    let _ = update_settings(settings).await;
+                    log::info!("🎨 Saved and activated custom theme: {}", theme_name_clone);
                 });
                 
                 theme_name_input.set(String::new());
@@ -831,7 +935,12 @@ pub fn design_system_page() -> Html {
                                             >
                                                 {for saved_themes.iter().map(|theme| {
                                                     html! {
-                                                        <option value={theme.clone()}>{theme.clone()}</option>
+                                                        <option 
+                                                            value={theme.clone()}
+                                                            selected={*selected_preset == *theme}
+                                                        >
+                                                            {theme.clone()}
+                                                        </option>
                                                     }
                                                 })}
                                             </select>
@@ -859,31 +968,35 @@ pub fn design_system_page() -> Html {
                                     
                                     <div class="color-controls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                         <div class="color-group">
-                                            <h5>{"Brand Colors"}</h5>
-                                            {render_color_input("Primary", "primary", &(*admin_scheme).primary, &on_admin_color_change)}
+                                            <h5>{"🎨 Header & Primary"}</h5>
+                                            <p style="font-size: 0.8rem; color: #6b7280; margin: 0 0 1rem 0;">{"Changes to Primary Gradient will update the admin header in real-time"}</p>
+                                            {render_color_input("Primary Color", "primary", &(*admin_scheme).primary, &on_admin_color_change)}
                                             {render_gradient_input("Primary Gradient", "primary_gradient", &(*admin_scheme).primary_gradient, &on_admin_color_change)}
-                                            {render_color_input("Secondary", "secondary", &(*admin_scheme).secondary, &on_admin_color_change)}
-                                            {render_gradient_input("Secondary Gradient", "secondary_gradient", &(*admin_scheme).secondary_gradient, &on_admin_color_change)}
-                                            {render_color_input("Success", "success", &(*admin_scheme).success, &on_admin_color_change)}
-                                            {render_color_input("Warning", "warning", &(*admin_scheme).warning, &on_admin_color_change)}
-                                            {render_color_input("Danger", "danger", &(*admin_scheme).danger, &on_admin_color_change)}
-                                            {render_color_input("Info", "info", &(*admin_scheme).info, &on_admin_color_change)}
-                                        </div>
-                                        
-                                        <div class="color-group">
-                                            <h5>{"Layout Colors"}</h5>
-                                            {render_color_input("Background", "background", &(*admin_scheme).background, &on_admin_color_change)}
-                                            {render_color_input("Surface", "surface", &(*admin_scheme).surface, &on_admin_color_change)}
-                                            {render_color_input("Border", "border", &(*admin_scheme).border, &on_admin_color_change)}
-                                            {render_color_input("Text Primary", "text_primary", &(*admin_scheme).text_primary, &on_admin_color_change)}
-                                            {render_color_input("Text Secondary", "text_secondary", &(*admin_scheme).text_secondary, &on_admin_color_change)}
                                             {render_color_input("Header Text", "header_text_color", &(*admin_scheme).header_text_color, &on_admin_color_change)}
                                         </div>
                                         
                                         <div class="color-group">
-                                            <h5>{"Component Colors"}</h5>
+                                            <h5>{"📄 Layout & Background"}</h5>
+                                            {render_color_input("Page Background", "background", &(*admin_scheme).background, &on_admin_color_change)}
                                             {render_color_input("Sidebar Background", "sidebar_bg", &(*admin_scheme).sidebar_bg, &on_admin_color_change)}
                                             {render_color_input("Card Background", "card_bg", &(*admin_scheme).card_bg, &on_admin_color_change)}
+                                            {render_color_input("Surface", "surface", &(*admin_scheme).surface, &on_admin_color_change)}
+                                            {render_color_input("Border", "border", &(*admin_scheme).border, &on_admin_color_change)}
+                                        </div>
+                                        
+                                        <div class="color-group">
+                                            <h5>{"📝 Text & Typography"}</h5>
+                                            {render_color_input("Primary Text", "text_primary", &(*admin_scheme).text_primary, &on_admin_color_change)}
+                                            {render_color_input("Secondary Text", "text_secondary", &(*admin_scheme).text_secondary, &on_admin_color_change)}
+                                        </div>
+                                        
+                                        <div class="color-group">
+                                            <h5>{"🚦 Status & Actions"}</h5>
+                                            {render_color_input("Success", "success", &(*admin_scheme).success, &on_admin_color_change)}
+                                            {render_color_input("Warning", "warning", &(*admin_scheme).warning, &on_admin_color_change)}
+                                            {render_color_input("Danger", "danger", &(*admin_scheme).danger, &on_admin_color_change)}
+                                            {render_color_input("Info", "info", &(*admin_scheme).info, &on_admin_color_change)}
+                                            {render_color_input("Secondary", "secondary", &(*admin_scheme).secondary, &on_admin_color_change)}
                                         </div>
                                     </div>
                                 </div>

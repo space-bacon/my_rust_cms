@@ -143,7 +143,7 @@ body.admin-body {
 
 /* Style section titles for admin sidebar */
 .admin-sidebar .section-title {
-    font-size: 0.75rem;
+    /* font-size removed - let typography system control this */
     font-weight: 600;
     color: var(--admin-sidebar-section-title-color, rgba(255, 255, 255, 0.8));
     text-transform: uppercase;
@@ -730,7 +730,7 @@ body.admin-body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary-color) 0%, color-mix(in srgb, var(--primary-color) 80%, black) 100%);
+    background: var(--admin-primary-gradient);
     color: white;
     box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }

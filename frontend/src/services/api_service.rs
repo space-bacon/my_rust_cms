@@ -791,8 +791,8 @@ pub struct TableSnapshot {
 // System Settings API
 pub async fn get_settings(setting_type: Option<&str>) -> Result<Vec<Setting>, ApiServiceError> {
     let url = match setting_type {
-        Some(t) => format!("{}/public/system/settings?setting_type={}", API_BASE_URL, t),
-        None => format!("{}/public/system/settings", API_BASE_URL),
+        Some(t) => format!("{}/system/settings?setting_type={}", API_BASE_URL, t),
+        None => format!("{}/system/settings", API_BASE_URL),
     };
     // Admin-only: requires auth
     let response = create_authenticated_request("GET", &url)?

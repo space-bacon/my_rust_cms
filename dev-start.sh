@@ -95,17 +95,33 @@ check_docker() {
     print_success "Docker is running"
 }
 
-# Load environment variables
+# Load environment variables and setup database
 load_environment() {
-    print_step "Loading environment variables..."
+    print_step "Setting up database environment..."
     
-    if [ -f dev.env ]; then
-        set -a  # automatically export all variables
-        source dev.env
-        set +a
-        print_success "Loaded dev.env"
+    # Run the database setup script to ensure correct configuration
+    if [ -f "./setup-database.sh" ]; then
+        ./setup-database.sh
+        print_success "Database environment configured"
     else
-        print_warning "dev.env not found, using defaults"
+        print_warning "setup-database.sh not found, using manual setup"
+        
+        # Fallback: copy Docker environment configuration
+        if [ -f ".env.docker" ]; then
+            cp .env.docker .env
+            print_success "Loaded Docker environment configuration"
+        else
+            print_error "No Docker environment configuration found"
+            exit 1
+        fi
+    fi
+    
+    # Load the environment variables
+    if [ -f ".env" ]; then
+        set -a  # automatically export all variables
+        source .env
+        set +a
+        print_success "Environment variables loaded"
     fi
 }
 

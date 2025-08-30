@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# =============================================================================
+# RUST CMS DEVELOPMENT STARTER
+# =============================================================================
+# Simple wrapper that ensures database setup before starting development
+# =============================================================================
+
+echo "🦀 Starting Rust CMS Development Environment..."
+
+# Always setup database first
+./setup-database.sh
+
+# Start development environment
+./dev-start.sh

@@ -1551,7 +1551,7 @@ fn render_menu_customization_panel(
                     <button 
                         class="apply-btn"
                         style="
-                            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                            background: var(--admin-primary-gradient);
                             color: white;
                             border: none;
                             padding: 14px 32px;
@@ -1615,7 +1615,7 @@ fn render_background_section(customization: &MenuAreaCustomization, update_custo
                 border-bottom: 2px solid #e2e8f0;
             ">
                 <div style="
-                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+                    background: var(--admin-primary-gradient);
                     color: white;
                     width: 40px;
                     height: 40px;
@@ -1696,7 +1696,7 @@ fn render_background_type_cards(customization: &MenuAreaCustomization, update_cu
                             align-items: center;
                             gap: 4px;
                         ",
-                            if is_active { "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" } else { "white" },
+                            if is_active { "var(--admin-primary-gradient)" } else { "white" },
                             if is_active { "#3b82f6" } else { "#e5e7eb" },
                             if is_active { "white" } else { "#6b7280" }
                         )}
@@ -3751,7 +3751,7 @@ fn render_mobile_preview_panel(customization: &MenuAreaCustomization) -> Html {
             ">
                 <span style="
                     font-size: 22px; 
-                    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+                    background: var(--admin-primary-gradient);
                     border-radius: 8px;
                     padding: 6px;
                     display: flex;

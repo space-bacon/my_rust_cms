@@ -807,7 +807,7 @@ tr:hover {
     align-items: center;
     margin-bottom: 3rem;
     padding: 2.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--admin-primary-gradient);
     border-radius: 20px;
     color: white;
     box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
@@ -1250,7 +1250,7 @@ tr:hover {
 .recent-posts h3::before {
     content: '📝';
     font-size: 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--admin-primary-gradient);
     padding: 0.5rem;
     border-radius: 10px;
     display: flex;
@@ -1297,7 +1297,7 @@ tr:hover {
     top: 0;
     bottom: 0;
     width: 4px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--admin-primary-gradient);
     border-radius: 0 2px 2px 0;
 }
 
@@ -1551,7 +1551,7 @@ tr:hover {
     border-radius: 12px;
     font-weight: 600;
     transition: all 0.3s ease;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--admin-primary-gradient);
     color: white;
     border: none;
     position: relative;
@@ -4781,7 +4781,7 @@ tr:last-child td {
 }
 
 .modern-media-library .upload-button {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: var(--admin-primary-gradient);
     color: white;
     padding: 1rem 2rem;
     border-radius: 25px;
@@ -4956,7 +4956,7 @@ tr:last-child td {
 }
 
 .modern-media-library .view-btn.active {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: var(--admin-primary-gradient);
     color: white;
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
 }
