@@ -2,7 +2,7 @@ use yew::prelude::*;
 use crate::services::api_service::{get_settings, update_settings, SettingData};
 use web_sys::HtmlSelectElement;
 use wasm_bindgen::JsCast;
-use std::collections::HashMap;
+
 use gloo_timers;
 
 #[derive(Clone, PartialEq)]
@@ -15,40 +15,61 @@ pub struct TypographySettings {
     pub paragraph_line_height: f64,
     pub paragraph_weight: i32,
     pub paragraph_spacing: f64,
+    pub paragraph_color: String,
     
     // Heading settings
     pub h1_size: i32,
     pub h1_line_height: f64,
     pub h1_weight: i32,
     pub h1_spacing: f64,
+    pub h1_color: String,
     
     pub h2_size: i32,
     pub h2_line_height: f64,
     pub h2_weight: i32,
     pub h2_spacing: f64,
+    pub h2_color: String,
     
     pub h3_size: i32,
     pub h3_line_height: f64,
     pub h3_weight: i32,
     pub h3_spacing: f64,
+    pub h3_color: String,
     
     // Navigation settings
     pub nav_size: i32,
     pub nav_line_height: f64,
     pub nav_weight: i32,
     pub nav_spacing: f64,
+    pub nav_color: String,
+    pub nav_hover_color: String,
     
     // Button settings
     pub button_size: i32,
     pub button_line_height: f64,
     pub button_weight: i32,
     pub button_spacing: f64,
+    pub button_color: String,
     
     // Alert settings
     pub alert_size: i32,
     pub alert_line_height: f64,
     pub alert_weight: i32,
     pub alert_spacing: f64,
+    pub alert_color: String,
+    
+    // Link settings
+    pub link_color: String,
+    pub link_hover_color: String,
+    pub link_visited_color: String,
+    pub link_active_color: String,
+    
+    // Text hierarchy colors
+    pub text_primary_color: String,
+    pub text_secondary_color: String,
+    pub text_meta_color: String,
+    pub text_light_color: String,
+    pub text_muted_color: String,
 }
 
 impl Default for TypographySettings {
@@ -61,40 +82,61 @@ impl Default for TypographySettings {
             paragraph_line_height: 1.6,
             paragraph_weight: 400,
             paragraph_spacing: 1.0,
+            paragraph_color: "#333333".to_string(),
             
             // Heading defaults (proper hierarchy)
             h1_size: 32,
             h1_line_height: 1.2,
             h1_weight: 700,
             h1_spacing: 1.5,
+            h1_color: "#1a1a1a".to_string(),
             
             h2_size: 28,
             h2_line_height: 1.3,
             h2_weight: 600,
             h2_spacing: 1.3,
+            h2_color: "#1a1a1a".to_string(),
             
             h3_size: 24,
             h3_line_height: 1.4,
             h3_weight: 600,
             h3_spacing: 1.2,
+            h3_color: "#333333".to_string(),
             
             // Navigation defaults
             nav_size: 16,
             nav_line_height: 1.4,
             nav_weight: 500,
             nav_spacing: 0.8,
+            nav_color: "#333333".to_string(),
+            nav_hover_color: "#000000".to_string(),
             
             // Button defaults
             button_size: 16,
             button_line_height: 1.2,
             button_weight: 500,
             button_spacing: 0.5,
+            button_color: "#ffffff".to_string(),
             
             // Alert defaults
             alert_size: 14,
             alert_line_height: 1.4,
             alert_weight: 400,
             alert_spacing: 0.8,
+            alert_color: "#333333".to_string(),
+            
+            // Link defaults
+            link_color: "#1a1a1a".to_string(),
+            link_hover_color: "#666666".to_string(),
+            link_visited_color: "#555555".to_string(),
+            link_active_color: "#000000".to_string(),
+            
+            // Text hierarchy defaults
+            text_primary_color: "#1a1a1a".to_string(),
+            text_secondary_color: "#333333".to_string(),
+            text_meta_color: "#666666".to_string(),
+            text_light_color: "#999999".to_string(),
+            text_muted_color: "#cccccc".to_string(),
         }
     }
 }
@@ -272,7 +314,7 @@ pub fn load_and_apply_typography_settings() {
                 // Try localStorage as fallback
                 web_sys::console::log_1(&"🔧 FALLBACK: Checking localStorage for typography settings".into());
                 if let Ok(Some(storage)) = web_sys::window().unwrap().local_storage() {
-                        let mut found_localStorage = false;
+                        let mut found_local_storage = false;
                         let mut font_family = "system".to_string();
                         let mut font_size = 16;
                         let mut line_height = 1.5;
@@ -280,7 +322,7 @@ pub fn load_and_apply_typography_settings() {
                         
                         if let Ok(Some(value)) = storage.get_item("typography_font_family") {
                             font_family = value;
-                            found_localStorage = true;
+                            found_local_storage = true;
                         }
                         if let Ok(Some(value)) = storage.get_item("typography_font_size") {
                             if let Ok(size) = value.parse::<i32>() {
@@ -298,16 +340,16 @@ pub fn load_and_apply_typography_settings() {
                             }
                         }
                         
-                        if found_localStorage {
+                        if found_local_storage {
                             web_sys::console::log_1(&format!("✅ FALLBACK: Found typography settings in localStorage: font={}", font_family).into());
-                            let localStorage_settings = TypographySettings {
+                            let local_storage_settings = TypographySettings {
                                 font_family,
                                 paragraph_size: font_size,
                                 paragraph_line_height: line_height,
                                 paragraph_weight: font_weight,
                                 ..TypographySettings::default()
                             };
-                            apply_typography_settings(&localStorage_settings);
+                            apply_typography_settings(&local_storage_settings);
                             return;
                         }
                 }
@@ -339,6 +381,25 @@ fn apply_typography_settings(settings: &TypographySettings) {
                     r#"
                     :root {{
                         --global-font-family: {};
+                        
+                        /* Typography Color Variables */
+                        --typography-paragraph-color: {};
+                        --typography-text-primary-color: {};
+                        --typography-text-secondary-color: {};
+                        --typography-text-meta-color: {};
+                        --typography-text-light-color: {};
+                        --typography-text-muted-color: {};
+                        --typography-h1-color: {};
+                        --typography-h2-color: {};
+                        --typography-h3-color: {};
+                        --typography-nav-color: {};
+                        --typography-nav-hover-color: {};
+                        --typography-button-color: {};
+                        --typography-button-hover-color: {};
+                        --typography-alert-color: {};
+                        --typography-success-color: {};
+                        --typography-warning-color: {};
+                        --typography-info-color: {};
                     }}
                     
                     /* Universal font-family application */
@@ -356,6 +417,7 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         margin-bottom: {}em !important;
+                        color: var(--typography-paragraph-color) !important;
                     }}
                     
                     /* Heading 1 typography */
@@ -364,6 +426,7 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         margin-bottom: {}em !important;
+                        color: var(--typography-h1-color) !important;
                     }}
                     
                     /* Heading 2 typography */
@@ -372,6 +435,7 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         margin-bottom: {}em !important;
+                        color: var(--typography-h2-color) !important;
                     }}
                     
                     /* Heading 3 typography */
@@ -380,6 +444,7 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         margin-bottom: {}em !important;
+                        color: var(--typography-h3-color) !important;
                     }}
                     
                     /* Navigation typography */
@@ -391,6 +456,17 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         margin-bottom: {}em !important;
+                        color: var(--typography-nav-color) !important;
+                    }}
+                    
+                    /* Navigation hover states */
+                    nav:hover, .navigation:hover, .nav-menu:hover, .menu:hover, .menu-item:hover, .nav-item:hover, 
+                    .nav-link:hover, .menu-link:hover, .navbar:hover, .header-nav:hover, .main-nav:hover, 
+                    .primary-nav:hover, .secondary-nav:hover, .breadcrumb:hover, .breadcrumb-item:hover, 
+                    .pagination:hover, .pagination-item:hover, .tab:hover, .tab-item:hover, .mobile-menu:hover,
+                    .hamburger-menu:hover, .dropdown-menu:hover, .dropdown-item:hover, .site-nav:hover, 
+                    .navigation-link:hover {{
+                        color: var(--typography-nav-hover-color) !important;
                     }}
                     
                     /* Button typography */
@@ -402,6 +478,7 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         padding: {}em 1.5em !important;
+                        color: var(--typography-button-color) !important;
                     }}
                     
                     /* Alert typography */
@@ -410,6 +487,7 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         line-height: {} !important;
                         font-weight: {} !important;
                         padding: {}em 1em !important;
+                        color: var(--typography-alert-color) !important;
                     }}
                     
                     /* Comments typography */
@@ -447,7 +525,28 @@ fn apply_typography_settings(settings: &TypographySettings) {
                         font-weight: {} !important;
                     }}
                     "#,
-                    font_css, font_css,
+                    font_css, 
+                    
+                    // Color variables
+                    settings.paragraph_color,
+                    settings.text_primary_color,
+                    settings.text_secondary_color,
+                    settings.text_meta_color,
+                    settings.text_light_color,
+                    settings.text_muted_color,
+                    settings.h1_color,
+                    settings.h2_color,
+                    settings.h3_color,
+                    settings.nav_color,
+                    settings.nav_hover_color,
+                    settings.button_color,
+                    settings.link_hover_color, // Use link_hover_color instead of button_hover_color
+                    settings.alert_color,
+                    settings.text_primary_color, // Use text_primary_color for success
+                    settings.text_secondary_color, // Use text_secondary_color for warning  
+                    settings.text_meta_color, // Use text_meta_color for info
+                    
+                    font_css,
                     
                     // Paragraph
                     settings.paragraph_size, settings.paragraph_line_height, settings.paragraph_weight, settings.paragraph_spacing,
@@ -529,6 +628,29 @@ pub fn typography_system() -> Html {
     let alert_line_height = use_state(|| 1.4);
     let alert_weight = use_state(|| 400);
     let alert_spacing = use_state(|| 0.8);
+    
+    // Color state variables
+    let paragraph_color = use_state(|| "#333333".to_string());
+    let text_primary_color = use_state(|| "#1f2937".to_string());
+    let text_secondary_color = use_state(|| "#6b7280".to_string());
+    let text_meta_color = use_state(|| "#9ca3af".to_string());
+    let text_light_color = use_state(|| "#d1d5db".to_string());
+    let text_muted_color = use_state(|| "#e5e7eb".to_string());
+    
+    let h1_color = use_state(|| "#1f2937".to_string());
+    let h2_color = use_state(|| "#374151".to_string());
+    let h3_color = use_state(|| "#4b5563".to_string());
+    
+    let nav_color = use_state(|| "#374151".to_string());
+    let nav_hover_color = use_state(|| "#1f2937".to_string());
+    
+    let button_color = use_state(|| "#ffffff".to_string());
+    let button_hover_color = use_state(|| "#f9fafb".to_string());
+    
+    let alert_color = use_state(|| "#dc2626".to_string());
+    let success_color = use_state(|| "#059669".to_string());
+    let warning_color = use_state(|| "#d97706".to_string());
+    let info_color = use_state(|| "#2563eb".to_string());
     
     let paragraph_spacing = use_state(|| 1.0);
     
@@ -981,6 +1103,7 @@ pub fn typography_system() -> Html {
                 alert_line_height: *alert_line_height,
                 alert_weight: *alert_weight,
                 alert_spacing: *alert_spacing,
+                ..TypographySettings::default()
             };
             apply_typography_settings(&typography_settings);
         }
@@ -1426,6 +1549,111 @@ pub fn typography_system() -> Html {
                 has_unsaved_changes.set(true);
                 apply_all_typography();
             }
+        })
+    };
+
+    // Color event handlers
+    let on_paragraph_color_change = {
+        let paragraph_color = paragraph_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            paragraph_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_h1_color_change = {
+        let h1_color = h1_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            h1_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_h2_color_change = {
+        let h2_color = h2_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            h2_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_h3_color_change = {
+        let h3_color = h3_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            h3_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_nav_color_change = {
+        let nav_color = nav_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            nav_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_nav_hover_color_change = {
+        let nav_hover_color = nav_hover_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            nav_hover_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_button_color_change = {
+        let button_color = button_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            button_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
+        })
+    };
+
+    let on_alert_color_change = {
+        let alert_color = alert_color.clone();
+        let has_unsaved_changes = has_unsaved_changes.clone();
+        let apply_all_typography = apply_all_typography.clone();
+        
+        Callback::from(move |event: web_sys::InputEvent| {
+            let input = event.target().unwrap().dyn_into::<web_sys::HtmlInputElement>().unwrap();
+            alert_color.set(input.value());
+            has_unsaved_changes.set(true);
+            apply_all_typography();
         })
     };
     
@@ -1932,6 +2160,17 @@ pub fn typography_system() -> Html {
                                     style="width: 100%;"
                                 />
                             </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*paragraph_color).clone()}
+                                    oninput={on_paragraph_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -1998,6 +2237,17 @@ pub fn typography_system() -> Html {
                                     value={(*h1_spacing).to_string()}
                                     oninput={on_h1_spacing_change}
                                     style="width: 100%;"
+                                />
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*h1_color).clone()}
+                                    oninput={on_h1_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
                                 />
                             </div>
                         </div>
@@ -2068,6 +2318,17 @@ pub fn typography_system() -> Html {
                                     style="width: 100%;"
                                 />
                             </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*h2_color).clone()}
+                                    oninput={on_h2_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -2134,6 +2395,17 @@ pub fn typography_system() -> Html {
                                     value={(*h3_spacing).to_string()}
                                     oninput={on_h3_spacing_change}
                                     style="width: 100%;"
+                                />
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*h3_color).clone()}
+                                    oninput={on_h3_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
                                 />
                             </div>
                         </div>
@@ -2204,6 +2476,28 @@ pub fn typography_system() -> Html {
                                     style="width: 100%;"
                                 />
                             </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*nav_color).clone()}
+                                    oninput={on_nav_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
+                                />
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Hover Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*nav_hover_color).clone()}
+                                    oninput={on_nav_hover_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -2272,6 +2566,17 @@ pub fn typography_system() -> Html {
                                     style="width: 100%;"
                                 />
                             </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*button_color).clone()}
+                                    oninput={on_button_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -2338,6 +2643,17 @@ pub fn typography_system() -> Html {
                                     value={(*alert_spacing).to_string()}
                                     oninput={on_alert_spacing_change}
                                     style="width: 100%;"
+                                />
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; font-size: 0.875rem;">
+                                    {"Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={(*alert_color).clone()}
+                                    oninput={on_alert_color_change}
+                                    style="width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 0.5rem; cursor: pointer;"
                                 />
                             </div>
                         </div>

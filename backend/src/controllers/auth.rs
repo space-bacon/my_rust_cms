@@ -13,10 +13,7 @@ use crate::{
         validation::{validate_username, validate_email, validate_password},
         errors::AppError,
     },
-    services::{
-        // Temporarily disabled for Docker build
-        // email_service::{MockEmailService, generate_verification_token},
-    },
+    services,
 };
 
 // Temporary replacement for email service function
@@ -203,7 +200,7 @@ pub async fn signup(
     
     // Send verification email asynchronously to avoid blocking the response
     // Check if real email service should be used (via environment variable)
-    let use_real_email = std::env::var("USE_REAL_EMAIL").unwrap_or_else(|_| "false".to_string()) == "true";
+    let _use_real_email = std::env::var("USE_REAL_EMAIL").unwrap_or_else(|_| "false".to_string()) == "true";
     
     let email = signup_req.email.clone();
     let username = signup_req.username.clone();

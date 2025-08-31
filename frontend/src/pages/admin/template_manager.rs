@@ -1362,7 +1362,7 @@ fn render_menu_customization_panel(
     area_name: String,
     customizing_area: UseStateHandle<Option<String>>
 ) -> Html {
-    let update_customization = {
+                    let update_customization = {
         let area_customizations = area_customizations.clone();
         let area_name = area_name.clone();
         Callback::from(move |updates: Vec<(String, String)>| {
@@ -4988,8 +4988,8 @@ fn generate_text_shadow_css(customization: &MenuAreaCustomization) -> String {
     }
 }
 
-fn generate_menu_css(customization: &MenuAreaCustomization, area_name: &str) -> String {
-    let mut css_rules: Vec<String> = Vec::new();
+fn generate_menu_css(customization: &MenuAreaCustomization, _area_name: &str) -> String {
+    let _css_rules: Vec<String> = Vec::new();
     
     // Generate shape mask clip-path if needed
     let clip_path = generate_shape_mask_clip_path_admin(customization);

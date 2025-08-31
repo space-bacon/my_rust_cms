@@ -1,5 +1,5 @@
 use crate::components::{MenuStyle, MenuProperties};
-use crate::services::api_service::{SettingData, update_settings, get_settings, get_public_settings};
+use crate::services::api_service::{SettingData, update_settings, get_public_settings};
 
 pub async fn save_menu_style(area: &str, style: &MenuStyle) -> Result<(), String> {
     web_sys::console::log_1(&format!("💾 SAVE_MENU_STYLE: Saving style for area '{}' to DATABASE", area).into());

@@ -6,8 +6,8 @@ services:
     image: postgres:15-alpine
     container_name: rustcms_dev_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-rustcms}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_USER: ${POSTGRES_USER:-myrustcms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-7Zxce7ag5PXFX3H1nmcmGZ9JGLeAvUg5}
       POSTGRES_DB: ${POSTGRES_DB:-my_rust_cms}
     ports:
       - "5432:5432"
@@ -18,7 +18,7 @@ services:
       - rustcms-dev-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rustcms}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myrustcms}"]
       interval: 10s
       timeout: 5s
       retries: 5

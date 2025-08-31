@@ -50,70 +50,279 @@ body.admin-body {
     z-index: 1;
 }
 
-/* Admin Header */
+/* Admin Header - Override any conflicting styles */
 .admin-header {
-    background: var(--admin-header-gradient, linear-gradient(135deg, #4c1d95 0%, #312e81 50%, #1e1b4b 100%));
-    border-bottom: 1px solid var(--admin-header-border-color, rgba(255, 255, 255, 0.1));
-    box-shadow: var(--admin-header-shadow, 0 4px 20px rgba(0, 0, 0, 0.3));
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    background: var(--admin-header-gradient, linear-gradient(135deg, #4c1d95 0%, #312e81 50%, #1e1b4b 100%)) !important;
+    border-bottom: 1px solid var(--admin-header-border-color, rgba(255, 255, 255, 0.1)) !important;
+    box-shadow: var(--admin-header-shadow, 0 4px 20px rgba(0, 0, 0, 0.3)) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    padding: 0 !important; /* Override main.css padding */
+    color: var(--admin-header-text-color, white) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Override main.css admin header styles completely */
+.admin-layout .admin-header {
+    background: var(--admin-header-gradient, linear-gradient(135deg, #4c1d95 0%, #312e81 50%, #1e1b4b 100%)) !important;
+    padding: 0 !important;
+    border-bottom: 1px solid var(--admin-header-border-color, rgba(255, 255, 255, 0.1)) !important;
+    height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.admin-layout .admin-header-content {
+    padding: 0 1rem !important;
+    max-width: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: 64px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.admin-layout .admin-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.75rem !important;
+    height: 64px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative !important;
+    top: 0 !important;
 }
 
 .admin-header-content {
-    max-width: 95%;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 64px;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 1rem !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    height: 64px !important;
+    position: relative !important;
+    z-index: 1 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
 }
 
 .admin-header h1,
 .admin-header .admin-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--admin-header-text-color, white);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    text-shadow: var(--admin-header-text-shadow, 0 2px 4px rgba(0, 0, 0, 0.3));
-    text-align: left;
-    justify-self: flex-start;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: var(--admin-title-color, var(--admin-header-text-color, white)) !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    text-shadow: var(--admin-header-text-shadow, 0 2px 4px rgba(0, 0, 0, 0.3)) !important;
+    text-align: left !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
 }
 
 .admin-header h1::before,
 .admin-header .admin-title::before {
-    content: '';
-    width: 32px;
-    height: 32px;
-    background: var(--admin-header-logo-gradient, linear-gradient(135deg, #667eea, #764ba2));
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-position: center;
-    background-repeat: no-repeat;
+    content: '' !important;
+    width: 32px !important;
+    height: 32px !important;
+    background: var(--admin-header-logo-gradient, linear-gradient(135deg, #667eea, #764ba2)) !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    flex-shrink: 0 !important;
 }
 
 .admin-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 0.75rem !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    height: 64px !important;
+    position: relative !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-.admin-user {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    color: var(--text-secondary);
-    font-weight: 500;
-    font-size: 0.875rem;
+/* Admin Header Buttons */
+.admin-header-actions .btn {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 8px !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.375rem !important;
+    min-width: 0 !important;
+    flex-shrink: 0 !important;
+    height: auto !important;
+    line-height: 1 !important;
+}
+
+.admin-header-actions .btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-1px) !important;
+}
+
+.admin-header-actions .btn svg {
+    flex-shrink: 0 !important;
+    color: inherit !important;
+}
+
+/* Admin User Badge - Override main.css styles */
+.admin-header .admin-user {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.375rem !important;
+    padding: 0.5rem 0.75rem !important;
+    background: var(--admin-user-bg, rgba(255, 255, 255, 0.15)) !important;
+    border: 1px solid var(--admin-user-border, rgba(255, 255, 255, 0.2)) !important;
+    border-radius: 8px !important;
+    color: var(--admin-user-text, rgba(255, 255, 255, 0.9)) !important;
+    font-weight: 500 !important;
+    font-size: 0.8rem !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    height: auto !important;
+    line-height: 1 !important;
+}
+
+.admin-header .admin-user:hover {
+    background: var(--admin-user-hover-bg, rgba(255, 255, 255, 0.2)) !important;
+    border-color: var(--admin-user-hover-border, rgba(255, 255, 255, 0.3)) !important;
+}
+
+.admin-header .admin-user svg {
+    flex-shrink: 0 !important;
+    color: inherit !important;
+}
+
+/* Responsive Admin Header */
+@media (max-width: 1024px) {
+    .admin-header-content {
+        padding: 0 0.75rem;
+    }
+    
+    .admin-header h1,
+    .admin-header .admin-title {
+        font-size: 1.3rem;
+        gap: 0.5rem;
+    }
+    
+    .admin-header-actions {
+        gap: 0.5rem;
+    }
+    
+    .admin-header-actions .btn {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.75rem !important;
+    }
+    
+    .admin-header .admin-user {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.75rem !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-header-content {
+        padding: 0 0.5rem;
+        height: 56px;
+    }
+    
+    .admin-header h1,
+    .admin-header .admin-title {
+        font-size: 1.1rem;
+        gap: 0.4rem;
+    }
+    
+    .admin-header h1::before,
+    .admin-header .admin-title::before {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .admin-header-actions {
+        gap: 0.4rem;
+    }
+    
+    .admin-header-actions .btn {
+        padding: 0.3rem 0.5rem !important;
+        font-size: 0.7rem !important;
+        gap: 0.25rem !important;
+    }
+    
+    .admin-header .admin-user {
+        padding: 0.3rem 0.5rem !important;
+        font-size: 0.7rem !important;
+        gap: 0.25rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-header-content {
+        padding: 0 0.4rem;
+        height: 52px;
+    }
+    
+    .admin-header h1,
+    .admin-header .admin-title {
+        font-size: 1rem;
+        gap: 0.3rem;
+    }
+    
+    .admin-header h1::before,
+    .admin-header .admin-title::before {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .admin-header-actions {
+        gap: 0.3rem;
+    }
+    
+    .admin-header-actions .btn {
+        padding: 0.25rem 0.4rem !important;
+        font-size: 0.65rem !important;
+        gap: 0.2rem !important;
+    }
+    
+    .admin-header .admin-user {
+        padding: 0.25rem 0.4rem !important;
+        font-size: 0.65rem !important;
+        gap: 0.2rem !important;
+    }
 }
 
 /* Admin Content */
@@ -133,24 +342,27 @@ body.admin-body {
 }
 
 .sidebar-section {
-    padding: 0.75rem 0;
-    border-bottom: none;
+    padding: 0.5rem 0 !important;
+    border-bottom: none !important;
+    margin: 0 !important;
 }
 
 .sidebar-section:last-child {
     border-bottom: none;
 }
 
-/* Style section titles for admin sidebar */
-.admin-sidebar .section-title {
-    /* font-size removed - let typography system control this */
-    font-weight: 600;
-    color: var(--admin-sidebar-section-title-color, rgba(255, 255, 255, 0.8));
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin: 0 1.5rem 0.75rem 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--admin-sidebar-section-border-color, rgba(255, 255, 255, 0.1));
+/* Style section titles for admin sidebar - Override design system */
+.admin-sidebar .section-title,
+.admin-sidebar h3.section-title {
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    color: var(--admin-primary-color, #667eea) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    margin: 0 1.5rem 0.5rem 1.5rem !important;
+    padding-bottom: 0.375rem !important;
+    border-bottom: 1px solid var(--admin-primary-color, #667eea) !important;
+    line-height: 1.1 !important;
 }
 
 .admin-nav {
@@ -160,26 +372,30 @@ body.admin-body {
 }
 
 .admin-nav li {
-    margin: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
 }
 
 .admin-nav-link {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 0.875rem 1.5rem;
-    background: none;
-    border: none;
-    text-align: left;
-    color: var(--admin-nav-link-text-color, rgba(255, 255, 255, 0.8));
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    gap: 0.75rem;
-    position: relative;
-    border-radius: 0;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 0.5rem 1.5rem !important;
+    background: none !important;
+    border: none !important;
+    text-align: left !important;
+    color: var(--admin-nav-link-text-color, rgba(255, 255, 255, 0.8)) !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+    gap: 0.75rem !important;
+    position: relative !important;
+    border-radius: 0 !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
 }
 
 .admin-nav-link:hover {

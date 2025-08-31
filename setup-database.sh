@@ -70,14 +70,19 @@ fi
 
 # Copy the correct environment configuration
 print_info "Setting up environment configuration..."
-cp .env.docker .env
-print_status "Environment configuration updated (.env.docker → .env)"
+if [ -f "docker.env" ]; then
+    cp docker.env .env
+    print_status "Environment configuration updated (docker.env → .env)"
+else
+    print_error "docker.env file not found!"
+    exit 1
+fi
 
 # Verify database connection
 print_info "Testing database connection..."
-if docker exec rustcms_dev_postgres psql -U rustcms -d my_rust_cms -c "SELECT COUNT(*) FROM settings;" > /dev/null 2>&1; then
-    SETTINGS_COUNT=$(docker exec rustcms_dev_postgres psql -U rustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings;" | xargs)
-    TYPOGRAPHY_COUNT=$(docker exec rustcms_dev_postgres psql -U rustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings WHERE setting_type = 'typography';" | xargs)
+if docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -c "SELECT COUNT(*) FROM settings;" > /dev/null 2>&1; then
+    SETTINGS_COUNT=$(docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings;" | xargs)
+    TYPOGRAPHY_COUNT=$(docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings WHERE setting_type = 'typography';" | xargs)
     
     print_status "Database connection successful"
     print_info "Total settings: $SETTINGS_COUNT"

@@ -4,8 +4,7 @@ use axum::{
     response::Response,
     http::StatusCode,
 };
-use tower_governor::{GovernorLayer, key_extractor::SmartIpKeyExtractor};
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 /// Rate limiting configuration for different types of operations
 #[derive(Clone)]

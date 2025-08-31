@@ -164,7 +164,7 @@ setup_database() {
     
     # Wait for database to be ready
     print_step "Waiting for database to be ready..."
-    ./scripts/wait-for-db.sh localhost 5432 rustcms my_rust_cms
+    ./scripts/wait-for-db.sh localhost 5432 myrustcms my_rust_cms
     
     print_success "Database is ready"
 }
@@ -177,7 +177,7 @@ run_migrations() {
         cd backend
         
         # Set DATABASE_URL if not already set
-        export DATABASE_URL="${DATABASE_URL:-postgres://rustcms:password@localhost:5432/my_rust_cms}"
+        export DATABASE_URL="${DATABASE_URL:-postgres://myrustcms:7Zxce7ag5PXFX3H1nmcmGZ9JGLeAvUg5@localhost:5432/my_rust_cms}"
         
         # Run migrations with better error handling
         if diesel migration run; then
@@ -247,7 +247,7 @@ show_status() {
     echo -e "${CYAN}📍 Service URLs:${NC}"
     echo -e "   ${GREEN}Frontend:${NC}  http://localhost:8080"
     echo -e "   ${GREEN}Backend:${NC}   http://localhost:8081"
-    echo -e "   ${GREEN}Database:${NC}  postgresql://rustcms:password@localhost:5432/my_rust_cms"
+    echo -e "   ${GREEN}Database:${NC}  postgresql://myrustcms:***@localhost:5432/my_rust_cms"
     echo ""
     echo -e "${CYAN}🔧 Development Tools:${NC}"
     echo -e "   ${GREEN}Hot Reload:${NC} Both frontend and backend will auto-reload on changes"

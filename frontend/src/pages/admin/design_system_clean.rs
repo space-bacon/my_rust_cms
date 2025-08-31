@@ -1,5 +1,5 @@
 use yew::prelude::*;
-
+use crate::services::api_service::{get_settings, update_settings, SettingData};
 use crate::pages::admin::TypographySystem;
 use web_sys::HtmlInputElement;
 use wasm_bindgen::JsCast;
@@ -379,23 +379,149 @@ pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
     }
 }
 
-
-
-pub fn design_system_page() -> Html {
-    html! { <DesignSystemPage /> }
+#[derive(Properties, PartialEq)]
+pub struct AdminPreviewProps {
+    pub scheme: AdminColorScheme,
 }
 
-#[function_component(DesignSystemPage)]
-fn design_system_page_component() -> Html {
+#[function_component(AdminPreview)]
+pub fn admin_preview(props: &AdminPreviewProps) -> Html {
+    html! {
+        <div class="admin-preview" style={format!("background: {}; padding: 1rem; border-radius: 8px; border: 1px solid {};", 
+            props.scheme.background, props.scheme.border)}>
+            
+        <div class="admin-header" style={format!("background: {}; padding: 0.5rem 1rem; border-bottom: 1px solid {}; display: flex; justify-content: space-between; align-items: center;", 
+            props.scheme.header_gradient, props.scheme.header_border_color)}>
+            <div class="admin-title" style={format!("color: {}; font-weight: bold;", props.scheme.admin_title_color)}>
+                {"Admin Panel"}
+            </div>
+            <div class="admin-user" style={format!("background: {}; color: {}; padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid {};", 
+                props.scheme.admin_user_bg, props.scheme.admin_user_text, props.scheme.admin_user_border)}>
+                {"User"}
+            </div>
+        </div>
+        
+        <div class="admin-body" style="display: flex;">
+            <div class="admin-sidebar" style={format!("background: {}; border-right: 1px solid {}; padding: 1rem; width: 200px;", 
+                props.scheme.sidebar_bg, props.scheme.sidebar_border_color)}>
+                
+                <div class="admin-nav-link" style="padding: 0.5rem; margin: 0.25rem 0; border-radius: 4px; cursor: pointer;">
+                    {"Dashboard"}
+                </div>
+                <div class="admin-nav-link" style={format!("background: {}; padding: 0.5rem; margin: 0.25rem 0; border-radius: 4px; cursor: pointer;", 
+                    props.scheme.nav_link_hover_bg)}>
+                    {"Posts (Active)"}
+                </div>
+            </div>
+            
+            <div class="admin-content" style={format!("background: {}; padding: 1rem; border-radius: 4px;", 
+                props.scheme.background)}>
+                <h5 style="margin: 0 0 0.5rem 0;">{"Content Area"}</h5>
+                <p style="margin: 0 0 1rem 0;">{"This is how your admin interface will look."}</p>
+                
+                <div class="button-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn-primary" style={format!("background: {}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;", 
+                        props.scheme.primary)}>
+                        {"Primary"}
+                    </button>
+                    <button class="btn-success" style={format!("background: {}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;", 
+                        props.scheme.success)}>
+                        {"Success"}
+                    </button>
+                    <button class="btn-warning" style={format!("background: {}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;", 
+                        props.scheme.warning)}>
+                        {"Warning"}
+                    </button>
+                    <button class="btn-danger" style={format!("background: {}; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;", 
+                        props.scheme.danger)}>
+                        {"Danger"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct PublicPreviewProps {
+    pub scheme: PublicColorScheme,
+}
+
+#[function_component(PublicPreview)]
+pub fn public_preview(props: &PublicPreviewProps) -> Html {
+    html! {
+        <div class="public-preview" style={format!("background: {}; padding: 1rem; border-radius: 8px; border: 1px solid {};", 
+            props.scheme.background_light, props.scheme.border_light)}>
+            
+        <div class="public-header" style={format!("background: {}; color: white; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center;", 
+                props.scheme.link_primary)}>
+            <div class="site-title" style="font-weight: bold;">{"Your Site"}</div>
+            <div class="nav-links" style="display: flex; gap: 1rem;">
+                <a href="#" style="color: white; text-decoration: none;">{"Home"}</a>
+                <a href="#" style="color: rgba(255,255,255,0.8); text-decoration: none;">{"About"}</a>
+                <a href="#" style="color: white; text-decoration: none;">{"Contact"}</a>
+            </div>
+        </div>
+        
+        <div class="public-content" style="padding: 1rem;">
+            <div class="hero-section" style={format!("background: {}; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;", 
+                props.scheme.hero_bg)}>
+                <h1 style="font-weight: 700; margin: 0 0 0.5rem 0;">{"Welcome to Your Site"}</h1>
+                <h2 style="font-weight: 600; margin: 0 0 0.5rem 0;">{"Subheading"}</h2>
+                <p style="margin: 0 0 1rem 0;">{"This is how your public site will look with the selected theme."}</p>
+                <p style="font-size: 0.9rem; margin: 0;">{"Secondary text and descriptions will appear like this."}</p>
+            </div>
+            
+            <div class="content-area" style="margin-bottom: 1rem;">
+                <h3 style="font-weight: 600; margin: 0 0 0.5rem 0;">{"Content Section"}</h3>
+                <p style="margin: 0 0 0.5rem 0;">
+                    {"Here's a sample paragraph with a "}
+                    <a href="#" style={format!("color: {}; text-decoration: underline;", props.scheme.link_primary)}>{"primary link"}</a>
+                    {" and some meta information."}
+                </p>
+                <p style="font-size: 0.8rem; margin: 0;">{"Light text for captions and less important information."}</p>
+            </div>
+            
+            <div class="alerts-demo" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="alert-success" style={format!("background: {}; color: white; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem;", 
+                    props.scheme.success)}>
+                    {"✓ Success message"}
+                </div>
+                <div class="alert-warning" style={format!("background: {}; color: white; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem;", 
+                    props.scheme.warning)}>
+                    {"⚠ Warning message"}
+                </div>
+                <div class="alert-danger" style={format!("background: {}; color: white; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem;", 
+                    props.scheme.danger)}>
+                    {"✗ Error message"}
+                </div>
+                <div class="alert-info" style={format!("background: {}; color: white; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem;", 
+                    props.scheme.info)}>
+                    {"ℹ Info message"}
+                </div>
+            </div>
+        </div>
+        
+        <div class="public-footer" style={format!("background: {}; color: white; padding: 0.5rem 1rem; text-align: center; margin-top: 1rem;", 
+                props.scheme.link_primary)}>
+            <p style="color: rgba(255,255,255,0.8); font-size: 0.8rem;">{"Footer text and links"}</p>
+        </div>
+    </div>
+    }
+}
+
+#[function_component(DesignSystem)]
+pub fn design_system() -> Html {
     let admin_scheme = use_state(AdminColorScheme::default);
     let public_scheme = use_state(PublicColorScheme::default);
     let selected_preset = use_state(|| "Light Preset".to_string());
 
     // Apply initial themes
-    use_effect({
+    use_effect_with((), {
         let admin_scheme = admin_scheme.clone();
         let public_scheme = public_scheme.clone();
-        move || {
+        move |_| {
             apply_admin_css_variables(&admin_scheme);
             apply_public_css_variables(&public_scheme);
             || ()
@@ -451,7 +577,7 @@ fn design_system_page_component() -> Html {
         })
     };
 
-    let render_admin_color_input = |label: String, color_name: String, value: String, callback: Callback<web_sys::Event>| {
+    let render_admin_color_input = |label: &str, color_name: &str, value: &str, callback: &Callback<web_sys::Event>| {
         html! {
             <div class="color-input-group" style="margin-bottom: 0.5rem;">
                 <label style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem;">{label}</label>
@@ -459,14 +585,14 @@ fn design_system_page_component() -> Html {
                     type="color" 
                     value={value} 
                     data-color={color_name}
-                    onchange={callback}
+                    onchange={callback.clone()}
                     style="width: 100%; height: 2rem; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;"
                 />
             </div>
         }
     };
 
-    let render_public_color_input = |label: String, color_name: String, value: String, callback: Callback<web_sys::Event>| {
+    let render_public_color_input = |label: &str, color_name: &str, value: &str, callback: &Callback<web_sys::Event>| {
         html! {
             <div class="color-input-group" style="margin-bottom: 0.5rem;">
                 <label style="display: block; font-size: 0.8rem; margin-bottom: 0.25rem;">{label}</label>
@@ -474,114 +600,97 @@ fn design_system_page_component() -> Html {
                     type="color" 
                     value={value} 
                     data-color={color_name}
-                    onchange={callback}
+                    onchange={callback.clone()}
                     style="width: 100%; height: 2rem; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;"
                 />
             </div>
         }
-    };
-
-    let active_tab = use_state(|| "admin".to_string());
-
-    let on_tab_click = {
-        let active_tab = active_tab.clone();
-        Callback::from(move |tab: String| {
-            active_tab.set(tab);
-        })
     };
 
     html! {
-        <div class="design-system-page">
-            <div class="page-header">
-                <h1>{"Design System"}</h1>
-                <p>{"Customize your site's visual appearance and branding"}</p>
+        <div class="design-system-page" style="padding: 2rem;">
+            <div class="page-header" style="margin-bottom: 2rem;">
+                <h1 style="margin: 0 0 0.5rem 0; font-size: 2rem; font-weight: 700;">{"Design System"}</h1>
+                <p style="margin: 0; color: #6b7280;">{"Customize your site's visual appearance and branding"}</p>
             </div>
 
-            <div class="design-system-tabs">
-                <button 
-                    class={if *active_tab == "admin" { "tab-button active" } else { "tab-button" }}
-                    onclick={let tab = on_tab_click.clone(); Callback::from(move |_| tab.emit("admin".to_string()))}
-                >
-                    {"Admin Theme"}
-                </button>
-                <button 
-                    class={if *active_tab == "public" { "tab-button active" } else { "tab-button" }}
-                    onclick={let tab = on_tab_click.clone(); Callback::from(move |_| tab.emit("public".to_string()))}
-                >
-                    {"Public Theme"}
-                </button>
-                <button 
-                    class={if *active_tab == "typography" { "tab-button active" } else { "tab-button" }}
-                    onclick={let tab = on_tab_click.clone(); Callback::from(move |_| tab.emit("typography".to_string()))}
-                >
-                    {"Typography"}
-                </button>
-            </div>
-
-            <div class="tab-content">
-                {match (*active_tab).as_str() {
-                    "admin" => html! {
-                        <div class="colors-tab">
-                            <div class="color-editor-layout">
-                                <div class="color-controls">
-                                    <div class="color-groups">
-                                        <div class="color-group">
-                                            <h3>{"Primary Colors"}</h3>
-                                            {render_admin_color_input("Primary".to_string(), "primary".to_string(), (*admin_scheme).primary.clone(), on_admin_color_change.clone())}
-                                            {render_admin_color_input("Secondary".to_string(), "secondary".to_string(), (*admin_scheme).secondary.clone(), on_admin_color_change.clone())}
-                                        </div>
-                                        
-                                        <div class="color-group">
-                                            <h3>{"Status Colors"}</h3>
-                                            {render_admin_color_input("Success".to_string(), "success".to_string(), (*admin_scheme).success.clone(), on_admin_color_change.clone())}
-                                            {render_admin_color_input("Warning".to_string(), "warning".to_string(), (*admin_scheme).warning.clone(), on_admin_color_change.clone())}
-                                            {render_admin_color_input("Danger".to_string(), "danger".to_string(), (*admin_scheme).danger.clone(), on_admin_color_change.clone())}
-                                            {render_admin_color_input("Info".to_string(), "info".to_string(), (*admin_scheme).info.clone(), on_admin_color_change.clone())}
-                                        </div>
-                                        
-                                        <div class="color-group">
-                                            <h3>{"Layout Colors"}</h3>
-                                            {render_admin_color_input("Background".to_string(), "background".to_string(), (*admin_scheme).background.clone(), on_admin_color_change.clone())}
-                                            {render_admin_color_input("Surface".to_string(), "surface".to_string(), (*admin_scheme).surface.clone(), on_admin_color_change.clone())}
-                                            {render_admin_color_input("Border".to_string(), "border".to_string(), (*admin_scheme).border.clone(), on_admin_color_change.clone())}
-                                        </div>
-                                    </div>
+            <div class="design-tabs" style="display: flex; gap: 2rem;">
+                <div class="admin-theme-section" style="flex: 1;">
+                    <h2 style="margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 600;">{"Admin Theme"}</h2>
+                    
+                    <div class="theme-controls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div class="color-controls">
+                            <h3 style="margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 500;">{"Colors"}</h3>
+                            
+                            <div class="color-groups" style="display: grid; gap: 1rem;">
+                                <div class="color-group">
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 500;">{"Primary Colors"}</h4>
+                                    {render_admin_color_input("Primary", "primary", &(*admin_scheme).primary, &on_admin_color_change)}
+                                    {render_admin_color_input("Secondary", "secondary", &(*admin_scheme).secondary, &on_admin_color_change)}
+                                </div>
+                                
+                                <div class="color-group">
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 500;">{"Status Colors"}</h4>
+                                    {render_admin_color_input("Success", "success", &(*admin_scheme).success, &on_admin_color_change)}
+                                    {render_admin_color_input("Warning", "warning", &(*admin_scheme).warning, &on_admin_color_change)}
+                                    {render_admin_color_input("Danger", "danger", &(*admin_scheme).danger, &on_admin_color_change)}
+                                    {render_admin_color_input("Info", "info", &(*admin_scheme).info, &on_admin_color_change)}
+                                </div>
+                                
+                                <div class="color-group">
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 500;">{"Layout Colors"}</h4>
+                                    {render_admin_color_input("Background", "background", &(*admin_scheme).background, &on_admin_color_change)}
+                                    {render_admin_color_input("Surface", "surface", &(*admin_scheme).surface, &on_admin_color_change)}
+                                    {render_admin_color_input("Border", "border", &(*admin_scheme).border, &on_admin_color_change)}
                                 </div>
                             </div>
                         </div>
-                    },
-                    "public" => html! {
-                        <div class="colors-tab">
-                            <div class="public-theme-layout">
-                                <div class="color-controls">
-                                    <div class="color-groups">
-                                        <div class="color-group">
-                                            <h3>{"Link Colors"}</h3>
-                                            {render_public_color_input("Primary Link".to_string(), "link_primary".to_string(), (*public_scheme).link_primary.clone(), on_public_color_change.clone())}
-                                            {render_public_color_input("Link Hover".to_string(), "link_hover".to_string(), (*public_scheme).link_hover.clone(), on_public_color_change.clone())}
-                                            {render_public_color_input("Link Visited".to_string(), "link_visited".to_string(), (*public_scheme).link_visited.clone(), on_public_color_change.clone())}
-                                            {render_public_color_input("Link Active".to_string(), "link_active".to_string(), (*public_scheme).link_active.clone(), on_public_color_change.clone())}
-                                        </div>
-                                        
-                                        <div class="color-group">
-                                            <h3>{"Status Colors"}</h3>
-                                            {render_public_color_input("Success".to_string(), "success".to_string(), (*public_scheme).success.clone(), on_public_color_change.clone())}
-                                            {render_public_color_input("Warning".to_string(), "warning".to_string(), (*public_scheme).warning.clone(), on_public_color_change.clone())}
-                                            {render_public_color_input("Danger".to_string(), "danger".to_string(), (*public_scheme).danger.clone(), on_public_color_change.clone())}
-                                            {render_public_color_input("Info".to_string(), "info".to_string(), (*public_scheme).info.clone(), on_public_color_change.clone())}
-                                        </div>
-                                    </div>
+                        
+                        <div class="preview-section">
+                            <h3 style="margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 500;">{"Preview"}</h3>
+                            <AdminPreview scheme={(*admin_scheme).clone()} />
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="public-theme-section" style="flex: 1;">
+                    <h2 style="margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 600;">{"Public Theme"}</h2>
+                    
+                    <div class="theme-controls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div class="color-controls">
+                            <h3 style="margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 500;">{"Colors"}</h3>
+                            
+                            <div class="color-groups" style="display: grid; gap: 1rem;">
+                                <div class="color-group">
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 500;">{"Link Colors"}</h4>
+                                    {render_public_color_input("Primary Link", "link_primary", &(*public_scheme).link_primary, &on_public_color_change)}
+                                    {render_public_color_input("Link Hover", "link_hover", &(*public_scheme).link_hover, &on_public_color_change)}
+                                    {render_public_color_input("Link Visited", "link_visited", &(*public_scheme).link_visited, &on_public_color_change)}
+                                    {render_public_color_input("Link Active", "link_active", &(*public_scheme).link_active, &on_public_color_change)}
+                                </div>
+                                
+                                <div class="color-group">
+                                    <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 500;">{"Status Colors"}</h4>
+                                    {render_public_color_input("Success", "success", &(*public_scheme).success, &on_public_color_change)}
+                                    {render_public_color_input("Warning", "warning", &(*public_scheme).warning, &on_public_color_change)}
+                                    {render_public_color_input("Danger", "danger", &(*public_scheme).danger, &on_public_color_change)}
+                                    {render_public_color_input("Info", "info", &(*public_scheme).info, &on_public_color_change)}
                                 </div>
                             </div>
                         </div>
-                    },
-                    "typography" => html! {
-                        <div class="typography-tab">
-                            <TypographySystem />
+                        
+                        <div class="preview-section">
+                            <h3 style="margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 500;">{"Preview"}</h3>
+                            <PublicPreview scheme={(*public_scheme).clone()} />
                         </div>
-                    },
-                    _ => html! {}
-                }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="typography-section" style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #e5e7eb;">
+                <h2 style="margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 600;">{"Typography System"}</h2>
+                <p style="margin: 0 0 1.5rem 0; color: #6b7280;">{"All typography colors and styling are now managed through the dedicated Typography System."}</p>
+                <TypographySystem />
             </div>
         </div>
     }

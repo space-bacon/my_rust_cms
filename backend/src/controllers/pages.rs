@@ -213,7 +213,7 @@ pub async fn update_page_content(
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
     
     // Check if page exists
-    let existing_page = Page::find_by_id(&mut conn, id)?
+    let _existing_page = Page::find_by_id(&mut conn, id)?
         .ok_or_else(|| AppError::NotFound("Page not found".to_string()))?;
     
     // Update only the content field

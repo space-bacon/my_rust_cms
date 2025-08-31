@@ -324,7 +324,7 @@ pub async fn upload_plugin_zip(file: web_sys::File) -> Result<PluginInfo, Plugin
     opts.set_method("POST");
     opts.set_mode(web_sys::RequestMode::Cors);
     
-    let mut headers = web_sys::Headers::new()
+    let headers = web_sys::Headers::new()
         .map_err(|_| PluginServiceError::NetworkError("Failed to create headers".to_string()))?;
     headers.set("Authorization", &format!("Bearer {}", token))
         .map_err(|_| PluginServiceError::NetworkError("Failed to set auth header".to_string()))?;

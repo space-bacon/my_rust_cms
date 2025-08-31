@@ -25,7 +25,7 @@ pub use post_list::PostList;
 pub use post_editor::PostEditor;
 #[allow(unused_imports)]
 pub use user_management::UserManagement;
-pub use enhanced_user_management::EnhancedUserManagement;
+
 pub use typography_system::TypographySystem;
 #[allow(unused_imports)]
 pub use comment_moderation::CommentModeration;

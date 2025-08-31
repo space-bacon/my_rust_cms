@@ -1,6 +1,6 @@
 use crate::{
     models::{Plugin, NewPlugin},
-    services::{sample_plugins::get_sample_plugins, plugin_interface::Plugin as PluginTrait},
+    services::sample_plugins::get_sample_plugins,
     database::DbPool,
 };
 use diesel::prelude::*;

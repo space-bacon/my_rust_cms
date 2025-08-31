@@ -24,10 +24,7 @@ pub mod plugin_modal;
 // Export essential components that are used across the app
 pub use sidebar::ActiveTab;
 pub use public_layout::PublicLayout;
-pub use live_edit_mode::LiveEditMode;
-pub use simple_component_editor::SimpleComponentEditor;
-pub use unified_properties_panel::UnifiedPropertiesPanel;
-pub use enhanced_live_edit_system::{EnhancedLiveEditSystem, apply_template_style_preview};
+pub use enhanced_live_edit_system::EnhancedLiveEditSystem;
 pub use posts_list_widget::PostsListWidget;
 pub use auth_guard::AdminGuard;
 // pub use hamburger_menu::HamburgerMenu; // Will be used when integrated
