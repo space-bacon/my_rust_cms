@@ -84,20 +84,25 @@ body {
     background: var(--public-header-text, #fff);
 }
 
-.admin-button {
-    background: var(--public-background-light, #ffffff);
-    color: var(--public-text-primary, #1a1a1a);
-    border: 1px solid var(--public-border-light, #e2e8f0);
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+/* Login button styles - higher specificity to override nav-button */
+.nav-button.login-button,
+.login-button {
+    background: var(--login-button-bg, var(--public-background-light, #ffffff)) !important;
+    color: var(--login-button-text, var(--public-text-primary, #1a1a1a)) !important;
+    border: 1px solid var(--login-button-border, var(--public-border-light, #e2e8f0)) !important;
+    font-weight: var(--login-button-font-weight, 500) !important;
+    font-size: var(--login-button-font-size, 14px) !important;
+    padding: var(--login-button-padding, 0.5rem 1rem) !important;
+    border-radius: var(--login-button-border-radius, 4px) !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer;
 }
 
-.admin-button:hover {
-    background: var(--public-text-primary, #1a1a1a);
-    color: var(--public-background-light, #ffffff);
-    border-color: var(--public-text-primary, #1a1a1a);
+.nav-button.login-button:hover,
+.login-button:hover {
+    background: var(--login-button-hover-bg, var(--public-text-primary, #1a1a1a)) !important;
+    color: var(--login-button-hover-text, var(--public-background-light, #ffffff)) !important;
+    border-color: var(--login-button-hover-border, var(--public-text-primary, #1a1a1a)) !important;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }

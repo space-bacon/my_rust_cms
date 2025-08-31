@@ -202,6 +202,18 @@ pub struct PublicColorScheme {
     pub metric_card_users_accent: String,
     pub metric_card_comments_accent: String,
     pub metric_card_media_accent: String,
+    
+    // Login button colors
+    pub login_button_bg: String,
+    pub login_button_text: String,
+    pub login_button_border: String,
+    pub login_button_hover_bg: String,
+    pub login_button_hover_text: String,
+    pub login_button_hover_border: String,
+    pub login_button_font_size: String,
+    pub login_button_font_weight: String,
+    pub login_button_padding: String,
+    pub login_button_border_radius: String,
 }
 
 impl Default for PublicColorScheme {
@@ -288,6 +300,18 @@ impl Default for PublicColorScheme {
             metric_card_users_accent: "#10b981".to_string(),
             metric_card_comments_accent: "#f59e0b".to_string(),
             metric_card_media_accent: "#ef4444".to_string(),
+            
+            // Login button defaults
+            login_button_bg: "#ffffff".to_string(),
+            login_button_text: "#1a1a1a".to_string(),
+            login_button_border: "#e2e8f0".to_string(),
+            login_button_hover_bg: "#1a1a1a".to_string(),
+            login_button_hover_text: "#ffffff".to_string(),
+            login_button_hover_border: "#1a1a1a".to_string(),
+            login_button_font_size: "14px".to_string(),
+            login_button_font_weight: "500".to_string(),
+            login_button_padding: "0.5rem 1rem".to_string(),
+            login_button_border_radius: "4px".to_string(),
         }
     }
 }
@@ -522,6 +546,18 @@ pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
                         --public-metric-card-users-accent: {};
                         --public-metric-card-comments-accent: {};
                         --public-metric-card-media-accent: {};
+                        
+                        /* Login button variables */
+                        --login-button-bg: {};
+                        --login-button-text: {};
+                        --login-button-border: {};
+                        --login-button-hover-bg: {};
+                        --login-button-hover-text: {};
+                        --login-button-hover-border: {};
+                        --login-button-font-size: {};
+                        --login-button-font-weight: {};
+                        --login-button-padding: {};
+                        --login-button-border-radius: {};
                     }}
                     
                     a {{
@@ -606,6 +642,12 @@ pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
                     // Metric card accent variables
                     scheme.metric_card_posts_accent, scheme.metric_card_users_accent,
                     scheme.metric_card_comments_accent, scheme.metric_card_media_accent,
+                    
+                    // Login button variables
+                    scheme.login_button_bg, scheme.login_button_text, scheme.login_button_border,
+                    scheme.login_button_hover_bg, scheme.login_button_hover_text, scheme.login_button_hover_border,
+                    scheme.login_button_font_size, scheme.login_button_font_weight,
+                    scheme.login_button_padding, scheme.login_button_border_radius,
                     
                     // Existing variables for backwards compatibility
                     scheme.link_primary, scheme.link_hover, scheme.link_visited, scheme.link_active,
@@ -841,6 +883,18 @@ fn design_system_page_component() -> Html {
                 "metric_card_comments_accent" => scheme.metric_card_comments_accent = value,
                 "metric_card_media_accent" => scheme.metric_card_media_accent = value,
                 
+                // Login button colors
+                "login_button_bg" => scheme.login_button_bg = value,
+                "login_button_text" => scheme.login_button_text = value,
+                "login_button_border" => scheme.login_button_border = value,
+                "login_button_hover_bg" => scheme.login_button_hover_bg = value,
+                "login_button_hover_text" => scheme.login_button_hover_text = value,
+                "login_button_hover_border" => scheme.login_button_hover_border = value,
+                "login_button_font_size" => scheme.login_button_font_size = value,
+                "login_button_font_weight" => scheme.login_button_font_weight = value,
+                "login_button_padding" => scheme.login_button_padding = value,
+                "login_button_border_radius" => scheme.login_button_border_radius = value,
+                
                 _ => {}
             }
             public_scheme.set(scheme.clone());
@@ -1035,6 +1089,68 @@ fn design_system_page_component() -> Html {
                         value: admin_scheme.info,
                         setting_type: "design_system".to_string(),
                         description: Some("Admin info color".to_string()),
+                    },
+                    
+                    // Login button settings
+                    SettingData {
+                        key: "public_login_button_bg".to_string(),
+                        value: public_scheme.login_button_bg,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button background color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_text".to_string(),
+                        value: public_scheme.login_button_text,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button text color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_border".to_string(),
+                        value: public_scheme.login_button_border,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button border color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_hover_bg".to_string(),
+                        value: public_scheme.login_button_hover_bg,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button hover background color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_hover_text".to_string(),
+                        value: public_scheme.login_button_hover_text,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button hover text color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_hover_border".to_string(),
+                        value: public_scheme.login_button_hover_border,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button hover border color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_font_size".to_string(),
+                        value: public_scheme.login_button_font_size,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button font size".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_font_weight".to_string(),
+                        value: public_scheme.login_button_font_weight,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button font weight".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_padding".to_string(),
+                        value: public_scheme.login_button_padding,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button padding".to_string()),
+                    },
+                    SettingData {
+                        key: "public_login_button_border_radius".to_string(),
+                        value: public_scheme.login_button_border_radius,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Login button border radius".to_string()),
                     },
                 ];
                 
@@ -1279,6 +1395,72 @@ fn design_system_page_component() -> Html {
                                             {render_public_color_input("Users Cards".to_string(), "metric_card_users_accent".to_string(), (*public_scheme).metric_card_users_accent.clone(), on_public_color_change.clone())}
                                             {render_public_color_input("Comments Cards".to_string(), "metric_card_comments_accent".to_string(), (*public_scheme).metric_card_comments_accent.clone(), on_public_color_change.clone())}
                                             {render_public_color_input("Media Cards".to_string(), "metric_card_media_accent".to_string(), (*public_scheme).metric_card_media_accent.clone(), on_public_color_change.clone())}
+                                        </div>
+                                    </div>
+                                    
+                                    // Login Button Section
+                                    <div class="color-section">
+                                        <h3 style="font-size: 1rem; margin: 0 0 0.5rem 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 0.25rem;">{"🔐 Login Button"}</h3>
+                                        <div class="color-grid">
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Normal State"}</h4>
+                                            {render_public_color_input("Background".to_string(), "login_button_bg".to_string(), (*public_scheme).login_button_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text Color".to_string(), "login_button_text".to_string(), (*public_scheme).login_button_text.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border Color".to_string(), "login_button_border".to_string(), (*public_scheme).login_button_border.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Hover State"}</h4>
+                                            {render_public_color_input("Hover Background".to_string(), "login_button_hover_bg".to_string(), (*public_scheme).login_button_hover_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Hover Text".to_string(), "login_button_hover_text".to_string(), (*public_scheme).login_button_hover_text.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Hover Border".to_string(), "login_button_hover_border".to_string(), (*public_scheme).login_button_hover_border.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Typography & Spacing"}</h4>
+                                            <div class="form-group">
+                                                <label>{"Font Size"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={(*public_scheme).login_button_font_size.clone()}
+                                                    data-color="login_button_font_size"
+                                                    oninput={let callback = on_public_color_change.clone(); Callback::from(move |e: InputEvent| {
+                                                        let event: Event = e.dyn_into().unwrap();
+                                                        callback.emit(event);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div class="form-group">
+                                                <label>{"Font Weight"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={(*public_scheme).login_button_font_weight.clone()}
+                                                    data-color="login_button_font_weight"
+                                                    oninput={let callback = on_public_color_change.clone(); Callback::from(move |e: InputEvent| {
+                                                        let event: Event = e.dyn_into().unwrap();
+                                                        callback.emit(event);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div class="form-group">
+                                                <label>{"Padding"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={(*public_scheme).login_button_padding.clone()}
+                                                    data-color="login_button_padding"
+                                                    oninput={let callback = on_public_color_change.clone(); Callback::from(move |e: InputEvent| {
+                                                        let event: Event = e.dyn_into().unwrap();
+                                                        callback.emit(event);
+                                                    })}
+                                                />
+                                            </div>
+                                            <div class="form-group">
+                                                <label>{"Border Radius"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={(*public_scheme).login_button_border_radius.clone()}
+                                                    data-color="login_button_border_radius"
+                                                    oninput={let callback = on_public_color_change.clone(); Callback::from(move |e: InputEvent| {
+                                                        let event: Event = e.dyn_into().unwrap();
+                                                        callback.emit(event);
+                                                    })}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -180,16 +180,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Create default site settings if they don't exist
         use crate::models::setting::*;
         
-        // Admin button visibility setting
-        if Setting::find_by_key(&mut conn, "admin_button_visible")?.is_none() {
-            let admin_button_setting = NewSetting {
-                setting_key: "admin_button_visible".to_string(),
+        // Login button visibility setting
+        if Setting::find_by_key(&mut conn, "login_button_visible")?.is_none() {
+            let login_button_setting = NewSetting {
+                setting_key: "login_button_visible".to_string(),
                 setting_value: Some("true".to_string()),
                 setting_type: "site".to_string(),
-                description: Some("Show admin button in public navigation".to_string()),
+                description: Some("Show login button in public navigation".to_string()),
             };
-            let _setting = Setting::create(&mut conn, admin_button_setting)?;
-            info!("Created default setting: admin_button_visible = true");
+            let _setting = Setting::create(&mut conn, login_button_setting)?;
+            info!("Created default setting: login_button_visible = true");
         }
 
         // Create default menu areas if they don't exist

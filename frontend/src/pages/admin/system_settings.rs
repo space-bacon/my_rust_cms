@@ -14,7 +14,7 @@ pub struct SiteSettings {
     pub posts_per_page: i32,
     pub allow_comments: bool,
     pub moderate_comments: bool,
-    pub admin_button_visible: bool,
+    pub login_button_visible: bool,
     pub theme: String,
 }
 
@@ -51,7 +51,7 @@ pub fn system_settings() -> Html {
         posts_per_page: 10,
         allow_comments: true,
         moderate_comments: true,
-        admin_button_visible: true,
+        login_button_visible: true,
         theme: "Modern".to_string(),
     });
     
@@ -286,10 +286,10 @@ pub fn system_settings() -> Html {
                         description: Some("Require comment moderation".to_string()),
                     },
                     SettingData {
-                        key: "admin_button_visible".to_string(),
-                        value: settings.admin_button_visible.to_string(),
+                        key: "login_button_visible".to_string(),
+                        value: settings.login_button_visible.to_string(),
                         setting_type: "site".to_string(),
-                        description: Some("Show admin button in public navigation".to_string()),
+                        description: Some("Show login button in public navigation".to_string()),
                     },
                     SettingData {
                         key: "theme".to_string(),
@@ -451,9 +451,9 @@ pub fn system_settings() -> Html {
                                         site_config.moderate_comments = value.parse::<bool>().unwrap_or(true);
                                     }
                                 },
-                                "admin_button_visible" => {
+                                "login_button_visible" => {
                                     if let Some(value) = setting.setting_value {
-                                        site_config.admin_button_visible = value.parse::<bool>().unwrap_or(true);
+                                        site_config.login_button_visible = value.parse::<bool>().unwrap_or(true);
                                     }
                                 },
                                 "theme" => site_config.theme = setting.setting_value.unwrap_or_default(),
@@ -780,15 +780,15 @@ pub fn system_settings() -> Html {
                                         <label>
                                             <input 
                                                 type="checkbox" 
-                                                checked={site_settings.admin_button_visible}
+                                                checked={site_settings.login_button_visible}
                                                 onchange={let site_settings = site_settings.clone(); Callback::from(move |e: Event| {
                                                     let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
                                                     let mut settings = (*site_settings).clone();
-                                                    settings.admin_button_visible = target.checked();
+                                                    settings.login_button_visible = target.checked();
                                                     site_settings.set(settings);
                                                 })}
                                             />
-                                            {"Show Admin Button in Public Navigation"}
+                                            {"Show Login Button in Public Navigation"}
                                         </label>
                                     </div>
                                 </div>

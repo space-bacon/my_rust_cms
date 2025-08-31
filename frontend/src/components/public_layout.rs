@@ -139,7 +139,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
     let footer_navigation_items = use_state(Vec::new);
     let component_templates = use_state(Vec::<ComponentTemplate>::new);
     let loading = use_state(|| true);
-    let admin_button_visible = use_state(|| true); // Default to true until loaded
+    let login_button_visible = use_state(|| true); // Default to true until loaded
     let site_title = use_state(|| "My Rust CMS".to_string());
     let acid_mode = use_state(|| false);
     let site_style = use_state(|| String::new());
@@ -259,7 +259,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         let footer_navigation_items = footer_navigation_items.clone();
         let component_templates = component_templates.clone();
         let loading = loading.clone();
-        let admin_button_visible = admin_button_visible.clone();
+        let login_button_visible = login_button_visible.clone();
         let site_title = site_title.clone();
         let acid_mode = acid_mode.clone();
         let site_style = site_style.clone();
@@ -318,12 +318,12 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 match settings_result {
                     Ok(settings) => {
                         web_sys::console::log_1(&format!("Settings loaded: {:?}", settings).into());
-                        // Find admin button setting
-                        if let Some(setting) = settings.iter().find(|s| s.setting_key == "admin_button_visible") {
+                        // Find login button setting
+                        if let Some(setting) = settings.iter().find(|s| s.setting_key == "login_button_visible") {
                             if let Some(value) = &setting.setting_value {
                                 let visible = value.parse::<bool>().unwrap_or(true);
-                                admin_button_visible.set(visible);
-                                web_sys::console::log_1(&format!("Admin button visibility set to: {}", visible).into());
+                                login_button_visible.set(visible);
+                                web_sys::console::log_1(&format!("Login button visibility set to: {}", visible).into());
                             }
                         }
                         
@@ -661,6 +661,17 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     "public_card_border" => scheme.card_border = value,
                                     "public_link_primary" => scheme.link_primary = value,
                                     "public_link_hover" => scheme.link_hover = value,
+                                    // Login button settings
+                                    "public_login_button_bg" => scheme.login_button_bg = value,
+                                    "public_login_button_text" => scheme.login_button_text = value,
+                                    "public_login_button_border" => scheme.login_button_border = value,
+                                    "public_login_button_hover_bg" => scheme.login_button_hover_bg = value,
+                                    "public_login_button_hover_text" => scheme.login_button_hover_text = value,
+                                    "public_login_button_hover_border" => scheme.login_button_hover_border = value,
+                                    "public_login_button_font_size" => scheme.login_button_font_size = value,
+                                    "public_login_button_font_weight" => scheme.login_button_font_weight = value,
+                                    "public_login_button_padding" => scheme.login_button_padding = value,
+                                    "public_login_button_border_radius" => scheme.login_button_border_radius = value,
                                     _ => {} // Ignore other settings
                                 }
                             }
@@ -1849,10 +1860,10 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     }}
                                 }
                                 
-                                {if *admin_button_visible {
+                                {if *login_button_visible {
                                     html! {
-                                        <button class="nav-button admin-button" onclick={on_admin_click.clone()}>
-                                            {"Admin"}
+                                        <button class="nav-button login-button" onclick={on_admin_click.clone()}>
+                                            {"Login"}
                                         </button>
                                     }
                                 } else {
@@ -1937,7 +1948,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                     html! {}
                                                 }}
                                                 
-                                                {if *admin_button_visible {
+                                                {if *login_button_visible {
                                                     html! {
                                                         <li class="mobile-nav-item">
                                                             <a 
@@ -1954,8 +1965,8 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                                 }}
                                                             >
                                                                 <span class="nav-icon">{"⚙️"}</span>
-                                                                <span class="nav-text">{"Admin"}</span>
-                                                                <span class="nav-description">{"Manage your site"}</span>
+                                                                <span class="nav-text">{"Login"}</span>
+                                                                <span class="nav-description">{"Access admin panel"}</span>
                                                             </a>
                                                         </li>
                                                     }
