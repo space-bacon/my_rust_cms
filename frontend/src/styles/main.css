@@ -145,23 +145,7 @@ body {
     gap: 2rem;
 }
 
-.post-card {
-    border: 1px solid #eee;
-    padding: 1.5rem;
-    border-radius: 4px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.post-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.post-card h4 {
-    font-size: 1.3rem;
-    margin-bottom: 0.5rem;
-    color: var(--public-heading-h3, #000);
-}
+/* Post card styles moved to public.css for better design system integration */
 
 .post-meta {
     color: var(--public-text-meta, #666);
@@ -6426,7 +6410,7 @@ tr:last-child td {
     left: 0;
     right: 0;
     height: 3px;
-    background: var(--card-accent, linear-gradient(90deg, #667eea, #764ba2));
+    background: var(--card-accent, var(--metric-card-default-accent));
     border-radius: 16px 16px 0 0;
 }
 
@@ -6437,19 +6421,19 @@ tr:last-child td {
 }
 
 .analytics .metric-card.posts {
-    --card-accent: linear-gradient(90deg, #8b5cf6, #667eea);
+    --card-accent: var(--metric-card-posts-accent);
 }
 
 .analytics .metric-card.users {
-    --card-accent: linear-gradient(90deg, #10b981, #059669);
+    --card-accent: var(--metric-card-users-accent);
 }
 
 .analytics .metric-card.comments {
-    --card-accent: linear-gradient(90deg, #f59e0b, #d97706);
+    --card-accent: var(--metric-card-comments-accent);
 }
 
 .analytics .metric-card.media {
-    --card-accent: linear-gradient(90deg, #ef4444, #dc2626);
+    --card-accent: var(--metric-card-media-accent);
 }
 
 .analytics .metric-icon {

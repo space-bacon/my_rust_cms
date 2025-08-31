@@ -642,8 +642,7 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
                     if component.properties.card_button_show && !component.properties.card_button_text.is_empty() {
                         <a 
                             href={component.properties.card_button_url.clone()}
-                            class="read-more"
-                            style="color: var(--public-link-primary, #000); text-decoration: none; font-weight: 600; border-bottom: 2px solid var(--public-link-primary, #000); transition: border-color 0.2s ease;"
+                            class="btn btn-outline btn-sm"
                         >
                             {&component.properties.card_button_text}
                         </a>
@@ -660,18 +659,31 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
                 &component.properties.button_text
             };
             
-            // Enhanced button styling for public pages - ensure visibility
-            let button_style = format!(
-                "{}; display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; cursor: pointer; border: 1px solid #007bff; border-radius: 4px; font-weight: 500; text-align: center; transition: all 0.2s ease; min-width: 80px;",
-                format_component_styles(&component.styles)
-            );
-            
             let href = if button_url.is_empty() { "#".to_string() } else { button_url.clone() };
             let target = if button_target.is_empty() { "_self".to_string() } else { button_target.clone() };
             
+            // Determine button variant and size from properties
+            let button_variant = match component.properties.button_variant.as_str() {
+                "secondary" => "btn-secondary",
+                "outline" => "btn-outline", 
+                "ghost" => "btn-ghost",
+                _ => "btn-primary"
+            };
+            
+            let button_size = match component.properties.button_size.as_str() {
+                "xs" => "btn-xs",
+                "sm" => "btn-sm", 
+                "lg" => "btn-lg",
+                "xl" => "btn-xl",
+                _ => "btn-md"
+            };
+            
+            let button_classes = format!("btn {} {}", button_variant, button_size);
+            let custom_styles = format_component_styles(&component.styles);
+            
             html! {
                 <div class="component button-component" style="margin: 8px 0;">
-                    <a href={href} target={target} class="btn" style={button_style}>
+                    <a href={href} target={target} class={button_classes} style={custom_styles}>
                         {button_text}
                     </a>
                 </div>
@@ -955,9 +967,10 @@ pub fn render_component_content_public_with_context(component: &PageComponent, o
             }
         }
         ComponentType::Quote => {
+            let custom_styles = format_component_styles(&component.styles);
             html! {
-                <div class="component quote-component" style={format_component_styles(&component.styles)}>
-                    <blockquote style="margin: 0; padding-left: 20px; border-left: 4px solid #ddd; font-style: italic;">
+                <div class="component quote-component" style={custom_styles}>
+                    <blockquote>
                         {render_markdown_content(&component.content)}
                     </blockquote>
                 </div>

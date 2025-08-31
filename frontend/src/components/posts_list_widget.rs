@@ -118,11 +118,11 @@ pub fn posts_list_widget(props: &PostsListWidgetProps) -> Html {
                                 </p>
                                 <p class="post-excerpt">{excerpt}</p>
                                 if let Some(click_handler) = on_click {
-                                    <a href={format!("/post/{}", post_id)} class="read-more" onclick={click_handler}>
+                                    <a href={format!("/post/{}", post_id)} class="btn btn-outline btn-sm" onclick={click_handler}>
                                         {"Read Article"}
                                     </a>
                                 } else {
-                                    <a href={format!("/post/{}", post_id)} class="read-more">
+                                    <a href={format!("/post/{}", post_id)} class="btn btn-outline btn-sm">
                                         {"Read Article"}
                                     </a>
                                 }
@@ -132,8 +132,8 @@ pub fn posts_list_widget(props: &PostsListWidgetProps) -> Html {
                 </div>
             }
             if !props.show_full_list && posts.len() > props.limit {
-                <div class="view-all" style="text-align: center; margin-top: 2rem;">
-                    <a href="/posts" class="view-all-link" style="padding: 0.75rem 1.5rem; background: var(--primary-color); color: white; text-decoration: none; border-radius: 0.5rem; font-weight: 500;">
+                <div class="view-all text-center mt-4">
+                    <a href="/posts" class="btn btn-primary">
                         {"View All Posts"}
                     </a>
                 </div>

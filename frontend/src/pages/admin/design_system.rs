@@ -1,8 +1,9 @@
 use yew::prelude::*;
-
+use crate::services::api_service::{get_settings, update_settings, SettingData};
 use crate::pages::admin::TypographySystem;
 use web_sys::HtmlInputElement;
 use wasm_bindgen::JsCast;
+use gloo_timers;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AdminColorScheme {
@@ -133,6 +134,74 @@ pub struct PublicColorScheme {
     pub background_light: String,
     pub hero_bg: String,
     pub card_shadow: String,
+    
+    // Button system colors
+    pub button_primary_bg: String,
+    pub button_primary_text: String,
+    pub button_primary_hover_bg: String,
+    pub button_primary_border: String,
+    pub button_primary_hover_border: String,
+    
+    pub button_secondary_bg: String,
+    pub button_secondary_text: String,
+    pub button_secondary_hover_bg: String,
+    pub button_secondary_border: String,
+    pub button_secondary_hover_border: String,
+    
+    pub button_outline_bg: String,
+    pub button_outline_text: String,
+    pub button_outline_hover_bg: String,
+    pub button_outline_hover_text: String,
+    pub button_outline_border: String,
+    
+    pub button_ghost_bg: String,
+    pub button_ghost_text: String,
+    pub button_ghost_hover_bg: String,
+    pub button_ghost_border: String,
+    
+    // Card system colors
+    pub card_bg: String,
+    pub card_border: String,
+    pub card_hover_shadow: String,
+    
+    // Box system colors
+    pub box_bg: String,
+    pub box_border: String,
+    
+    // Alert system colors
+    pub alert_success_bg: String,
+    pub alert_success_border: String,
+    pub alert_success_text: String,
+    
+    pub alert_warning_bg: String,
+    pub alert_warning_border: String,
+    pub alert_warning_text: String,
+    
+    pub alert_error_bg: String,
+    pub alert_error_border: String,
+    pub alert_error_text: String,
+    
+    pub alert_info_bg: String,
+    pub alert_info_border: String,
+    pub alert_info_text: String,
+    
+    // Accent color system
+    pub accent_primary: String,
+    pub accent_secondary: String,
+    pub accent_tertiary: String,
+    
+    // Component-specific accents
+    pub post_card_accent: String,
+    pub quote_accent: String,
+    pub blockquote_accent: String,
+    pub card_top_accent: String,
+    pub card_side_accent: String,
+    
+    // Metric card accents
+    pub metric_card_posts_accent: String,
+    pub metric_card_users_accent: String,
+    pub metric_card_comments_accent: String,
+    pub metric_card_media_accent: String,
 }
 
 impl Default for PublicColorScheme {
@@ -151,6 +220,74 @@ impl Default for PublicColorScheme {
             background_light: "#f9fafb".to_string(),
             hero_bg: "#f9fafb".to_string(),
             card_shadow: "0 1px 3px rgba(0, 0, 0, 0.1)".to_string(),
+            
+            // Button system defaults
+            button_primary_bg: "#3182ce".to_string(),
+            button_primary_text: "#ffffff".to_string(),
+            button_primary_hover_bg: "#2c5aa0".to_string(),
+            button_primary_border: "#3182ce".to_string(),
+            button_primary_hover_border: "#2c5aa0".to_string(),
+            
+            button_secondary_bg: "transparent".to_string(),
+            button_secondary_text: "#3182ce".to_string(),
+            button_secondary_hover_bg: "#f0f9ff".to_string(),
+            button_secondary_border: "#3182ce".to_string(),
+            button_secondary_hover_border: "#2c5aa0".to_string(),
+            
+            button_outline_bg: "transparent".to_string(),
+            button_outline_text: "#3182ce".to_string(),
+            button_outline_hover_bg: "#3182ce".to_string(),
+            button_outline_hover_text: "#ffffff".to_string(),
+            button_outline_border: "#3182ce".to_string(),
+            
+            button_ghost_bg: "transparent".to_string(),
+            button_ghost_text: "#3182ce".to_string(),
+            button_ghost_hover_bg: "rgba(49, 130, 206, 0.1)".to_string(),
+            button_ghost_border: "transparent".to_string(),
+            
+            // Card system defaults
+            card_bg: "#ffffff".to_string(),
+            card_border: "#e2e8f0".to_string(),
+            card_hover_shadow: "0 4px 12px rgba(0, 0, 0, 0.15)".to_string(),
+            
+            // Box system defaults
+            box_bg: "#f8fafc".to_string(),
+            box_border: "#e2e8f0".to_string(),
+            
+            // Alert system defaults
+            alert_success_bg: "#f0fdf4".to_string(),
+            alert_success_border: "#bbf7d0".to_string(),
+            alert_success_text: "#166534".to_string(),
+            
+            alert_warning_bg: "#fffbeb".to_string(),
+            alert_warning_border: "#fed7aa".to_string(),
+            alert_warning_text: "#92400e".to_string(),
+            
+            alert_error_bg: "#fef2f2".to_string(),
+            alert_error_border: "#fecaca".to_string(),
+            alert_error_text: "#991b1b".to_string(),
+            
+            alert_info_bg: "#f0f9ff".to_string(),
+            alert_info_border: "#bae6fd".to_string(),
+            alert_info_text: "#1e40af".to_string(),
+            
+            // Accent color system defaults
+            accent_primary: "#667eea".to_string(),
+            accent_secondary: "#764ba2".to_string(),
+            accent_tertiary: "#f093fb".to_string(),
+            
+            // Component-specific accent defaults
+            post_card_accent: "#667eea".to_string(),
+            quote_accent: "#667eea".to_string(),
+            blockquote_accent: "#667eea".to_string(),
+            card_top_accent: "#667eea".to_string(),
+            card_side_accent: "#667eea".to_string(),
+            
+            // Metric card accent defaults
+            metric_card_posts_accent: "#8b5cf6".to_string(),
+            metric_card_users_accent: "#10b981".to_string(),
+            metric_card_comments_accent: "#f59e0b".to_string(),
+            metric_card_media_accent: "#ef4444".to_string(),
         }
     }
 }
@@ -287,6 +424,9 @@ pub fn apply_admin_css_variables(scheme: &AdminColorScheme) {
 }
 
 pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
+    // Debug log to see what color we're trying to apply
+    web_sys::console::log_1(&format!("🎨 Applying post-card accent: {}", scheme.post_card_accent).into());
+    
     if let Some(window) = web_sys::window() {
         if let Some(document) = window.document() {
             // Remove existing public theme style element
@@ -314,6 +454,74 @@ pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
                         --public-background-light: {};
                         --public-hero-bg: {};
                         --public-card-shadow: {};
+                        
+                        /* Button system variables */
+                        --public-button-primary-bg: {};
+                        --public-button-primary-text: {};
+                        --public-button-primary-hover-bg: {};
+                        --public-button-primary-border: {};
+                        --public-button-primary-hover-border: {};
+                        
+                        --public-button-secondary-bg: {};
+                        --public-button-secondary-text: {};
+                        --public-button-secondary-hover-bg: {};
+                        --public-button-secondary-border: {};
+                        --public-button-secondary-hover-border: {};
+                        
+                        --public-button-outline-bg: {};
+                        --public-button-outline-text: {};
+                        --public-button-outline-hover-bg: {};
+                        --public-button-outline-hover-text: {};
+                        --public-button-outline-border: {};
+                        
+                        --public-button-ghost-bg: {};
+                        --public-button-ghost-text: {};
+                        --public-button-ghost-hover-bg: {};
+                        --public-button-ghost-border: {};
+                        
+                        /* Card system variables */
+                        --public-card-bg: {};
+                        --public-card-border: {};
+                        --public-card-hover-shadow: {};
+                        
+                        /* Box system variables */
+                        --public-box-bg: {};
+                        --public-box-border: {};
+                        
+                        /* Alert system variables */
+                        --public-alert-success-bg: {};
+                        --public-alert-success-border: {};
+                        --public-alert-success-text: {};
+                        
+                        --public-alert-warning-bg: {};
+                        --public-alert-warning-border: {};
+                        --public-alert-warning-text: {};
+                        
+                        --public-alert-error-bg: {};
+                        --public-alert-error-border: {};
+                        --public-alert-error-text: {};
+                        
+                        --public-alert-info-bg: {};
+                        --public-alert-info-border: {};
+                        --public-alert-info-text: {};
+                        
+                        /* Accent color system variables */
+                        --public-accent-primary: {};
+                        --public-accent-secondary: {};
+                        --public-accent-tertiary: {};
+                        
+                        /* Component-specific accent variables */
+                        --public-post-card-accent: {};
+                        --public-quote-accent: {};
+                        --public-blockquote-accent: {};
+                        --public-card-top-accent: {};
+                        --public-card-side-accent: {};
+                        
+                        /* Metric card accent variables */
+                        --public-metric-card-posts-accent: {};
+                        --public-metric-card-users-accent: {};
+                        --public-metric-card-comments-accent: {};
+                        --public-metric-card-media-accent: {};
                     }}
                     
                     a {{
@@ -362,6 +570,44 @@ pub fn apply_public_css_variables(scheme: &PublicColorScheme) {
                     scheme.link_visited, scheme.link_active, scheme.success,
                     scheme.warning, scheme.danger, scheme.info, scheme.border_light,
                     scheme.background_light, scheme.hero_bg, scheme.card_shadow,
+                    
+                    // Button system variables
+                    scheme.button_primary_bg, scheme.button_primary_text, scheme.button_primary_hover_bg,
+                    scheme.button_primary_border, scheme.button_primary_hover_border,
+                    
+                    scheme.button_secondary_bg, scheme.button_secondary_text, scheme.button_secondary_hover_bg,
+                    scheme.button_secondary_border, scheme.button_secondary_hover_border,
+                    
+                    scheme.button_outline_bg, scheme.button_outline_text, scheme.button_outline_hover_bg,
+                    scheme.button_outline_hover_text, scheme.button_outline_border,
+                    
+                    scheme.button_ghost_bg, scheme.button_ghost_text, scheme.button_ghost_hover_bg,
+                    scheme.button_ghost_border,
+                    
+                    // Card system variables
+                    scheme.card_bg, scheme.card_border, scheme.card_hover_shadow,
+                    
+                    // Box system variables
+                    scheme.box_bg, scheme.box_border,
+                    
+                    // Alert system variables
+                    scheme.alert_success_bg, scheme.alert_success_border, scheme.alert_success_text,
+                    scheme.alert_warning_bg, scheme.alert_warning_border, scheme.alert_warning_text,
+                    scheme.alert_error_bg, scheme.alert_error_border, scheme.alert_error_text,
+                    scheme.alert_info_bg, scheme.alert_info_border, scheme.alert_info_text,
+                    
+                    // Accent color system variables
+                    scheme.accent_primary, scheme.accent_secondary, scheme.accent_tertiary,
+                    
+                    // Component-specific accent variables
+                    scheme.post_card_accent, scheme.quote_accent, scheme.blockquote_accent,
+                    scheme.card_top_accent, scheme.card_side_accent,
+                    
+                    // Metric card accent variables
+                    scheme.metric_card_posts_accent, scheme.metric_card_users_accent,
+                    scheme.metric_card_comments_accent, scheme.metric_card_media_accent,
+                    
+                    // Existing variables for backwards compatibility
                     scheme.link_primary, scheme.link_hover, scheme.link_visited, scheme.link_active,
                     scheme.hero_bg, scheme.background_light, scheme.border_light, scheme.card_shadow,
                     scheme.success, scheme.warning, scheme.danger, scheme.info
@@ -389,15 +635,97 @@ pub fn design_system_page() -> Html {
 fn design_system_page_component() -> Html {
     let admin_scheme = use_state(AdminColorScheme::default);
     let public_scheme = use_state(PublicColorScheme::default);
-    let selected_preset = use_state(|| "Light Preset".to_string());
+    let _selected_preset = use_state(|| "Light Preset".to_string());
+    let _ = _selected_preset; // Suppress unused warning
+    
+    // State for saving/loading
+    let saving = use_state(|| false);
+    let loading = use_state(|| false);
+    let save_message = use_state(|| None::<String>);
+    let settings_loaded = use_state(|| false);
 
-    // Apply initial themes
+    // Load saved settings on component mount
     use_effect({
-        let admin_scheme = admin_scheme.clone();
         let public_scheme = public_scheme.clone();
+        let admin_scheme = admin_scheme.clone();
+        let loading = loading.clone();
+        let settings_loaded = settings_loaded.clone();
+        
         move || {
-            apply_admin_css_variables(&admin_scheme);
-            apply_public_css_variables(&public_scheme);
+            if !*settings_loaded {
+                loading.set(true);
+                settings_loaded.set(true);
+                
+                wasm_bindgen_futures::spawn_local(async move {
+                    match get_settings(Some("design_system")).await {
+                        Ok(settings) => {
+                            let mut updated_public_scheme = (*public_scheme).clone();
+                            let mut updated_admin_scheme = (*admin_scheme).clone();
+                            
+                            // Load saved design system settings
+                            for setting in &settings {
+                                match setting.setting_key.as_str() {
+                                    // Accent colors
+                                    "public_accent_primary" => updated_public_scheme.accent_primary = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_accent_secondary" => updated_public_scheme.accent_secondary = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_accent_tertiary" => updated_public_scheme.accent_tertiary = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    // Component accents
+                                    "public_post_card_accent" => updated_public_scheme.post_card_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_quote_accent" => updated_public_scheme.quote_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_blockquote_accent" => updated_public_scheme.blockquote_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_card_top_accent" => updated_public_scheme.card_top_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_card_side_accent" => updated_public_scheme.card_side_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    // Metric card accents
+                                    "public_metric_card_posts_accent" => updated_public_scheme.metric_card_posts_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_metric_card_users_accent" => updated_public_scheme.metric_card_users_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_metric_card_comments_accent" => updated_public_scheme.metric_card_comments_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_metric_card_media_accent" => updated_public_scheme.metric_card_media_accent = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    // Button colors (key ones)
+                                    "public_button_primary_bg" => updated_public_scheme.button_primary_bg = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_button_primary_text" => updated_public_scheme.button_primary_text = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    // Link colors
+                                    "public_link_primary" => updated_public_scheme.link_primary = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_link_hover" => updated_public_scheme.link_hover = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    // Status colors
+                                    "public_success" => updated_public_scheme.success = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_warning" => updated_public_scheme.warning = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_danger" => updated_public_scheme.danger = setting.setting_value.clone().unwrap_or_default(),
+                                    "public_info" => updated_public_scheme.info = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    // Admin colors
+                                    "admin_primary" => updated_admin_scheme.primary = setting.setting_value.clone().unwrap_or_default(),
+                                    "admin_secondary" => updated_admin_scheme.secondary = setting.setting_value.clone().unwrap_or_default(),
+                                    "admin_success" => updated_admin_scheme.success = setting.setting_value.clone().unwrap_or_default(),
+                                    "admin_warning" => updated_admin_scheme.warning = setting.setting_value.clone().unwrap_or_default(),
+                                    "admin_danger" => updated_admin_scheme.danger = setting.setting_value.clone().unwrap_or_default(),
+                                    "admin_info" => updated_admin_scheme.info = setting.setting_value.clone().unwrap_or_default(),
+                                    
+                                    _ => {}
+                                }
+                            }
+                            
+                            // Update state and apply CSS
+                            public_scheme.set(updated_public_scheme.clone());
+                            admin_scheme.set(updated_admin_scheme.clone());
+                            apply_public_css_variables(&updated_public_scheme);
+                            apply_admin_css_variables(&updated_admin_scheme);
+                            
+                            log::info!("Loaded design system settings");
+                        }
+                        Err(_) => {
+                            // Apply default themes if no settings found
+                            apply_admin_css_variables(&admin_scheme);
+                            apply_public_css_variables(&public_scheme);
+                        }
+                    }
+                    loading.set(false);
+                });
+            }
             || ()
         }
     });
@@ -444,10 +772,290 @@ fn design_system_page_component() -> Html {
                 "warning" => scheme.warning = value,
                 "danger" => scheme.danger = value,
                 "info" => scheme.info = value,
+                
+                // Button system colors
+                "button_primary_bg" => scheme.button_primary_bg = value,
+                "button_primary_text" => scheme.button_primary_text = value,
+                "button_primary_hover_bg" => scheme.button_primary_hover_bg = value,
+                "button_primary_border" => scheme.button_primary_border = value,
+                "button_primary_hover_border" => scheme.button_primary_hover_border = value,
+                
+                "button_secondary_bg" => scheme.button_secondary_bg = value,
+                "button_secondary_text" => scheme.button_secondary_text = value,
+                "button_secondary_hover_bg" => scheme.button_secondary_hover_bg = value,
+                "button_secondary_border" => scheme.button_secondary_border = value,
+                "button_secondary_hover_border" => scheme.button_secondary_hover_border = value,
+                
+                "button_outline_bg" => scheme.button_outline_bg = value,
+                "button_outline_text" => scheme.button_outline_text = value,
+                "button_outline_hover_bg" => scheme.button_outline_hover_bg = value,
+                "button_outline_hover_text" => scheme.button_outline_hover_text = value,
+                "button_outline_border" => scheme.button_outline_border = value,
+                
+                "button_ghost_bg" => scheme.button_ghost_bg = value,
+                "button_ghost_text" => scheme.button_ghost_text = value,
+                "button_ghost_hover_bg" => scheme.button_ghost_hover_bg = value,
+                "button_ghost_border" => scheme.button_ghost_border = value,
+                
+                // Card system colors
+                "card_bg" => scheme.card_bg = value,
+                "card_border" => scheme.card_border = value,
+                "card_hover_shadow" => scheme.card_hover_shadow = value,
+                
+                // Box system colors
+                "box_bg" => scheme.box_bg = value,
+                "box_border" => scheme.box_border = value,
+                
+                // Alert system colors
+                "alert_success_bg" => scheme.alert_success_bg = value,
+                "alert_success_border" => scheme.alert_success_border = value,
+                "alert_success_text" => scheme.alert_success_text = value,
+                
+                "alert_warning_bg" => scheme.alert_warning_bg = value,
+                "alert_warning_border" => scheme.alert_warning_border = value,
+                "alert_warning_text" => scheme.alert_warning_text = value,
+                
+                "alert_error_bg" => scheme.alert_error_bg = value,
+                "alert_error_border" => scheme.alert_error_border = value,
+                "alert_error_text" => scheme.alert_error_text = value,
+                
+                "alert_info_bg" => scheme.alert_info_bg = value,
+                "alert_info_border" => scheme.alert_info_border = value,
+                "alert_info_text" => scheme.alert_info_text = value,
+                
+                // Accent color system
+                "accent_primary" => scheme.accent_primary = value,
+                "accent_secondary" => scheme.accent_secondary = value,
+                "accent_tertiary" => scheme.accent_tertiary = value,
+                
+                // Component-specific accents
+                "post_card_accent" => scheme.post_card_accent = value,
+                "quote_accent" => scheme.quote_accent = value,
+                "blockquote_accent" => scheme.blockquote_accent = value,
+                "card_top_accent" => scheme.card_top_accent = value,
+                "card_side_accent" => scheme.card_side_accent = value,
+                
+                // Metric card accents
+                "metric_card_posts_accent" => scheme.metric_card_posts_accent = value,
+                "metric_card_users_accent" => scheme.metric_card_users_accent = value,
+                "metric_card_comments_accent" => scheme.metric_card_comments_accent = value,
+                "metric_card_media_accent" => scheme.metric_card_media_accent = value,
+                
                 _ => {}
             }
             public_scheme.set(scheme.clone());
             apply_public_css_variables(&scheme);
+        })
+    };
+
+    // Save design system settings
+    let save_design_system = {
+        let public_scheme = public_scheme.clone();
+        let admin_scheme = admin_scheme.clone();
+        let saving = saving.clone();
+        let save_message = save_message.clone();
+        
+        Callback::from(move |_: web_sys::MouseEvent| {
+            let public_scheme = (*public_scheme).clone();
+            let admin_scheme = (*admin_scheme).clone();
+            let saving = saving.clone();
+            let save_message = save_message.clone();
+            
+            saving.set(true);
+            save_message.set(None);
+            
+            wasm_bindgen_futures::spawn_local(async move {
+                // Convert color schemes to settings data
+                let mut settings_data = vec![
+                    // Public accent colors
+                    SettingData {
+                        key: "public_accent_primary".to_string(),
+                        value: public_scheme.accent_primary,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Primary accent color for interface elements".to_string()),
+                    },
+                    SettingData {
+                        key: "public_accent_secondary".to_string(),
+                        value: public_scheme.accent_secondary,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Secondary accent color for interface elements".to_string()),
+                    },
+                    SettingData {
+                        key: "public_accent_tertiary".to_string(),
+                        value: public_scheme.accent_tertiary,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Tertiary accent color for interface elements".to_string()),
+                    },
+                    
+                    // Component accents
+                    SettingData {
+                        key: "public_post_card_accent".to_string(),
+                        value: public_scheme.post_card_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for post card animations".to_string()),
+                    },
+                    SettingData {
+                        key: "public_quote_accent".to_string(),
+                        value: public_scheme.quote_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for quote components".to_string()),
+                    },
+                    SettingData {
+                        key: "public_blockquote_accent".to_string(),
+                        value: public_scheme.blockquote_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for blockquote side bars".to_string()),
+                    },
+                    SettingData {
+                        key: "public_card_top_accent".to_string(),
+                        value: public_scheme.card_top_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for card top bars".to_string()),
+                    },
+                    SettingData {
+                        key: "public_card_side_accent".to_string(),
+                        value: public_scheme.card_side_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for card side bars".to_string()),
+                    },
+                    
+                    // Metric card accents
+                    SettingData {
+                        key: "public_metric_card_posts_accent".to_string(),
+                        value: public_scheme.metric_card_posts_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for posts metric cards".to_string()),
+                    },
+                    SettingData {
+                        key: "public_metric_card_users_accent".to_string(),
+                        value: public_scheme.metric_card_users_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for users metric cards".to_string()),
+                    },
+                    SettingData {
+                        key: "public_metric_card_comments_accent".to_string(),
+                        value: public_scheme.metric_card_comments_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for comments metric cards".to_string()),
+                    },
+                    SettingData {
+                        key: "public_metric_card_media_accent".to_string(),
+                        value: public_scheme.metric_card_media_accent,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Accent color for media metric cards".to_string()),
+                    },
+                    
+                    // Button colors
+                    SettingData {
+                        key: "public_button_primary_bg".to_string(),
+                        value: public_scheme.button_primary_bg,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Primary button background color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_button_primary_text".to_string(),
+                        value: public_scheme.button_primary_text,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Primary button text color".to_string()),
+                    },
+                    
+                    // Link colors
+                    SettingData {
+                        key: "public_link_primary".to_string(),
+                        value: public_scheme.link_primary,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Primary link color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_link_hover".to_string(),
+                        value: public_scheme.link_hover,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Link hover color".to_string()),
+                    },
+                    
+                    // Status colors
+                    SettingData {
+                        key: "public_success".to_string(),
+                        value: public_scheme.success,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Success color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_warning".to_string(),
+                        value: public_scheme.warning,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Warning color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_danger".to_string(),
+                        value: public_scheme.danger,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Danger color".to_string()),
+                    },
+                    SettingData {
+                        key: "public_info".to_string(),
+                        value: public_scheme.info,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Info color".to_string()),
+                    },
+                    
+                    // Admin colors
+                    SettingData {
+                        key: "admin_primary".to_string(),
+                        value: admin_scheme.primary,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Admin primary color".to_string()),
+                    },
+                    SettingData {
+                        key: "admin_secondary".to_string(),
+                        value: admin_scheme.secondary,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Admin secondary color".to_string()),
+                    },
+                    SettingData {
+                        key: "admin_success".to_string(),
+                        value: admin_scheme.success,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Admin success color".to_string()),
+                    },
+                    SettingData {
+                        key: "admin_warning".to_string(),
+                        value: admin_scheme.warning,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Admin warning color".to_string()),
+                    },
+                    SettingData {
+                        key: "admin_danger".to_string(),
+                        value: admin_scheme.danger,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Admin danger color".to_string()),
+                    },
+                    SettingData {
+                        key: "admin_info".to_string(),
+                        value: admin_scheme.info,
+                        setting_type: "design_system".to_string(),
+                        description: Some("Admin info color".to_string()),
+                    },
+                ];
+                
+                match update_settings(settings_data).await {
+                    Ok(_) => {
+                        saving.set(false);
+                        save_message.set(Some("Design system saved successfully!".to_string()));
+                        log::info!("Design system settings saved successfully");
+                    }
+                    Err(e) => {
+                        saving.set(false);
+                        save_message.set(Some(format!("Error saving design system: {}", e)));
+                        log::error!("Failed to save design system settings: {}", e);
+                    }
+                }
+                
+                // Clear message after 3 seconds
+                let save_message = save_message.clone();
+                gloo_timers::future::TimeoutFuture::new(3000).await;
+                save_message.set(None);
+            });
         })
     };
 
@@ -495,6 +1103,32 @@ fn design_system_page_component() -> Html {
             <div class="page-header">
                 <h1>{"Design System"}</h1>
                 <p>{"Customize your site's visual appearance and branding"}</p>
+                
+                // Save button and status
+                <div class="design-system-actions" style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
+                    <button 
+                        class="btn btn-primary"
+                        onclick={save_design_system}
+                        disabled={*saving || *loading}
+                        style="padding: 0.75rem 1.5rem; font-weight: 600;"
+                    >
+                        {if *saving { "Saving..." } else { "Save Design System" }}
+                    </button>
+                    
+                    {if *loading {
+                        html! { <span style="color: #666; font-size: 0.875rem;">{"Loading saved settings..."}</span> }
+                    } else { html! {} }}
+                    
+                    {if let Some(message) = (*save_message).as_ref() {
+                        html! { 
+                            <span style={format!("color: {}; font-size: 0.875rem; font-weight: 500;", 
+                                if message.contains("Error") { "#ef4444" } else { "#10b981" }
+                            )}>
+                                {message}
+                            </span> 
+                        }
+                    } else { html! {} }}
+                </div>
             </div>
 
             <div class="design-system-tabs">
@@ -569,6 +1203,82 @@ fn design_system_page_component() -> Html {
                                             {render_public_color_input("Warning".to_string(), "warning".to_string(), (*public_scheme).warning.clone(), on_public_color_change.clone())}
                                             {render_public_color_input("Danger".to_string(), "danger".to_string(), (*public_scheme).danger.clone(), on_public_color_change.clone())}
                                             {render_public_color_input("Info".to_string(), "info".to_string(), (*public_scheme).info.clone(), on_public_color_change.clone())}
+                                        </div>
+                                        
+                                        <div class="color-group">
+                                            <h3>{"Button Colors"}</h3>
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Primary Buttons"}</h4>
+                                            {render_public_color_input("Background".to_string(), "button_primary_bg".to_string(), (*public_scheme).button_primary_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text".to_string(), "button_primary_text".to_string(), (*public_scheme).button_primary_text.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Hover Background".to_string(), "button_primary_hover_bg".to_string(), (*public_scheme).button_primary_hover_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "button_primary_border".to_string(), (*public_scheme).button_primary_border.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Secondary Buttons"}</h4>
+                                            {render_public_color_input("Background".to_string(), "button_secondary_bg".to_string(), (*public_scheme).button_secondary_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text".to_string(), "button_secondary_text".to_string(), (*public_scheme).button_secondary_text.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Hover Background".to_string(), "button_secondary_hover_bg".to_string(), (*public_scheme).button_secondary_hover_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "button_secondary_border".to_string(), (*public_scheme).button_secondary_border.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Outline Buttons"}</h4>
+                                            {render_public_color_input("Text".to_string(), "button_outline_text".to_string(), (*public_scheme).button_outline_text.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Hover Background".to_string(), "button_outline_hover_bg".to_string(), (*public_scheme).button_outline_hover_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Hover Text".to_string(), "button_outline_hover_text".to_string(), (*public_scheme).button_outline_hover_text.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "button_outline_border".to_string(), (*public_scheme).button_outline_border.clone(), on_public_color_change.clone())}
+                                        </div>
+                                        
+                                        <div class="color-group">
+                                            <h3>{"Card & Layout Colors"}</h3>
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Cards"}</h4>
+                                            {render_public_color_input("Card Background".to_string(), "card_bg".to_string(), (*public_scheme).card_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Card Border".to_string(), "card_border".to_string(), (*public_scheme).card_border.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Boxes"}</h4>
+                                            {render_public_color_input("Box Background".to_string(), "box_bg".to_string(), (*public_scheme).box_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Box Border".to_string(), "box_border".to_string(), (*public_scheme).box_border.clone(), on_public_color_change.clone())}
+                                        </div>
+                                        
+                                        <div class="color-group">
+                                            <h3>{"Alert Colors"}</h3>
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Success Alerts"}</h4>
+                                            {render_public_color_input("Background".to_string(), "alert_success_bg".to_string(), (*public_scheme).alert_success_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "alert_success_border".to_string(), (*public_scheme).alert_success_border.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text".to_string(), "alert_success_text".to_string(), (*public_scheme).alert_success_text.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Warning Alerts"}</h4>
+                                            {render_public_color_input("Background".to_string(), "alert_warning_bg".to_string(), (*public_scheme).alert_warning_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "alert_warning_border".to_string(), (*public_scheme).alert_warning_border.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text".to_string(), "alert_warning_text".to_string(), (*public_scheme).alert_warning_text.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Error Alerts"}</h4>
+                                            {render_public_color_input("Background".to_string(), "alert_error_bg".to_string(), (*public_scheme).alert_error_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "alert_error_border".to_string(), (*public_scheme).alert_error_border.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text".to_string(), "alert_error_text".to_string(), (*public_scheme).alert_error_text.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Info Alerts"}</h4>
+                                            {render_public_color_input("Background".to_string(), "alert_info_bg".to_string(), (*public_scheme).alert_info_bg.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Border".to_string(), "alert_info_border".to_string(), (*public_scheme).alert_info_border.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Text".to_string(), "alert_info_text".to_string(), (*public_scheme).alert_info_text.clone(), on_public_color_change.clone())}
+                                        </div>
+                                        
+                                        <div class="color-group">
+                                            <h3>{"Accent Colors"}</h3>
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Primary Accent System"}</h4>
+                                            {render_public_color_input("Primary Accent".to_string(), "accent_primary".to_string(), (*public_scheme).accent_primary.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Secondary Accent".to_string(), "accent_secondary".to_string(), (*public_scheme).accent_secondary.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Tertiary Accent".to_string(), "accent_tertiary".to_string(), (*public_scheme).accent_tertiary.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Component Accents"}</h4>
+                                            {render_public_color_input("Post Card Accent".to_string(), "post_card_accent".to_string(), (*public_scheme).post_card_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Quote Accent".to_string(), "quote_accent".to_string(), (*public_scheme).quote_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Blockquote Accent".to_string(), "blockquote_accent".to_string(), (*public_scheme).blockquote_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Card Top Accent".to_string(), "card_top_accent".to_string(), (*public_scheme).card_top_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Card Side Accent".to_string(), "card_side_accent".to_string(), (*public_scheme).card_side_accent.clone(), on_public_color_change.clone())}
+                                            
+                                            <h4 style="font-size: 0.9rem; margin: 0.5rem 0 0.25rem 0; color: #666;">{"Analytics Card Accents"}</h4>
+                                            {render_public_color_input("Posts Cards".to_string(), "metric_card_posts_accent".to_string(), (*public_scheme).metric_card_posts_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Users Cards".to_string(), "metric_card_users_accent".to_string(), (*public_scheme).metric_card_users_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Comments Cards".to_string(), "metric_card_comments_accent".to_string(), (*public_scheme).metric_card_comments_accent.clone(), on_public_color_change.clone())}
+                                            {render_public_color_input("Media Cards".to_string(), "metric_card_media_accent".to_string(), (*public_scheme).metric_card_media_accent.clone(), on_public_color_change.clone())}
                                         </div>
                                     </div>
                                 </div>

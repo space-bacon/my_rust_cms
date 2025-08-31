@@ -619,24 +619,75 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         }, ());
     }
 
-    // Apply default public theme and typography on component mount
+    // Load and apply saved public design system settings on component mount
     {
         use_effect_with_deps(move |_| {
-            web_sys::console::log_1(&"PublicLayout: Applying default public theme and typography".into());
-            let default_scheme = PublicColorScheme::default();
-            apply_public_css_variables(&default_scheme);
-            log::info!("🎨 Applied default public theme");
+            web_sys::console::log_1(&"PublicLayout: Starting to fetch navigation items, templates, and settings".into());
             
-            // Load and apply typography settings
-            log::info!("🎨 PUBLIC: Loading typography settings...");
-            load_and_apply_typography_settings();
-            
-            // Also apply typography with a slight delay to ensure DOM is ready
-            let timeout = gloo_timers::callback::Timeout::new(100, move || {
-                log::info!("🎨 PUBLIC: Re-applying typography settings after delay...");
+            wasm_bindgen_futures::spawn_local(async move {
+                web_sys::console::log_1(&"PublicLayout: Applying default public theme and typography".into());
+                
+                // First apply default scheme
+                let mut scheme = PublicColorScheme::default();
+                
+                // Then try to load saved design system settings
+                match crate::services::api_service::get_settings(Some("design_system")).await {
+                    Ok(settings) => {
+                        web_sys::console::log_1(&format!("🎨 Loaded {} design system settings from database", settings.len()).into());
+                        
+                        // Apply saved settings to the scheme
+                        for setting in settings {
+                            if let Some(value) = setting.setting_value {
+                                match setting.setting_key.as_str() {
+                                    // Load all the public design system colors
+                                    "public_post_card_accent" => scheme.post_card_accent = value,
+                                    "public_card_top_accent" => scheme.card_top_accent = value,
+                                    "public_card_side_accent" => scheme.card_side_accent = value,
+                                    "public_accent_primary" => scheme.accent_primary = value,
+                                    "public_accent_secondary" => scheme.accent_secondary = value,
+                                    "public_accent_tertiary" => scheme.accent_tertiary = value,
+                                    "public_quote_accent" => scheme.quote_accent = value,
+                                    "public_blockquote_accent" => scheme.blockquote_accent = value,
+                                    "public_metric_card_posts_accent" => scheme.metric_card_posts_accent = value,
+                                    "public_metric_card_users_accent" => scheme.metric_card_users_accent = value,
+                                    "public_metric_card_comments_accent" => scheme.metric_card_comments_accent = value,
+                                    "public_metric_card_media_accent" => scheme.metric_card_media_accent = value,
+                                    // Add other important colors
+                                    "public_button_primary_bg" => scheme.button_primary_bg = value,
+                                    "public_button_primary_text" => scheme.button_primary_text = value,
+                                    "public_button_secondary_bg" => scheme.button_secondary_bg = value,
+                                    "public_button_secondary_text" => scheme.button_secondary_text = value,
+                                    "public_card_bg" => scheme.card_bg = value,
+                                    "public_card_border" => scheme.card_border = value,
+                                    "public_link_primary" => scheme.link_primary = value,
+                                    "public_link_hover" => scheme.link_hover = value,
+                                    _ => {} // Ignore other settings
+                                }
+                            }
+                        }
+                        
+                        web_sys::console::log_1(&format!("🎨 Applying loaded design system with post-card accent: {}", scheme.post_card_accent).into());
+                    }
+                    Err(e) => {
+                        web_sys::console::log_1(&format!("🎨 Could not load design system settings, using defaults: {:?}", e).into());
+                    }
+                }
+                
+                // Apply the scheme (either default or loaded from database)
+                apply_public_css_variables(&scheme);
+                log::info!("🎨 Applied public theme with design system settings");
+                
+                // Load and apply typography settings
+                log::info!("🎨 PUBLIC: Loading typography settings...");
                 load_and_apply_typography_settings();
+                
+                // Also apply typography with a slight delay to ensure DOM is ready
+                let timeout = gloo_timers::callback::Timeout::new(100, move || {
+                    log::info!("🎨 PUBLIC: Re-applying typography settings after delay...");
+                    load_and_apply_typography_settings();
+                });
+                timeout.forget();
             });
-            timeout.forget();
             
             || ()
         }, ());
