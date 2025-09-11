@@ -45,15 +45,15 @@ fi
 print_status "Docker is running"
 
 # Check if PostgreSQL container exists and is running
-if ! docker ps | grep -q "rustcms_dev_postgres"; then
+if ! docker ps | grep -q "myrustcms_postgres"; then
     print_warning "PostgreSQL container is not running"
     
     # Check if container exists but is stopped
-    if docker ps -a | grep -q "rustcms_dev_postgres"; then
+    if docker ps -a | grep -q "myrustcms_postgres"; then
         print_info "Starting existing PostgreSQL container..."
-        docker start rustcms_dev_postgres
+        docker start myrustcms_postgres
     else
-        print_error "PostgreSQL container does not exist. Please run 'docker-compose up -d' first."
+        print_error "PostgreSQL container does not exist. Please run 'docker-compose up -d postgres' first."
         exit 1
     fi
 else
@@ -80,9 +80,9 @@ fi
 
 # Verify database connection
 print_info "Testing database connection..."
-if docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -c "SELECT COUNT(*) FROM settings;" > /dev/null 2>&1; then
-    SETTINGS_COUNT=$(docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings;" | xargs)
-    TYPOGRAPHY_COUNT=$(docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings WHERE setting_type = 'typography';" | xargs)
+if docker exec myrustcms_postgres psql -U myrustcms -d my_rust_cms -c "SELECT COUNT(*) FROM settings;" > /dev/null 2>&1; then
+    SETTINGS_COUNT=$(docker exec myrustcms_postgres psql -U myrustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings;" | xargs)
+    TYPOGRAPHY_COUNT=$(docker exec myrustcms_postgres psql -U myrustcms -d my_rust_cms -t -c "SELECT COUNT(*) FROM settings WHERE setting_type = 'typography';" | xargs)
     
     print_status "Database connection successful"
     print_info "Total settings: $SETTINGS_COUNT"

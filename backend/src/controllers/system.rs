@@ -193,7 +193,7 @@ pub async fn create_backup(
     let backup_dir = std::env::var("BACKUP_DIR").unwrap_or_else(|_| "./backups".to_string());
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         // Fallback database URL if not set
-        "postgres://rustcms:password@localhost:5432/my_rust_cms".to_string()
+        "postgres://myrustcms:7Zxce7ag5PXFX3H1nmcmGZ9JGLeAvUg5@localhost:5432/my_rust_cms".to_string()
     });
     
     let backup_service = SimpleBackupService::new(backup_dir, database_url);

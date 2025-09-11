@@ -7852,3 +7852,84 @@ body[style*="--header-height"] main {
             inset 0 0 10px rgba(0, 255, 255, 0.1) !important;
     }
 }
+
+/* Enhanced Live Edit Mode Styles */
+body.live-edit-mode {
+    position: relative;
+}
+
+body.live-edit-mode::before {
+    content: "🎨 Live Edit Mode Active";
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 9998;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: liveEditPulse 2s infinite;
+}
+
+@keyframes liveEditPulse {
+    0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+    50% { opacity: 0.8; transform: translateX(-50%) scale(1.05); }
+}
+
+/* Enhanced editable element highlighting */
+[data-live-editable="true"],
+[data-live-component-editable="true"] {
+    position: relative;
+    transition: all 0.3s ease !important;
+}
+
+[data-live-editable="true"]:hover,
+[data-live-component-editable="true"]:hover {
+    outline: 2px solid rgba(0, 150, 255, 0.8) !important;
+    outline-offset: 2px !important;
+    background: rgba(0, 150, 255, 0.05) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 150, 255, 0.2) !important;
+}
+
+[data-live-editable="true"].selected,
+[data-live-component-editable="true"].selected {
+    outline: 3px solid #28a745 !important;
+    outline-offset: 3px !important;
+    background: rgba(40, 167, 69, 0.1) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3) !important;
+}
+
+/* Enhanced properties panel */
+.properties-panel {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Unsaved changes indicator animation */
+.properties-panel h3 span {
+    animation: unsavedBlink 1s infinite alternate;
+}
+
+@keyframes unsavedBlink {
+    from { opacity: 1; }
+    to { opacity: 0.7; }
+}

@@ -161,7 +161,17 @@ pub fn admin(props: &AdminProps) -> Html {
                     {match props.current_tab {
                         AdminTab::Dashboard => html! { <AdminDashboard on_navigate={on_tab_change.clone()} /> },
                         AdminTab::Posts => html! { <PostList /> },
-                        AdminTab::PostCreate => html! { <PostEditor on_save={Callback::noop()} on_cancel={Callback::noop()} /> },
+                        AdminTab::PostCreate => {
+                            let on_save = {
+                                let on_tab_change = on_tab_change.clone();
+                                Callback::from(move |_| on_tab_change.emit(AdminTab::Posts))
+                            };
+                            let on_cancel = {
+                                let on_tab_change = on_tab_change.clone();
+                                Callback::from(move |_| on_tab_change.emit(AdminTab::Posts))
+                            };
+                            html! { <PostEditor on_save={on_save} on_cancel={on_cancel} /> }
+                        },
                         AdminTab::Pages => html! { <PageBuilder /> },
                         AdminTab::Media => html! { <MediaLibrary /> },
                         AdminTab::Users => html! { <EnhancedUserManagement /> },

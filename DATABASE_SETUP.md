@@ -12,7 +12,7 @@ This Rust CMS project uses **Docker PostgreSQL** as the primary database. This g
 - **Container**: `rustcms_dev_postgres`
 - **Host**: `localhost:5432`
 - **Database**: `my_rust_cms`
-- **User**: `rustcms`
+- **User**: `myrustcms`
 - **Password**: `password`
 
 ## 🚀 Quick Setup
@@ -78,7 +78,7 @@ cd backend && cargo run
 docker ps | grep rustcms_dev_postgres
 
 # Verify data exists in Docker database
-docker exec rustcms_dev_postgres psql -U rustcms -d my_rust_cms -c "SELECT COUNT(*) FROM settings WHERE setting_type = 'typography';"
+docker exec rustcms_dev_postgres psql -U myrustcms -d my_rust_cms -c "SELECT COUNT(*) FROM settings WHERE setting_type = 'typography';"
 
 # Should return 29 typography settings
 ```
@@ -116,7 +116,7 @@ lsof -i :5432
 ## 🔒 Data Safety
 
 ### Your Data Location
-- **Primary**: Docker PostgreSQL container (`rustcms_dev_postgres`)
+- **Primary**: Docker PostgreSQL container (`myrustcms_dev_postgres`)
 - **Contains**: All settings, typography configurations, posts, users
 - **Backup**: Regular Docker volume backups recommended
 
@@ -137,13 +137,13 @@ lsof -i :5432
 ### Check Database Connection
 ```bash
 # Test connection to Docker database
-docker exec rustcms_dev_postgres psql -U rustcms -d my_rust_cms -c "SELECT version();"
+docker exec myrustcms_dev_postgres psql -U myrustcms -d my_rust_cms -c "SELECT version();"
 ```
 
 ### Check Your Data
 ```bash
 # Count total settings
-docker exec rustcms_dev_postgres psql -U rustcms -d my_rust_cms -c "SELECT setting_type, COUNT(*) FROM settings GROUP BY setting_type;"
+docker exec myrustcms_dev_postgres psql -U myrustcms -d my_rust_cms -c "SELECT setting_type, COUNT(*) FROM settings GROUP BY setting_type;"
 
 # Should show:
 # typography | 29

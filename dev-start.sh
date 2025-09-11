@@ -141,18 +141,27 @@ cleanup_all() {
     pkill -f "trunk serve" 2>/dev/null || true
     pkill -f "trunk build" 2>/dev/null || true
     
-    # Stop Docker services
-    print_step "Stopping Docker services..."
-    docker-compose -f docker-compose.dev.yml down --remove-orphans 2>/dev/null || true
-    docker-compose down --remove-orphans 2>/dev/null || true
-    
-    # Clean up any hanging containers
-    print_step "Cleaning up containers..."
-    docker ps -q --filter "name=rustcms" | xargs -r docker stop 2>/dev/null || true
-    docker ps -aq --filter "name=rustcms" | xargs -r docker rm 2>/dev/null || true
-    
     print_success "All services stopped successfully"
     echo ""
+}
+
+# Full cleanup including Docker (used on exit)
+cleanup_with_docker() {
+    print_step "🛑 Stopping all Rust CMS services including Docker..."
+    
+    # Stop all related processes
+    pkill -f "cargo-watch" 2>/dev/null || true
+    pkill -f "cargo run" 2>/dev/null || true
+    pkill -f "target/debug/backend" 2>/dev/null || true
+    pkill -f "my_rust_cms" 2>/dev/null || true
+    pkill -f "trunk serve" 2>/dev/null || true
+    pkill -f "trunk build" 2>/dev/null || true
+    
+    # Stop Docker services
+    print_step "Stopping Docker services..."
+    docker-compose down --remove-orphans 2>/dev/null || true
+    
+    print_success "All services stopped successfully"
 }
 
 # Setup database and wait for it to be ready
@@ -160,7 +169,7 @@ setup_database() {
     print_step "Setting up database..."
     
     # Start database service
-    docker-compose -f docker-compose.dev.yml up -d postgres
+    docker-compose up -d postgres
     
     # Wait for database to be ready
     print_step "Waiting for database to be ready..."
@@ -176,8 +185,8 @@ run_migrations() {
     if [ -d "backend" ]; then
         cd backend
         
-        # Set DATABASE_URL if not already set
-        export DATABASE_URL="${DATABASE_URL:-postgres://myrustcms:7Zxce7ag5PXFX3H1nmcmGZ9JGLeAvUg5@localhost:5432/my_rust_cms}"
+        # Set DATABASE_URL for development (using localhost since we're running outside Docker)
+        export DATABASE_URL="postgres://myrustcms:7Zxce7ag5PXFX3H1nmcmGZ9JGLeAvUg5@localhost:5432/my_rust_cms"
         
         # Run migrations with better error handling
         if diesel migration run; then
@@ -262,7 +271,7 @@ show_status() {
 }
 
 # Trap signals for cleanup
-trap cleanup_all SIGINT SIGTERM EXIT
+trap cleanup_with_docker SIGINT SIGTERM EXIT
 
 # Main execution flow
 main() {

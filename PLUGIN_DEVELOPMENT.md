@@ -446,8 +446,7 @@ impl Plugin for AnalyticsPlugin {
 
 - Check the [API documentation](./docs/api.md)
 - Browse [example plugins](./examples/plugins/)
-- Join our [community forum](https://community.rustcms.dev)
-- Report issues on [GitHub](https://github.com/rustcms/rustcms/issues)
+
 
 ## Contributing
 

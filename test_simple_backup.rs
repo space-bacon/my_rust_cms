@@ -115,7 +115,7 @@ fn create_database_backup(description: &str) -> Result<SimpleBackupResult, Box<d
 
     // Database connection parameters
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        "postgres://rustcms:password@localhost:5432/my_rust_cms".to_string()
+        "postgres://myrustcms:password@localhost:5432/my_rust_cms".to_string()
     });
     
     // Parse database URL

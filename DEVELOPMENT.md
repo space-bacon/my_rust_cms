@@ -21,7 +21,7 @@ A comprehensive guide for setting up and working with the Rust CMS development e
 3. **Access the application:**
    - Frontend: http://localhost:8080
    - Backend API: http://localhost:8081
-   - Database: postgresql://rustcms:password@localhost:5432/my_rust_cms
+   - Database: postgresql://myrustcms:password@localhost:5432/my_rust_cms
 
 ### Daily Development
 
@@ -89,8 +89,8 @@ my_rust_cms/
 
 ```bash
 # Database
-DATABASE_URL=postgres://rustcms:password@localhost:5432/my_rust_cms
-POSTGRES_USER=rustcms
+DATABASE_URL=postgres://myrustcms:password@localhost:5432/my_rust_cms
+POSTGRES_USER=myrustcms
 POSTGRES_PASSWORD=password
 POSTGRES_DB=my_rust_cms
 
@@ -114,7 +114,7 @@ The development database runs in Docker and is automatically managed by the dev 
 
 ```bash
 # Connect to database
-psql postgres://rustcms:password@localhost:5432/my_rust_cms
+psql postgres://myrustcms:password@localhost:5432/my_rust_cms
 
 # Run migrations manually
 cd backend && diesel migration run

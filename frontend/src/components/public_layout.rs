@@ -1577,6 +1577,16 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                 
                                 wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                                     if let Some(window) = web_sys::window() {
+                                        // Check if live edit mode is active - if so, skip scroll effects
+                                        if let Some(document) = window.document() {
+                                            if let Some(header) = document.get_element_by_id("site-header") {
+                                                if header.get_attribute("data-live-edit-active").is_some() {
+                                                    // Live edit is active, skip scroll effects
+                                                    return;
+                                                }
+                                            }
+                                        }
+                                        
                                         // Throttle scroll events to prevent excessive calls
                                         let current_time = js_sys::Date::now();
                                         {

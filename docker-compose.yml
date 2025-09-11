@@ -4,9 +4,9 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: rustcms_postgres
+    container_name: myrustcms_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-rustcms}
+      POSTGRES_USER: ${POSTGRES_USER:-myrustcms}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-my_rust_cms}
     ports:
@@ -15,25 +15,25 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql
     networks:
-      - rustcms-network
+      - myrustcms-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rustcms}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myrustcms}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Frontend (Static Files)
+  # Frontend (Static Files served by Nginx)
   frontend:
     image: nginx:alpine
-    container_name: rustcms_frontend
+    container_name: myrustcms_frontend
     ports:
       - "8080:80"
     volumes:
       - ./dist:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
-      - rustcms-network
+      - myrustcms-network
     restart: unless-stopped
     depends_on:
       - web
@@ -43,13 +43,13 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    container_name: rustcms_web
+    container_name: myrustcms_web
     ports:
       - "8081:8081"
     env_file:
       - docker.env
     environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER:-rustcms}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-my_rust_cms}
+      - DATABASE_URL=postgres://${POSTGRES_USER:-myrustcms}:${POSTGRES_PASSWORD:-7Zxce7ag5PXFX3H1nmcmGZ9JGLeAvUg5}@postgres:5432/${POSTGRES_DB:-my_rust_cms}
       - RUST_LOG=${RUST_LOG:-info}
       - BACKEND_HOST=0.0.0.0
       - BACKEND_PORT=8081
@@ -59,7 +59,7 @@ services:
     volumes:
       - ./backend/uploads:/app/uploads
     networks:
-      - rustcms-network
+      - myrustcms-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
@@ -71,13 +71,13 @@ services:
   # Development database management tool (optional)
   adminer:
     image: adminer:4.8.1
-    container_name: rustcms_adminer
+    container_name: myrustcms_adminer
     ports:
       - "8082:8080"
     environment:
       - ADMINER_DEFAULT_SERVER=postgres
     networks:
-      - rustcms-network
+      - myrustcms-network
     restart: unless-stopped
     profiles:
       - dev
@@ -87,5 +87,5 @@ volumes:
     driver: local
 
 networks:
-  rustcms-network:
+  myrustcms-network:
     driver: bridge

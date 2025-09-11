@@ -295,7 +295,7 @@ pub fn admin_dashboard(props: &AdminDashboardProps) -> Html {
                                 class="btn"
                                 onclick={{
                                     let on_navigate = props.on_navigate.clone();
-                                    Callback::from(move |_| on_navigate.emit(AdminTab::Posts))
+                                    Callback::from(move |_| on_navigate.emit(AdminTab::PostCreate))
                                 }}
                             >{"Create New Post"}</button>
                             { if *show_create_essentials {

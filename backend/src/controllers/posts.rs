@@ -117,6 +117,7 @@ pub async fn create_post(
 /// Updates a post with validation and sanitization.
 /// Requires admin authentication.
 pub async fn update_post(
+    Extension(_auth_user): Extension<AuthenticatedUser>,
     State(services): State<AppServices>, 
     Path(id): Path<i32>, 
     Json(frontend_post): Json<FrontendPost>
@@ -157,6 +158,7 @@ pub async fn update_post(
 /// Permanently deletes a post and associated data.
 /// Requires admin authentication.
 pub async fn delete_post(
+    Extension(_auth_user): Extension<AuthenticatedUser>,
     State(services): State<AppServices>, 
     Path(id): Path<i32>
 ) -> Result<ResponseJson<serde_json::Value>, AppError> {

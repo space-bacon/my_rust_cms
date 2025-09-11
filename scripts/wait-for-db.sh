@@ -5,7 +5,7 @@
 
 HOST=${1:-localhost}
 PORT=${2:-5432}
-USER=${3:-rustcms}
+USER=${3:-myrustcms}
 DATABASE=${4:-my_rust_cms}
 
 echo "⏳ Waiting for PostgreSQL at $HOST:$PORT..."

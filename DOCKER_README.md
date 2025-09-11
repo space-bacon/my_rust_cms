@@ -75,7 +75,7 @@ docker-compose down
 - **Application**: http://localhost:8080
 - **Database Admin**: http://localhost:8081 (development only)
   - Server: `postgres`
-  - Username: `rustcms` (or your configured value)
+  - Username: `myrustcms` (or your configured value)
   - Password: (as set in .env)
   - Database: `my_rust_cms`
 
@@ -97,7 +97,7 @@ docker-compose down
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `POSTGRES_USER` | rustcms | Database username |
+| `POSTGRES_USER` | myrustcms | Database username |
 | `POSTGRES_PASSWORD` | (required) | Database password |
 | `POSTGRES_DB` | my_rust_cms | Database name |
 | `RUST_LOG` | info | Logging level |
@@ -118,7 +118,7 @@ docker-compose down
 ./docker-dev.sh migrate
 
 # Access database shell
-docker exec -it rustcms_postgres psql -U rustcms -d my_rust_cms
+docker exec -it myrustcms_postgres psql -U myrustcms -d my_rust_cms
 
 # Backup database
 ./docker-prod.sh backup
@@ -196,7 +196,7 @@ docker-compose down
 **Database connection issues**:
 ```bash
 # Check database health
-docker-compose exec postgres pg_isready -U rustcms
+docker-compose exec postgres pg_isready -U myrustcms
 
 # Reset database
 docker-compose down -v
@@ -221,7 +221,7 @@ docker-compose logs -f web
 docker-compose ps
 
 # Inspect container
-docker inspect rustcms_web
+docker inspect myrustcms_web
 ```
 
 ## Security Notes
@@ -264,10 +264,10 @@ Production PostgreSQL includes optimized settings:
 ### Manual Backup
 ```bash
 # Database dump
-docker exec rustcms_postgres pg_dump -U rustcms my_rust_cms > backup.sql
+docker exec myrustcms_postgres pg_dump -U myrustcms my_rust_cms > backup.sql
 
 # File backup
-docker cp rustcms_web:/app/uploads ./uploads_backup
+docker cp myrustcms_web:/app/uploads ./uploads_backup
 ```
 
 ## Advanced Configuration

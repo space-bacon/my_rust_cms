@@ -78,13 +78,13 @@ stop_docker_services() {
         print_success "Main Docker services stopped"
     fi
     
-    # Clean up any orphaned rustcms containers
-    print_step "Cleaning up rustcms containers..."
-    local containers=$(docker ps -q --filter "name=rustcms" 2>/dev/null || true)
+    # Clean up any orphaned myrustcms containers
+    print_step "Cleaning up myrustcms containers..."
+    local containers=$(docker ps -q --filter "name=myrustcms" 2>/dev/null || true)
     if [ -n "$containers" ]; then
         echo "$containers" | xargs docker stop 2>/dev/null || true
         echo "$containers" | xargs docker rm 2>/dev/null || true
-        print_success "Cleaned up rustcms containers"
+        print_success "Cleaned up myrustcms containers"
     fi
 }
 
@@ -107,8 +107,8 @@ check_final_status() {
     fi
     
     # Check for remaining Docker containers
-    if docker ps --filter "name=rustcms" --format "table {{.Names}}" | grep -q rustcms 2>/dev/null; then
-        print_warning "Some rustcms Docker containers may still be running"
+    if docker ps --filter "name=myrustcms" --format "table {{.Names}}" | grep -q myrustcms 2>/dev/null; then
+        print_warning "Some myrustcms Docker containers may still be running"
         issues=$((issues + 1))
     fi
     

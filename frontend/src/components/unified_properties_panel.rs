@@ -49,7 +49,7 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
     {
         let working_properties = working_properties.clone();
         let working_content = working_content.clone();
-        let working_template_data = working_template_data.clone();
+        let _working_template_data = working_template_data.clone();
         
         use_effect_with_deps(move |component_opt| {
             if let Some(component) = component_opt {
@@ -60,16 +60,25 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
         }, props.component.clone());
     }
 
-    // Update working template data when props change
+    // Enhanced state management for template data
+    // Only update working data when props change AND there are no unsaved changes
+    // This prevents loss of user inputs during live editing
     {
         let working_template_data = working_template_data.clone();
-        let has_unsaved_changes_state = has_unsaved_changes.clone();
+        let _has_unsaved_changes_state = has_unsaved_changes.clone();
         use_effect_with_deps(move |deps| {
             let (template_data_opt, currently_has_unsaved) = deps;
             
-            if !currently_has_unsaved && template_data_opt.is_some() {
-                if let Some(data) = template_data_opt.clone() {
-                    working_template_data.set(data);
+            // Only reset working data if:
+            // 1. There are no unsaved changes AND
+            // 2. Template data is provided AND
+            // 3. The template data has actually changed
+            if !currently_has_unsaved {
+                if let Some(new_data) = template_data_opt.clone() {
+                    // Check if the data has actually changed to avoid unnecessary resets
+                    if *working_template_data != new_data {
+                        working_template_data.set(new_data);
+                    }
                 }
             }
             || ()
@@ -108,22 +117,41 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                         }
                     }
                     _ => {
-                        // Handle template property updates
-                    let mut data = (*working_template_data).clone();
-                    data[&name] = serde_json::Value::String(value.clone());
-                    working_template_data.set(data.clone());
-                    
+                        // Handle template property updates with enhanced change accumulation
+                        let mut data = (*working_template_data).clone();
+                        
+                        // Handle special property types that need processing
+                        let processed_value = match name.as_str() {
+                            // Height values - ensure they have px units if numeric
+                            "height" => {
+                                if value.chars().all(|c| c.is_numeric()) {
+                                    format!("{}px", value)
+                                } else {
+                                    value.clone()
+                                }
+                            },
+                            // Range values that should remain as strings
+                            "effects_intensity" | "overlay_opacity" | "shrink_height" | "logo_scale" => value.clone(),
+                            // All other values
+                            _ => value.clone()
+                        };
+                        
+                        // Update the working data with processed value
+                        data[&name] = serde_json::Value::String(processed_value);
+                        working_template_data.set(data.clone());
+                        
                         // Apply real-time preview for template properties
-                    let component_type = match panel_type {
-                        PanelType::HeaderTemplate => "header",
-                        PanelType::FooterTemplate => "footer",
-                        PanelType::ContainerTemplate => "container",
-                        _ => "",
-                    };
-                    
-                    if !component_type.is_empty() {
-                        crate::components::enhanced_live_edit_system::apply_template_style_preview(component_type, &data);
-                    }
+                        let component_type = match panel_type {
+                            PanelType::HeaderTemplate => "header",
+                            PanelType::FooterTemplate => "footer",
+                            PanelType::ContainerTemplate => "container",
+                            _ => "",
+                        };
+                        
+                        if !component_type.is_empty() {
+                            // Apply preview with accumulated changes
+                            crate::components::enhanced_live_edit_system::apply_template_style_preview(component_type, &data);
+                        }
                     }
                 }
                     
@@ -181,23 +209,52 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                             is_active: true,
                         };
                         
-                        // Save to database
+                        // Save to database with enhanced error handling and feedback
                         let template_for_api = template.clone();
                         let has_unsaved_changes_for_api = has_unsaved_changes.clone();
                         let saving_for_api = saving.clone();
                         let callback_for_api = callback.clone();
                         
+                        // Log the changes being saved for debugging
+                        web_sys::console::log_1(&format!("💾 Live Edit: Saving {} template with data: {}", 
+                            template_for_api.component_type,
+                            serde_json::to_string_pretty(&template_for_api.template_data).unwrap_or_else(|_| "Failed to serialize".to_string())
+                        ).into());
+                        
                         wasm_bindgen_futures::spawn_local(async move {
                             match crate::services::navigation_service::update_component_template(template_for_api.id, &template_for_api).await {
                                 Ok(saved_template) => {
+                                    web_sys::console::log_1(&"🎉 Live Edit: Successfully saved all accumulated changes to database!".into());
                                     callback_for_api.emit(saved_template);
                                     has_unsaved_changes_for_api.set(false);
+                                    
+                                    // Re-enable scroll effects after successful save for header templates
+                                    if template_for_api.component_type == "header" {
+                                        if let Some(window) = web_sys::window() {
+                                            if let Some(document) = window.document() {
+                                                if let Some(header) = document.get_element_by_id("site-header") {
+                                                    header.remove_attribute("data-live-edit-active").ok();
+                                                    web_sys::console::log_1(&"✅ Live Edit: Re-enabled scroll effects after save".into());
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Show success feedback to user
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.alert_with_message("✅ Changes saved successfully!");
+                                    }
                                 }
                                 Err(e) => {
-                                    web_sys::console::log_1(&format!("Failed to save template: {:?}", e).into());
+                                    web_sys::console::log_1(&format!("❌ Live Edit: Failed to save template: {:?}", e).into());
+                                    
+                                    // Show error feedback to user  
+                                    if let Some(window) = web_sys::window() {
+                                        let _ = window.alert_with_message(&format!("❌ Failed to save changes: {}", e));
+                                    }
                                 }
                             }
-                                    saving_for_api.set(false);
+                            saving_for_api.set(false);
                         });
                     }
                 }
@@ -207,7 +264,21 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
 
     let on_close = {
         let props_on_close = props.on_close.clone();
-        Callback::from(move |_| props_on_close.emit(()))
+        let panel_type = props.panel_type.clone();
+        Callback::from(move |_| {
+            // Re-enable scroll effects when closing live edit panel
+            if matches!(panel_type, PanelType::HeaderTemplate) {
+                if let Some(window) = web_sys::window() {
+                    if let Some(document) = window.document() {
+                        if let Some(header) = document.get_element_by_id("site-header") {
+                            header.remove_attribute("data-live-edit-active").ok();
+                            web_sys::console::log_1(&"✅ Live Edit: Re-enabled scroll effects for header".into());
+                        }
+                    }
+                }
+            }
+            props_on_close.emit(())
+        })
     };
 
     html! {
@@ -239,6 +310,21 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                         PanelType::HeaderTemplate => "Header Properties",
                         PanelType::FooterTemplate => "Footer Properties",
                         PanelType::ContainerTemplate => "Container Properties",
+                    }}
+                    {if *has_unsaved_changes {
+                        html! {
+                            <span style="
+                                margin-left: 8px;
+                                background: #ff6b35;
+                                color: white;
+                                font-size: 10px;
+                                padding: 2px 6px;
+                                border-radius: 10px;
+                                font-weight: bold;
+                            ">{"UNSAVED"}</span>
+                        }
+                    } else {
+                        html! {}
                     }}
                 </h3>
                 <button onclick={on_close} style="
@@ -272,7 +358,7 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                 <div class="panel-actions" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee;">
                     <button 
                         onclick={on_save} 
-                        disabled={*saving}
+                        disabled={*saving || !*has_unsaved_changes}
                         style={format!("
                             background: {};
                             color: white;
@@ -283,13 +369,45 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                             font-size: 14px;
                             width: 100%;
                             opacity: {};
+                            transition: all 0.2s ease;
                         ", 
-                        if *saving { "#6c757d" } else { "#007bff" },
-                        if *saving { "not-allowed" } else { "pointer" },
-                        if *saving { "0.6" } else { "1.0" }
+                        if *saving { 
+                            "#6c757d" 
+                        } else if *has_unsaved_changes { 
+                            "#28a745" 
+                        } else { 
+                            "#6c757d" 
+                        },
+                        if *saving || !*has_unsaved_changes { "not-allowed" } else { "pointer" },
+                        if *saving || !*has_unsaved_changes { "0.6" } else { "1.0" }
                     )}>
-                        {if *saving { "💾 Saving..." } else { "Save Changes" }}
+                        {if *saving { 
+                            "💾 Saving..." 
+                        } else if *has_unsaved_changes { 
+                            "💾 Save All Changes" 
+                        } else { 
+                            "✅ All Changes Saved" 
+                        }}
                     </button>
+                    
+                    {if *has_unsaved_changes && !*saving {
+                        html! {
+                            <div style="
+                                margin-top: 8px;
+                                padding: 8px;
+                                background: #fff3cd;
+                                border: 1px solid #ffeaa7;
+                                border-radius: 4px;
+                                font-size: 12px;
+                                color: #856404;
+                                text-align: center;
+                            ">
+                                {"⚠️ You have unsaved changes that will be lost if you close this panel"}
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }}
                 </div>
             </div>
         </div>
@@ -887,7 +1005,7 @@ fn render_container_properties(template_data: &UseStateHandle<serde_json::Value>
     let overlay_opacity = template_data.get("overlay_opacity").and_then(|v| v.as_str()).unwrap_or("0.3");
     
     // Animation properties
-    let animation = template_data.get("animation").and_then(|v| v.as_str()).unwrap_or("none");
+    let _animation = template_data.get("animation").and_then(|v| v.as_str()).unwrap_or("none");
     
     // Shape mask properties
     let shape_mask_upper = template_data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");

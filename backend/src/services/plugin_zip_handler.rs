@@ -333,7 +333,8 @@ impl PluginZipHandler {
         zip.write_all(manifest_json.as_bytes())?;
 
         // Add README.md
-        let readme_content = include_str!("../../../docs/PLUGIN_TEMPLATE_README.md");
+        let readme_content = std::fs::read_to_string("docs/PLUGIN_TEMPLATE_README.md")
+            .unwrap_or_else(|_| "# Plugin Template\n\nThis is a template for creating plugins.".to_string());
         zip.start_file("README.md", zip::write::FileOptions::default())?;
         zip.write_all(readme_content.as_bytes())?;
 

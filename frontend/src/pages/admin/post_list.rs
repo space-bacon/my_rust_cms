@@ -68,11 +68,9 @@ pub fn post_list(props: &PostListProps) -> Html {
     };
 
     let on_create_post = {
-        let on_navigate = props.on_navigate.clone();
+        let current_view = current_view.clone();
         Callback::from(move |_| {
-            if let Some(ref navigate) = on_navigate {
-                navigate.emit(AdminTab::PostCreate);
-            }
+            current_view.set(PostListView::Create);
         })
     };
 

@@ -699,6 +699,12 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
             };
             
             if let Some(element) = document.get_element_by_id(element_id) {
+                // CRITICAL: Disable scroll effects during live editing to prevent interference
+                if component_type == "header" {
+                    let _ = element.set_attribute("data-live-edit-active", "true");
+                    web_sys::console::log_1(&"🚫 Live Edit: Temporarily disabled scroll effects for header".into());
+                }
+                
                 if let Ok(html_element) = element.dyn_into::<HtmlElement>() {
                     let mut styles = Vec::new();
                     
