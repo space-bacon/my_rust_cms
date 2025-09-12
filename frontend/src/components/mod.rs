@@ -2,14 +2,14 @@ pub mod header;
 pub mod sidebar;
 pub mod notification;
 pub mod simple_notification;
-pub mod simple_component_editor;
+// pub mod simple_component_editor; // Removed - unused component
 pub mod unified_properties_panel;
 pub mod enhanced_live_edit_system;
 mod public_layout;
 mod media_picker;
 mod enhanced_gallery;
 mod modern_menu_designer;
-mod live_edit_mode;
+// mod live_edit_mode; // Removed - unused component
 // mod hamburger_menu; // Temporarily removed
 pub mod admin;
 pub mod auth_guard;

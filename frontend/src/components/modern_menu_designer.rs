@@ -1012,6 +1012,7 @@ fn inject_preview_css(css: &str) {
 }
 
 // Re-export for compatibility with existing code
+#[allow(dead_code)]
 pub type MenuPreset = MenuProperties;
 
 // Helper function to convert various color formats to hex for color input

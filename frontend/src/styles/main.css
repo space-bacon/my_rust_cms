@@ -1,10 +1,7 @@
 /* Main CSS for Rust CMS - Clean Black & White Design */
 
-/* Import component styles */
-@import url('./enhanced_gallery.css');
-@import url('./modern_menu_designer.css');
-@import url('./enhanced_mobile_designer.css');
-@import url('./typography_fonts.css');
+/* Component styles are included via include_str! in the respective components */
+/* Removed @import statements that were causing 404 errors in production build */
 
 /* Reset and base styles */
 * {
@@ -50,11 +47,17 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     text-decoration: none;
-    color: var(--public-header-text, #fff);
+    color: var(--site-title-color, var(--public-header-text, #fff)) !important;
 }
 
 .site-title:hover {
     color: var(--public-header-text-hover, #ccc);
+}
+
+/* More specific rule to ensure site-title color is applied in header */
+.site-header .site-title,
+header .site-title {
+    color: var(--site-title-color, var(--public-header-text, #fff)) !important;
 }
 
 /* Logo scaling and alignment for scroll effects */
@@ -1190,24 +1193,47 @@ tr:hover {
 /* Stats Grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
     margin-bottom: 3rem;
 }
 
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1.5rem;
+        gap: 1.5rem;
+        min-height: 100px;
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+    
+    .stat-content .stat-number {
+        font-size: 2rem;
+    }
+}
+
 .stat-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
-    padding: 2.5rem 2rem;
+    background: #ffffff;
+    padding: 2rem;
     border-radius: 20px;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 2rem;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
+    min-height: 120px;
 }
 
 .stat-card::before {
@@ -1231,6 +1257,7 @@ tr:hover {
 .stat-card:hover {
     transform: translateY(-8px) scale(1.02);
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    border-color: var(--admin-primary-color, #667eea);
 }
 
 .stat-card:hover .stat-icon {
@@ -1239,15 +1266,16 @@ tr:hover {
 
 .stat-icon {
     font-size: 2.5rem;
-    width: 70px;
-    height: 70px;
+    width: 80px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
     color: white;
-    border-radius: 16px;
+    border-radius: 20px;
     box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    flex-shrink: 0;
     transition: all 0.3s ease;
     position: relative;
 }
@@ -1263,25 +1291,28 @@ tr:hover {
     mask-composite: exclude;
 }
 
+.stat-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
 .stat-content h3 {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.8);
-    margin: 0 0 0.5rem 0;
+    color: var(--admin-text-secondary, #6b7280);
+    margin: 0 0 0.75rem 0;
     text-transform: uppercase;
     letter-spacing: 0.8px;
 }
 
 .stat-content .stat-number {
-    font-size: 2.5rem;
+    font-size: 2.25rem;
     font-weight: 800;
-    color: #ffffff;
+    color: var(--admin-text-primary, #1f2937);
     margin: 0;
     line-height: 1;
-    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
 
 /* Dashboard Content Grid */
@@ -7955,6 +7986,18 @@ body.live-edit-mode::before {
     z-index: 9998;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     animation: liveEditPulse 2s infinite;
+}
+
+/* Fix color input width in live edit properties panel */
+.properties-panel input[type="color"],
+.unified-properties-panel input[type="color"] {
+    width: 60px !important;
+    height: 36px !important;
+    padding: 2px !important;
+    border: 2px solid #ddd !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
 }
 
 @keyframes liveEditPulse {

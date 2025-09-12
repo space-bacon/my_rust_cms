@@ -134,12 +134,14 @@ pub type ApiResult<T> = Result<T, AppError>;
 
 // Standard JSON response wrapper
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ResponseJson<T> {
     pub success: bool,
     pub data: T,
     pub message: Option<String>,
 }
 
+#[allow(dead_code)]
 impl<T> ResponseJson<T> {
     pub fn success(data: T) -> Self {
         Self {

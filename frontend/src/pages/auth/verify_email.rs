@@ -5,6 +5,7 @@ use crate::services::auth_service::{verify_email, AuthError};
 use std::collections::HashMap;
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum NotificationType {
     Success,
     Error,

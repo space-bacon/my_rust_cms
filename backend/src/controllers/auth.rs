@@ -13,7 +13,7 @@ use crate::{
         validation::{validate_username, validate_email, validate_password},
         errors::AppError,
     },
-    services,
+    // services, // Unused import
 };
 
 // Temporary replacement for email service function

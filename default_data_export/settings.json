@@ -1,0 +1,425 @@
+[
+  {
+    "id": 1,
+    "setting_key": "admin_button_visible",
+    "setting_value": "true",
+    "created_at": "2025-08-12T14:26:19.522966",
+    "setting_type": "site",
+    "description": "Show admin button in public navigation",
+    "updated_at": "2025-08-12T14:26:19.522966"
+  },
+  {
+    "id": 32,
+    "setting_key": "container_animation",
+    "setting_value": "none",
+    "created_at": "2025-09-11T20:49:12.463613",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.463613"
+  },
+  {
+    "id": 33,
+    "setting_key": "container_background_color",
+    "setting_value": "#ffffff",
+    "created_at": "2025-09-11T20:49:12.465238",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.465238"
+  },
+  {
+    "id": 34,
+    "setting_key": "container_background_type",
+    "setting_value": "none",
+    "created_at": "2025-09-11T20:49:12.466673",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.466673"
+  },
+  {
+    "id": 35,
+    "setting_key": "container_border_color",
+    "setting_value": "#000000",
+    "created_at": "2025-09-11T20:49:12.467603",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.467603"
+  },
+  {
+    "id": 36,
+    "setting_key": "container_border_radius",
+    "setting_value": "0px",
+    "created_at": "2025-09-11T20:49:12.468499",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.468499"
+  },
+  {
+    "id": 37,
+    "setting_key": "container_border_width",
+    "setting_value": "0px",
+    "created_at": "2025-09-11T20:49:12.469224",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.469224"
+  },
+  {
+    "id": 38,
+    "setting_key": "container_box_shadow",
+    "setting_value": "none",
+    "created_at": "2025-09-11T20:49:12.470071",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.470071"
+  },
+  {
+    "id": 39,
+    "setting_key": "container_gradient_angle",
+    "setting_value": "180deg",
+    "created_at": "2025-09-11T20:49:12.470786",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.470786"
+  },
+  {
+    "id": 40,
+    "setting_key": "container_gradient_from",
+    "setting_value": "#ffffff",
+    "created_at": "2025-09-11T20:49:12.471497",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.471497"
+  },
+  {
+    "id": 41,
+    "setting_key": "container_gradient_to",
+    "setting_value": "#ffffff",
+    "created_at": "2025-09-11T20:49:12.472083",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.472083"
+  },
+  {
+    "id": 42,
+    "setting_key": "container_horizontal_padding",
+    "setting_value": "1rem",
+    "created_at": "2025-09-11T20:49:12.472622",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.472622"
+  },
+  {
+    "id": 43,
+    "setting_key": "container_max_width",
+    "setting_value": "1200px",
+    "created_at": "2025-09-11T20:49:12.473377",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.473377"
+  },
+  {
+    "id": 44,
+    "setting_key": "container_overlay_color",
+    "setting_value": "#000000",
+    "created_at": "2025-09-11T20:49:12.474237",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.474237"
+  },
+  {
+    "id": 45,
+    "setting_key": "container_overlay_opacity",
+    "setting_value": "0.3",
+    "created_at": "2025-09-11T20:49:12.475145",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.475145"
+  },
+  {
+    "id": 46,
+    "setting_key": "container_width_type",
+    "setting_value": "fixed",
+    "created_at": "2025-09-11T20:49:12.475765",
+    "setting_type": "container",
+    "description": null,
+    "updated_at": "2025-09-11T20:49:12.475765"
+  },
+  {
+    "id": 2,
+    "setting_key": "login_button_visible",
+    "setting_value": "true",
+    "created_at": "2025-09-01T15:28:21.840470",
+    "setting_type": "site",
+    "description": "Show login button in public navigation",
+    "updated_at": "2025-09-01T15:28:21.840470"
+  },
+  {
+    "id": 47,
+    "setting_key": "menu_style_header",
+    "setting_value": "{\"id\":\"header_style\",\"name\":\"header Menu Style\",\"properties\":{\"background\":\"transparent\",\"text_color\":\"#ffffff\",\"hover_color\":\"#cce1ff\",\"active_color\":\"#a3c0ff\",\"hover_background\":\"rgba(31, 41, 55, 0.05)\",\"active_background\":\"rgba(17, 24, 39, 0.1)\",\"layout\":\"horizontal\",\"alignment\":\"left\",\"item_spacing\":\"24px\",\"padding\":\"8px 16px\",\"border_radius\":\"4px\",\"border\":\"none\",\"shadow\":\"none\",\"font_size\":\"15px\",\"font_weight\":\"500\",\"text_transform\":\"none\",\"hover_transition\":\"all 0.2s ease\",\"hover_transform\":\"none\",\"hover_animation_type\":\"none\",\"hover_animation_duration\":\"0.3s\",\"hover_animation_easing\":\"cubic-bezier(0.4, 0, 0.2, 1)\",\"hover_scale\":\"1.0\",\"hover_lift_distance\":\"0px\",\"hover_glow_color\":\"rgba(59, 130, 246, 0.3)\",\"hover_glow_intensity\":\"8px\",\"hover_border_color\":\"transparent\",\"hover_border_width\":\"1px\",\"enable_underline_animation\":false,\"underline_color\":\"#3b82f6\",\"underline_thickness\":\"2px\",\"mobile_breakpoint\":\"768px\",\"mobile_layout\":\"hamburger\"}}",
+    "created_at": "2025-09-12T13:20:40.763329",
+    "setting_type": "menu",
+    "description": "Menu style configuration for header area",
+    "updated_at": "2025-09-12T13:21:06.708654"
+  },
+  {
+    "id": 29,
+    "setting_key": "typography_alert_line_height",
+    "setting_value": "1.4",
+    "created_at": "2025-09-11T19:29:03.631791",
+    "setting_type": "typography",
+    "description": "Alert line height setting",
+    "updated_at": "2025-09-11T19:29:03.631791"
+  },
+  {
+    "id": 28,
+    "setting_key": "typography_alert_size",
+    "setting_value": "14",
+    "created_at": "2025-09-11T19:29:03.631236",
+    "setting_type": "typography",
+    "description": "Alert font size setting",
+    "updated_at": "2025-09-11T19:29:03.631236"
+  },
+  {
+    "id": 31,
+    "setting_key": "typography_alert_spacing",
+    "setting_value": "0.8",
+    "created_at": "2025-09-11T19:29:03.632874",
+    "setting_type": "typography",
+    "description": "Alert spacing setting",
+    "updated_at": "2025-09-11T19:29:03.632874"
+  },
+  {
+    "id": 30,
+    "setting_key": "typography_alert_weight",
+    "setting_value": "400",
+    "created_at": "2025-09-11T19:29:03.632362",
+    "setting_type": "typography",
+    "description": "Alert font weight setting",
+    "updated_at": "2025-09-11T19:29:03.632362"
+  },
+  {
+    "id": 25,
+    "setting_key": "typography_button_line_height",
+    "setting_value": "1.2",
+    "created_at": "2025-09-11T19:29:03.628820",
+    "setting_type": "typography",
+    "description": "Button line height setting",
+    "updated_at": "2025-09-11T19:29:03.628820"
+  },
+  {
+    "id": 24,
+    "setting_key": "typography_button_size",
+    "setting_value": "16",
+    "created_at": "2025-09-11T19:29:03.627921",
+    "setting_type": "typography",
+    "description": "Button font size setting",
+    "updated_at": "2025-09-11T19:29:03.627921"
+  },
+  {
+    "id": 27,
+    "setting_key": "typography_button_spacing",
+    "setting_value": "0.5",
+    "created_at": "2025-09-11T19:29:03.630640",
+    "setting_type": "typography",
+    "description": "Button spacing setting",
+    "updated_at": "2025-09-11T19:29:03.630640"
+  },
+  {
+    "id": 26,
+    "setting_key": "typography_button_weight",
+    "setting_value": "500",
+    "created_at": "2025-09-11T19:29:03.629969",
+    "setting_type": "typography",
+    "description": "Button font weight setting",
+    "updated_at": "2025-09-11T19:29:03.629969"
+  },
+  {
+    "id": 3,
+    "setting_key": "typography_font_family",
+    "setting_value": "pixelify-sans",
+    "created_at": "2025-09-11T19:29:03.606499",
+    "setting_type": "typography",
+    "description": "Global font family setting",
+    "updated_at": "2025-09-11T19:29:03.606499"
+  },
+  {
+    "id": 4,
+    "setting_key": "typography_font_size",
+    "setting_value": "16",
+    "created_at": "2025-09-11T19:29:03.612039",
+    "setting_type": "typography",
+    "description": "Global base font size setting",
+    "updated_at": "2025-09-11T19:29:03.612039"
+  },
+  {
+    "id": 6,
+    "setting_key": "typography_font_weight",
+    "setting_value": "400",
+    "created_at": "2025-09-11T19:29:03.614483",
+    "setting_type": "typography",
+    "description": "Global font weight setting",
+    "updated_at": "2025-09-11T19:29:03.614483"
+  },
+  {
+    "id": 9,
+    "setting_key": "typography_h1_line_height",
+    "setting_value": "1.2",
+    "created_at": "2025-09-11T19:29:03.617567",
+    "setting_type": "typography",
+    "description": "H1 line height setting",
+    "updated_at": "2025-09-11T19:29:03.617567"
+  },
+  {
+    "id": 8,
+    "setting_key": "typography_h1_size",
+    "setting_value": "32",
+    "created_at": "2025-09-11T19:29:03.616808",
+    "setting_type": "typography",
+    "description": "H1 font size setting",
+    "updated_at": "2025-09-11T19:29:03.616808"
+  },
+  {
+    "id": 11,
+    "setting_key": "typography_h1_spacing",
+    "setting_value": "1.5",
+    "created_at": "2025-09-11T19:29:03.618808",
+    "setting_type": "typography",
+    "description": "H1 spacing setting",
+    "updated_at": "2025-09-11T19:29:03.618808"
+  },
+  {
+    "id": 10,
+    "setting_key": "typography_h1_weight",
+    "setting_value": "700",
+    "created_at": "2025-09-11T19:29:03.618203",
+    "setting_type": "typography",
+    "description": "H1 font weight setting",
+    "updated_at": "2025-09-11T19:29:03.618203"
+  },
+  {
+    "id": 13,
+    "setting_key": "typography_h2_line_height",
+    "setting_value": "1.3",
+    "created_at": "2025-09-11T19:29:03.620055",
+    "setting_type": "typography",
+    "description": "H2 line height setting",
+    "updated_at": "2025-09-11T19:29:03.620055"
+  },
+  {
+    "id": 12,
+    "setting_key": "typography_h2_size",
+    "setting_value": "28",
+    "created_at": "2025-09-11T19:29:03.619346",
+    "setting_type": "typography",
+    "description": "H2 font size setting",
+    "updated_at": "2025-09-11T19:29:03.619346"
+  },
+  {
+    "id": 15,
+    "setting_key": "typography_h2_spacing",
+    "setting_value": "1.3",
+    "created_at": "2025-09-11T19:29:03.621155",
+    "setting_type": "typography",
+    "description": "H2 spacing setting",
+    "updated_at": "2025-09-11T19:29:03.621155"
+  },
+  {
+    "id": 14,
+    "setting_key": "typography_h2_weight",
+    "setting_value": "600",
+    "created_at": "2025-09-11T19:29:03.620651",
+    "setting_type": "typography",
+    "description": "H2 font weight setting",
+    "updated_at": "2025-09-11T19:29:03.620651"
+  },
+  {
+    "id": 17,
+    "setting_key": "typography_h3_line_height",
+    "setting_value": "1.4",
+    "created_at": "2025-09-11T19:29:03.622378",
+    "setting_type": "typography",
+    "description": "H3 line height setting",
+    "updated_at": "2025-09-11T19:29:03.622378"
+  },
+  {
+    "id": 16,
+    "setting_key": "typography_h3_size",
+    "setting_value": "24",
+    "created_at": "2025-09-11T19:29:03.621700",
+    "setting_type": "typography",
+    "description": "H3 font size setting",
+    "updated_at": "2025-09-11T19:29:03.621700"
+  },
+  {
+    "id": 19,
+    "setting_key": "typography_h3_spacing",
+    "setting_value": "1.2",
+    "created_at": "2025-09-11T19:29:03.624044",
+    "setting_type": "typography",
+    "description": "H3 spacing setting",
+    "updated_at": "2025-09-11T19:29:03.624044"
+  },
+  {
+    "id": 18,
+    "setting_key": "typography_h3_weight",
+    "setting_value": "600",
+    "created_at": "2025-09-11T19:29:03.623109",
+    "setting_type": "typography",
+    "description": "H3 font weight setting",
+    "updated_at": "2025-09-11T19:29:03.623109"
+  },
+  {
+    "id": 5,
+    "setting_key": "typography_line_height",
+    "setting_value": "1.6",
+    "created_at": "2025-09-11T19:29:03.613413",
+    "setting_type": "typography",
+    "description": "Global line height setting",
+    "updated_at": "2025-09-11T19:29:03.613413"
+  },
+  {
+    "id": 21,
+    "setting_key": "typography_nav_line_height",
+    "setting_value": "1.4",
+    "created_at": "2025-09-11T19:29:03.625627",
+    "setting_type": "typography",
+    "description": "Navigation line height setting",
+    "updated_at": "2025-09-11T19:29:03.625627"
+  },
+  {
+    "id": 20,
+    "setting_key": "typography_nav_size",
+    "setting_value": "16",
+    "created_at": "2025-09-11T19:29:03.624927",
+    "setting_type": "typography",
+    "description": "Navigation font size setting",
+    "updated_at": "2025-09-11T19:29:03.624927"
+  },
+  {
+    "id": 23,
+    "setting_key": "typography_nav_spacing",
+    "setting_value": "0.8",
+    "created_at": "2025-09-11T19:29:03.627017",
+    "setting_type": "typography",
+    "description": "Navigation spacing setting",
+    "updated_at": "2025-09-11T19:29:03.627017"
+  },
+  {
+    "id": 22,
+    "setting_key": "typography_nav_weight",
+    "setting_value": "500",
+    "created_at": "2025-09-11T19:29:03.626191",
+    "setting_type": "typography",
+    "description": "Navigation font weight setting",
+    "updated_at": "2025-09-11T19:29:03.626191"
+  },
+  {
+    "id": 7,
+    "setting_key": "typography_paragraph_spacing",
+    "setting_value": "1",
+    "created_at": "2025-09-11T19:29:03.615656",
+    "setting_type": "typography",
+    "description": "Paragraph spacing setting",
+    "updated_at": "2025-09-11T19:29:03.615656"
+  }
+]

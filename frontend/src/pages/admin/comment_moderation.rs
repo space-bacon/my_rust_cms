@@ -3,6 +3,7 @@ use crate::services::api_service::{get_comments_with_relations, delete_comment, 
 use wasm_bindgen::JsCast;
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum CommentFilter {
     All,
 }

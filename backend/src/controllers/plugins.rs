@@ -53,6 +53,7 @@ pub struct PluginActionRequest {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub struct PluginSettingRequest {
     pub setting_key: String,
     pub setting_value: serde_json::Value,

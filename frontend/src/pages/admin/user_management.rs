@@ -3,6 +3,7 @@ use crate::services::api_service::{get_users, create_user, update_user, delete_u
 use wasm_bindgen::JsCast;
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum UserManagementView {
     List,
     Create,
@@ -10,6 +11,7 @@ pub enum UserManagementView {
 }
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 pub struct UserForm {
     pub username: String,
     pub email: String,

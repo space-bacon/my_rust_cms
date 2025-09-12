@@ -2631,6 +2631,7 @@ fn render_effects_controls(customization: &MenuAreaCustomization, update_customi
     }
 }
 
+#[allow(dead_code)]
 fn render_mobile_hamburger_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
         <div class="mobile-hamburger-controls" style="
@@ -2726,6 +2727,7 @@ fn render_mobile_hamburger_controls(customization: &MenuAreaCustomization, updat
     }
 }
 
+#[allow(dead_code)]
 fn render_mobile_dropdown_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
         <div class="mobile-dropdown-controls" style="
@@ -3408,6 +3410,7 @@ fn render_enhanced_animation_controls(customization: &MenuAreaCustomization, upd
     }
 }
 
+#[allow(dead_code)]
 fn render_mobile_behavior_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
         <div class="enhanced-control-panel" style="
@@ -3905,6 +3908,7 @@ fn render_mobile_preview_panel(customization: &MenuAreaCustomization) -> Html {
     }
 }
 
+#[allow(dead_code)]
 fn render_mobile_styling_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
         <div class="mobile-styling-controls" style="
@@ -4424,6 +4428,7 @@ fn render_background_controls(customization: &MenuAreaCustomization, update_cust
     }
 }
 
+#[allow(dead_code)]
 fn render_color_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
         <>
@@ -4500,6 +4505,7 @@ fn render_color_controls(customization: &MenuAreaCustomization, update_customiza
     }
 }
 
+#[allow(dead_code)]
 fn render_animation_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     html! {
         <div class="customization-section" style="

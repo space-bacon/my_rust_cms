@@ -271,7 +271,7 @@ pub fn plugin_modal(props: &PluginModalProps) -> Html {
 
     let handle_repo_submit = {
         let repo_url = repo_url.clone();
-        let repo_branch = repo_branch.clone();
+        let _repo_branch = repo_branch.clone();
         let uploading = uploading.clone();
         let error = error.clone();
         let success_message = success_message.clone();
@@ -654,7 +654,7 @@ pub fn plugin_modal(props: &PluginModalProps) -> Html {
                                         placeholder="main"
                                         value={(*repo_branch).clone()}
                                         oninput={Callback::from({
-                                            let repo_branch = repo_branch.clone();
+                                            let _repo_branch = repo_branch.clone();
                                             move |e: InputEvent| {
                                                 if let Some(input) = e.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok()) {
                                                     repo_branch.set(input.value());

@@ -35,6 +35,7 @@ pub enum PluginZipError {
     InvalidManifest(String),
     IoError(std::io::Error),
     SecurityViolation(String),
+    #[allow(dead_code)]
     UnsupportedVersion(String),
 }
 

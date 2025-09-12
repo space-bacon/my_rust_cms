@@ -631,6 +631,7 @@ pub struct DragDropPageBuilderProps {
 }
 
 // Helper function to find a nested component by ID and return its parent and location
+#[allow(dead_code)]
 fn find_nested_component_location(components: &[PageComponent], target_id: &str) -> Option<(String, String)> {
     for component in components {
         // Check nested_components
@@ -789,6 +790,7 @@ fn find_component_by_id<'a>(components: &'a [PageComponent], target_id: &str) ->
 }
 
 // Helper function to generate animation classes and data attributes
+#[allow(dead_code)]
 fn get_animation_classes_and_attributes(component: &PageComponent) -> (String, Vec<(&'static str, String)>) {
     let mut classes = Vec::new();
     let mut attributes = Vec::new();
@@ -1732,7 +1734,7 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                     let on_drag_start = {
                                                         let on_component_drag_start = on_component_drag_start.clone();
                                                         let component_id = component_id.clone();
-                                                        Callback::from(move |e: DragEvent| {
+                                                        Callback::from(move |_e: DragEvent| {
                                                             // Don't prevent default - we want the drag to work
                                                             // Set drag data for the component using the event target
                                                             web_sys::console::log_1(&format!("Drag started for component: {}", component_id).into());
@@ -5681,6 +5683,7 @@ fn render_component_content(component: &PageComponent) -> Html {
 }
 
 // Flatten component hierarchy - create a list of all components (main + nested) for unified rendering
+#[allow(dead_code)]
 fn flatten_components_for_rendering(components: &[PageComponent]) -> Vec<ComponentWithContext> {
     let mut flattened = Vec::new();
     
@@ -5752,6 +5755,7 @@ fn flatten_components_for_rendering(components: &[PageComponent]) -> Vec<Compone
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct ComponentWithContext {
     component: PageComponent,
     context: ComponentContext,
@@ -5759,6 +5763,7 @@ struct ComponentWithContext {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 enum ComponentContext {
     Main,
     NestedInContainer,

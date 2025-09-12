@@ -175,8 +175,8 @@ pub fn enhanced_gallery(props: &EnhancedGalleryProps) -> Html {
 
     // Touch/swipe handling for lightbox
     let on_lightbox_touchstart = {
-        let touch_start_x = touch_start_x.clone();
-        let touch_start_y = touch_start_y.clone();
+        let _touch_start_x = touch_start_x.clone();
+        let _touch_start_y = touch_start_y.clone();
         let is_swiping = is_swiping.clone();
         
         Callback::from(move |_e: TouchEvent| {
@@ -186,7 +186,7 @@ pub fn enhanced_gallery(props: &EnhancedGalleryProps) -> Html {
     };
 
     let on_lightbox_touchend = {
-        let touch_start_x = touch_start_x.clone();
+        let _touch_start_x = touch_start_x.clone();
         let navigate_lightbox = navigate_lightbox.clone();
         let is_swiping = is_swiping.clone();
         

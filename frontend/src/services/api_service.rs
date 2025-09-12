@@ -321,6 +321,7 @@ pub async fn get_users() -> Result<Vec<User>, ApiServiceError> {
     }
 }
 
+#[allow(dead_code)]
 pub async fn create_user(user: &User) -> Result<User, ApiServiceError> {
     let response = Request::post(&format!("{}/users", API_BASE_URL))
         .json(user)
@@ -340,6 +341,7 @@ pub async fn create_user(user: &User) -> Result<User, ApiServiceError> {
     }
 }
 
+#[allow(dead_code)]
 pub async fn update_user(id: i32, user: &User) -> Result<User, ApiServiceError> {
     let response = Request::put(&format!("{}/users/{}", API_BASE_URL, id))
         .json(user)
@@ -359,6 +361,7 @@ pub async fn update_user(id: i32, user: &User) -> Result<User, ApiServiceError> 
     }
 }
 
+#[allow(dead_code)]
 pub async fn delete_user(id: i32) -> Result<(), ApiServiceError> {
     let response = Request::delete(&format!("{}/users/{}", API_BASE_URL, id))
         .send()
@@ -427,6 +430,7 @@ pub async fn create_comment(comment: &Comment) -> Result<Comment, ApiServiceErro
     }
 }
 
+#[allow(dead_code)]
 pub async fn update_comment(id: i32, comment: &Comment) -> Result<Comment, ApiServiceError> {
     let response = Request::put(&format!("{}/comments/{}", API_BASE_URL, id))
         .json(comment)

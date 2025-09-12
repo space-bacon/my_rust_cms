@@ -136,16 +136,16 @@ body.admin-body {
 
 .admin-header h1::before,
 .admin-header .admin-title::before {
-    content: '' !important;
+    content: '🦀' !important;
     width: 32px !important;
     height: 32px !important;
-    background: var(--admin-header-logo-gradient, linear-gradient(135deg, #667eea, #764ba2)) !important;
+    background: none !important;
     border-radius: 8px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background-position: center !important;
-    background-repeat: no-repeat !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
     flex-shrink: 0 !important;
 }
 
@@ -2287,11 +2287,11 @@ td.actions .btn-danger:hover::before {
 }
 
 .stat-card {
-    background: var(--bg-primary);
+    background: #ffffff !important;
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
     transition: all 0.2s ease;
 }
 
@@ -2302,7 +2302,7 @@ td.actions .btn-danger:hover::before {
 
 .stat-card h3 {
     margin-bottom: 0.5rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--admin-text-secondary, #6b7280) !important;
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -2312,7 +2312,7 @@ td.actions .btn-danger:hover::before {
 .stat-number {
     font-size: 2rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--admin-text-primary, #1f2937) !important;
     margin: 0;
 }
 
@@ -2380,8 +2380,8 @@ td.actions .btn-danger:hover::before {
 
 .card,
     .stat-card {
-        background: var(--bg-primary);
-        border-color: var(--border-color);
+        background: #ffffff !important;
+        border-color: rgba(0, 0, 0, 0.1) !important;
     }
     
     table {

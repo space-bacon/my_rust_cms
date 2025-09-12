@@ -51,6 +51,7 @@ pub struct CreatePluginRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct UpdatePluginRequest {
     pub display_name: Option<String>,
     pub description: Option<String>,
@@ -139,6 +140,7 @@ pub async fn get_plugins() -> Result<Vec<PluginInfo>, PluginServiceError> {
 }
 
 /// Get a specific plugin by ID
+#[allow(dead_code)]
 pub async fn get_plugin(id: i32) -> Result<PluginInfo, PluginServiceError> {
     let window = web_sys::window().ok_or_else(|| PluginServiceError::NetworkError("No window object".to_string()))?;
     
@@ -391,6 +393,7 @@ pub async fn download_base_plugin_template() -> Result<web_sys::Blob, PluginServ
     }
 }
 
+#[allow(dead_code)]
 pub async fn get_active_plugins() -> Result<Vec<PluginInfo>, PluginServiceError> {
     let window = web_sys::window().ok_or_else(|| PluginServiceError::NetworkError("No window object".to_string()))?;
     

@@ -6,8 +6,9 @@ target/
 # Cargo
 Cargo.lock
 
-# IDE
-.vscode/
+# IDE (except settings)
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

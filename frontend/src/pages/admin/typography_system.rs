@@ -631,11 +631,11 @@ pub fn typography_system() -> Html {
     
     // Color state variables
     let paragraph_color = use_state(|| "#333333".to_string());
-    let text_primary_color = use_state(|| "#1f2937".to_string());
-    let text_secondary_color = use_state(|| "#6b7280".to_string());
-    let text_meta_color = use_state(|| "#9ca3af".to_string());
-    let text_light_color = use_state(|| "#d1d5db".to_string());
-    let text_muted_color = use_state(|| "#e5e7eb".to_string());
+    let _text_primary_color = use_state(|| "#1f2937".to_string());
+    let _text_secondary_color = use_state(|| "#6b7280".to_string());
+    let _text_meta_color = use_state(|| "#9ca3af".to_string());
+    let _text_light_color = use_state(|| "#d1d5db".to_string());
+    let _text_muted_color = use_state(|| "#e5e7eb".to_string());
     
     let h1_color = use_state(|| "#1f2937".to_string());
     let h2_color = use_state(|| "#374151".to_string());
@@ -645,12 +645,12 @@ pub fn typography_system() -> Html {
     let nav_hover_color = use_state(|| "#1f2937".to_string());
     
     let button_color = use_state(|| "#ffffff".to_string());
-    let button_hover_color = use_state(|| "#f9fafb".to_string());
+    let _button_hover_color = use_state(|| "#f9fafb".to_string());
     
     let alert_color = use_state(|| "#dc2626".to_string());
-    let success_color = use_state(|| "#059669".to_string());
-    let warning_color = use_state(|| "#d97706".to_string());
-    let info_color = use_state(|| "#2563eb".to_string());
+    let _success_color = use_state(|| "#059669".to_string());
+    let _warning_color = use_state(|| "#d97706".to_string());
+    let _info_color = use_state(|| "#2563eb".to_string());
     
     let paragraph_spacing = use_state(|| 1.0);
     

@@ -402,7 +402,7 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                 }
                 
                 match get_auth_token() {
-                    Ok(token) => {
+                    Ok(_token) => {
                         web_sys::console::log_1(&format!("✅ Authentication token found, proceeding with save...").into());
                     }
                     Err(_) => {
@@ -912,6 +912,14 @@ pub fn apply_template_style_preview_with_context(component_type: &str, template_
                             styles.push(format!("--header-text: {}", text_color));
                         } else if component_type == "footer" {
                             styles.push(format!("--footer-text: {}", text_color));
+                        }
+                    }
+                    
+                    // Handle site-title color
+                    if let Some(site_title_color) = template_data.get("site_title_color").and_then(|v| v.as_str()) {
+                        if component_type == "header" {
+                            styles.push(format!("--site-title-color: {}", site_title_color));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting site title color to {}", site_title_color).into());
                         }
                     }
                     
@@ -1920,6 +1928,7 @@ fn generate_clip_path(
 }
 
 // Generate shape points for CSS polygon clip-path
+#[allow(dead_code)]
 fn generate_shape_points(shape_type: &str, scale: f32, frequency: f32, is_top: bool) -> Vec<String> {
     let depth = (scale * 20.0).min(50.0); // Use scale directly for depth (max 50%)
     

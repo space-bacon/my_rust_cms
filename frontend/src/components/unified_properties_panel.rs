@@ -501,6 +501,7 @@ fn render_component_properties(
 fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, on_change: Callback<InputEvent>) -> Html {
     // Extract current values
     let text_color = template_data.get("text_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
+    let site_title_color = template_data.get("site_title_color").and_then(|v| v.as_str()).unwrap_or("#ffffff");
     let height = template_data.get("height").and_then(|v| v.as_str()).unwrap_or("110px").trim_end_matches("px");
     let bg_type = template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("color");
     let bg_color = template_data.get("bg_color").and_then(|v| v.as_str()).unwrap_or("#333333");
@@ -522,6 +523,7 @@ fn render_header_properties(template_data: &UseStateHandle<serde_json::Value>, o
             <div class="property-section">
                 <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"Basic Properties"}</h4>
                 {render_color_field("Text Color", "text_color", text_color, on_change.clone())}
+                {render_color_field("Site Title Color", "site_title_color", site_title_color, on_change.clone())}
                 {render_select_field("Position", "position", 
                     template_data.get("position").and_then(|v| v.as_str()).unwrap_or("sticky"), 
                     vec![("static", "Static"), ("sticky", "Sticky"), ("fixed", "Fixed")], on_change.clone())}

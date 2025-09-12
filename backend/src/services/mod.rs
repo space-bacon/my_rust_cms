@@ -10,6 +10,7 @@ pub mod plugin_interface;
 pub mod sample_plugins;
 pub mod plugin_seeder;
 pub mod plugin_zip_handler;
+pub mod default_data_seeder;
 // Temporarily disabled for Docker build
 // pub mod email_service;
 

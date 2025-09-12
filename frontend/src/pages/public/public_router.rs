@@ -323,11 +323,13 @@ fn page_content(props: &PageContentProps) -> Html {
 }
 
 // Function to parse and render page builder content
+#[allow(dead_code)]
 fn render_page_builder_content(content: &str) -> Html {
     render_page_builder_content_with_navigation(content, None)
 }
 
 // Function to parse and render page builder content with navigation callback
+#[allow(dead_code)]
 fn render_page_builder_content_with_navigation(content: &str, on_navigate: Option<Callback<PublicPage>>) -> Html {
     render_page_builder_content_with_navigation_and_context(content, on_navigate, None)
 }

@@ -1,5 +1,12 @@
 [workspace]
 members = ["backend", "frontend"]
+resolver = "2"
+
+[workspace.lints.rust]
+unused_variables = "allow"
+unused_imports = "allow"
+dead_code = "allow"
+unused_mut = "allow"
 
 [workspace.dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -87,6 +87,7 @@ pub async fn security_headers_middleware(
 }
 
 /// HTTPS redirect middleware for production
+#[allow(dead_code)]
 pub async fn https_redirect_middleware(
     config: Config,
     req: Request,

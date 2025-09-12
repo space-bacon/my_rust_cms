@@ -28,6 +28,7 @@ impl SessionSigner {
     /// 
     /// Format: {uuid}.{base64_signature}
     /// Example: 123e4567-e89b-12d3-a456-426614174000.dGhpc19pc19hX3NpZ25hdHVyZQ
+    #[allow(dead_code)]
     pub fn create_signed_token(&self) -> Result<String, Box<dyn std::error::Error>> {
         let uuid_token = Uuid::new_v4().to_string();
         let signature = self.sign_token(&uuid_token)?;

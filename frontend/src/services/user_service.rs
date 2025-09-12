@@ -15,6 +15,7 @@ pub struct CreateUserRequest {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[allow(dead_code)]
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub email: Option<String>,
@@ -83,6 +84,7 @@ pub async fn create_user(user_data: &CreateUserRequest) -> Result<serde_json::Va
     }
 }
 
+#[allow(dead_code)]
 pub async fn update_user(user_id: i32, user_data: &UpdateUserRequest) -> Result<serde_json::Value, AuthError> {
     let token = get_auth_token()?;
     

@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "name": "Default Header",
+    "component_type": "header",
+    "template_data": {
+      "background_color": "#000000",
+      "height": "394px",
+      "logo_size": "1.85rem",
+      "logo_type": "text",
+      "mobile_breakpoint": "768px",
+      "mobile_menu": "hamburger",
+      "nav_hover_color": "#f7fafc",
+      "nav_underline_animation": "none",
+      "nav_underline_color": "#ffffff",
+      "nav_underline_thickness": "2px",
+      "navigation_layout": "horizontal",
+      "position": "sticky",
+      "text_color": "#ffffff",
+      "text_hover_color": "#f7fafc"
+    },
+    "breakpoints": {},
+    "width_setting": null,
+    "max_width": null,
+    "is_default": true,
+    "is_active": true
+  },
+  {
+    "id": 6,
+    "name": "Modal Overlay",
+    "component_type": "modal",
+    "template_data": {
+      "animation": "fade",
+      "backdrop": "blur",
+      "max_width": "600px",
+      "position": "center",
+      "z_index": 1000
+    },
+    "breakpoints": {
+      "desktop": "600px",
+      "mobile": "95%",
+      "tablet": "80%"
+    },
+    "width_setting": "responsive",
+    "max_width": "600px",
+    "is_default": false,
+    "is_active": true
+  },
+  {
+    "id": 9,
+    "name": "Default Comments Section",
+    "component_type": "Comments",
+    "template_data": {
+      "avatar_size": 48,
+      "enabled": true,
+      "moderation": false,
+      "per_page": 20,
+      "show_auth_prompt": true
+    },
+    "breakpoints": {
+      "desktop": {
+        "min_width": "1025px"
+      },
+      "mobile": {
+        "max_width": "767px"
+      },
+      "tablet": {
+        "max_width": "1024px"
+      }
+    },
+    "width_setting": "full",
+    "max_width": "1200px",
+    "is_default": true,
+    "is_active": true
+  },
+  {
+    "id": 8,
+    "name": "Fixed Width Container",
+    "component_type": "main_container",
+    "template_data": {
+      "grid_system": "css_grid",
+      "max_width": "1200px",
+      "padding": "1rem",
+      "responsive": true,
+      "width_type": "fixed"
+    },
+    "breakpoints": {
+      "desktop": "1200px",
+      "mobile": "100%",
+      "tablet": "90%"
+    },
+    "width_setting": "fixed",
+    "max_width": "1200px",
+    "is_default": false,
+    "is_active": true
+  },
+  {
+    "id": 7,
+    "name": "Full Width Container",
+    "component_type": "main_container",
+    "template_data": {
+      "margin": "0 auto",
+      "padding": "2rem 1rem"
+    },
+    "breakpoints": {
+      "desktop": "1024px",
+      "mobile": "0px",
+      "tablet": "768px"
+    },
+    "width_setting": "full",
+    "max_width": "1200px",
+    "is_default": true,
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "name": "Fixed Header",
+    "component_type": "header",
+    "template_data": {
+      "animation_type": "fade-in",
+      "background": "inherit",
+      "bg_gradient_direction": "to-right",
+      "bg_type": "gradient",
+      "height": "429px",
+      "padding": "1rem 0",
+      "position": "sticky",
+      "scroll_effect": "shrink",
+      "shape_mask_lower": "tilt",
+      "shape_mask_lower_degrees": "22",
+      "shape_mask_upper": "none",
+      "shrink_height": "135",
+      "shrink_logo_scale": "70",
+      "site_title_color": "#ffffff"
+    },
+    "breakpoints": {},
+    "width_setting": null,
+    "max_width": null,
+    "is_default": true,
+    "is_active": true
+  },
+  {
+    "id": 3,
+    "name": "Default Footer",
+    "component_type": "footer",
+    "template_data": {
+      "background": "inherit",
+      "border": "none",
+      "padding": "2rem 0"
+    },
+    "breakpoints": {
+      "desktop": "1024px",
+      "mobile": "0px",
+      "tablet": "768px"
+    },
+    "width_setting": "full",
+    "max_width": "1200px",
+    "is_default": true,
+    "is_active": true
+  },
+  {
+    "id": 4,
+    "name": "Minimal Footer",
+    "component_type": "footer",
+    "template_data": {
+      "additional_text": "Built with Rust & Yew",
+      "copyright_position": "center",
+      "copyright_text": "\u00a9 2024 My Rust CMS",
+      "navigation_layout": "horizontal",
+      "padding": "3rem 0",
+      "style": "simple"
+    },
+    "breakpoints": {
+      "desktop": "1200px",
+      "mobile": "768px",
+      "tablet": "1024px"
+    },
+    "width_setting": "full",
+    "max_width": "1200px",
+    "is_default": false,
+    "is_active": true
+  }
+]

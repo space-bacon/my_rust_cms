@@ -17,7 +17,7 @@ pub struct PostListProps {
 }
 
 #[function_component(PostList)]
-pub fn post_list(props: &PostListProps) -> Html {
+pub fn post_list(_props: &PostListProps) -> Html {
     let posts = use_state(Vec::<Post>::new);
     let loading = use_state(|| true);
     let error = use_state(|| None::<String>);

@@ -117,12 +117,20 @@ fn render_site_logo(component_templates: &[ComponentTemplate], site_title: &str)
                         </div>
                     }
                 } else {
-                    // Fallback to text if image URL is empty
-                    html! { <h1 class="site-title">{site_title}</h1> }
+                    // Fallback to text if image URL is empty - use logo_text from template
+                    let display_text = template.template_data.get("logo_text")
+                        .and_then(|v| v.as_str())
+                        .filter(|text| !text.trim().is_empty())
+                        .unwrap_or(site_title);
+                    html! { <h1 class="site-title">{display_text}</h1> }
                 }
             } else {
-                // Text logo
-                html! { <h1 class="site-title">{site_title}</h1> }
+                // Text logo - use logo_text from template if available, otherwise fall back to site_title
+                let display_text = template.template_data.get("logo_text")
+                    .and_then(|v| v.as_str())
+                    .filter(|text| !text.trim().is_empty())
+                    .unwrap_or(site_title);
+                html! { <h1 class="site-title">{display_text}</h1> }
             }
         }
         None => {
@@ -1626,9 +1634,12 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                 
                                 // Use Rc<RefCell<>> for shared mutable state
                                 let last_scroll_time = Rc::new(RefCell::new(0.0));
+                                let last_animation_time = Rc::new(RefCell::new(0.0));
                                 let throttle_delay = 16.0; // ~60fps
+                                let animation_delay = 350.0; // Prevent animation interruption (slightly longer than 300ms transition)
                                 
                                 let last_scroll_time_clone = last_scroll_time.clone();
+                                let last_animation_time_clone = last_animation_time.clone();
                                 
                                 wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                                     if let Some(window) = web_sys::window() {
@@ -1650,6 +1661,16 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                 return;
                                             }
                                             *last_time = current_time;
+                                        }
+                                        
+                                        // Prevent interrupting ongoing animations
+                                        {
+                                            let last_anim_time = last_animation_time_clone.borrow();
+                                            if current_time - *last_anim_time < animation_delay {
+                                                web_sys::console::log_1(&format!("🎬 Animation in progress - skipping scroll update ({}ms remaining)", 
+                                                    animation_delay - (current_time - *last_anim_time)).into());
+                                                return;
+                                            }
                                         }
                                         
                                         let scroll_y = window.scroll_y().unwrap_or(0.0);
@@ -1735,7 +1756,45 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         // Check if the header has been properly initialized with template styles
                                                         let has_template_styles = existing_style.contains("background:") || existing_style.contains("clip-path:");
                                                         
-                                                        if scroll_y > scroll_trigger && has_template_styles {
+                                                        // Add hysteresis to prevent rapid toggling at the trigger point
+                                                        // Use different thresholds for shrinking vs expanding
+                                                        let shrink_threshold = scroll_trigger;
+                                                        let expand_threshold = scroll_trigger - 40.0; // 40px hysteresis buffer (increased from 20px)
+                                                        
+                                                        // Check current state to determine which threshold to use
+                                                        // Look for shrink height or overflow hidden (more reliable indicator)
+                                                        let is_currently_shrunk = existing_style.contains("overflow: hidden") ||
+                                                            existing_style.contains(&format!("height: {}px", shrink_height as i32)) ||
+                                                            existing_style.contains(&format!("height:{}px", shrink_height as i32)) ||
+                                                            existing_style.contains(&format!("height: {} px", shrink_height as i32));
+                                                        
+                                                        // Determine the action based on current state and scroll position
+                                                        let action = if is_currently_shrunk {
+                                                            // If already shrunk, expand when below expand threshold
+                                                            if scroll_y <= expand_threshold {
+                                                                "expand"
+                                                            } else {
+                                                                "stay_shrunk"
+                                                            }
+                                                        } else {
+                                                            // If expanded, shrink when above shrink threshold
+                                                            if scroll_y > shrink_threshold {
+                                                                "shrink"
+                                                            } else {
+                                                                "stay_expanded"
+                                                            }
+                                                        };
+                                                        
+                                                        web_sys::console::log_1(&format!("🎯 Scroll Detection: y={}, shrink_threshold={}, expand_threshold={}, currently_shrunk={}, action={}", 
+                                                            scroll_y, shrink_threshold, expand_threshold, is_currently_shrunk, action).into());
+                                                        
+                                                        if action == "shrink" && has_template_styles {
+                                                            // Update animation time to prevent interruption
+                                                            {
+                                                                let mut last_anim_time = last_animation_time_clone.borrow_mut();
+                                                                *last_anim_time = current_time;
+                                                            }
+                                                            
                                                             // Shrink state - but only if we're not in live edit mode and not initial page load
                                                             if let Some(live_edit_active) = header.get_attribute("data-live-edit-active") {
                                                                 if live_edit_active == "true" {
@@ -1752,12 +1811,14 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                                 style_map.insert("overflow".to_string(), "hidden".to_string());
                                                                 web_sys::console::log_1(&format!("🔽 Shrinking header from {}px to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, shrink_height, scroll_y, scroll_duration, css_easing).into());
                                                             }
-                                                        } else if !has_template_styles && scroll_y > scroll_trigger {
-                                                            // On initial load without template styles, always show original height first (even if scrolled)
-                                                            style_map.insert("height".to_string(), format!("{}px !important", original_height));
-                                                            web_sys::console::log_1(&format!("🚀 Initial Load: Showing original height {}px (ignoring scroll position)", original_height).into());
-                                                        } else {
-                                                            // Expanded state - set explicit original height for smooth transition
+                                                        } else if action == "expand" {
+                                                            // Update animation time to prevent interruption
+                                                            {
+                                                                let mut last_anim_time = last_animation_time_clone.borrow_mut();
+                                                                *last_anim_time = current_time;
+                                                            }
+                                                            
+                                                            // Expand state - set explicit original height for smooth transition
                                                             style_map.insert("height".to_string(), format!("{}px !important", original_height));
                                                             style_map.remove("overflow"); // Remove overflow hidden in expanded state
                                                             
@@ -1769,6 +1830,14 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                             }
                                                             
                                                             web_sys::console::log_1(&format!("🔼 Expanding header to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, scroll_y, scroll_duration, css_easing).into());
+                                                        } else if !has_template_styles && scroll_y > scroll_trigger {
+                                                            // On initial load without template styles, always show original height first (even if scrolled)
+                                                            style_map.insert("height".to_string(), format!("{}px !important", original_height));
+                                                            web_sys::console::log_1(&format!("🚀 Initial Load: Showing original height {}px (ignoring scroll position)", original_height).into());
+                                                        } else {
+                                                            // stay_expanded or stay_shrunk - don't change anything
+                                                            web_sys::console::log_1(&format!("⏸️ No change needed: action={}", action).into());
+                                                            return; // Exit early to avoid applying styles
                                                         }
                                                         
                                                         // Rebuild style string
@@ -2200,6 +2269,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
 }
 
 // Helper function to generate SVG data URLs for shape masks
+#[allow(dead_code)]
 fn generate_shape_svg_data_url(shape_type: &str, scale: f32, is_top: bool) -> String {
     let width = 1440;
     let height = (40.0 * scale) as i32;
@@ -2380,6 +2450,7 @@ fn generate_tilt_only_clip_path_for_template(
 }
 
 // Generate shape points for template rendering (mirrors the logic from enhanced_live_edit_system.rs)
+#[allow(dead_code)]
 fn generate_shape_points_for_template(shape_type: &str, scale: f32, frequency: f32, is_top: bool) -> Vec<String> {
     let depth = (scale * 20.0).min(50.0); // Use scale directly for depth (max 50%)
     
@@ -2576,7 +2647,7 @@ fn generate_shape_points_for_template_new(
             
             if is_top {
                 // For upper tilt
-                let (left_y, right_y) = if is_left {
+                let (_left_y, right_y) = if is_left {
                     (tilt_amount, 0.0) // Left corner goes down, right stays at 0
                 } else {
                     (0.0, tilt_amount) // Left stays at 0, right corner goes down
@@ -2584,7 +2655,7 @@ fn generate_shape_points_for_template_new(
                 vec![format!("100% {}%", right_y)] // Only return the right corner point
             } else {
                 // For lower tilt
-                let (right_y, left_y) = if is_left {
+                let (_right_y, left_y) = if is_left {
                     (100.0, 100.0 - tilt_amount) // Right stays at 100%, left goes up
                 } else {
                     (100.0 - tilt_amount, 100.0) // Right goes up, left stays at 100%
@@ -2637,6 +2708,7 @@ fn get_effects_style(component_type: &str, component_templates: &UseStateHandle<
     String::new()
 }
 
+#[allow(dead_code)]
 fn load_and_apply_menu_customizations() {
     if let Some(window) = web_sys::window() {
         if let Some(storage) = window.local_storage().ok().flatten() {
@@ -2654,6 +2726,7 @@ fn load_and_apply_menu_customizations() {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(dead_code)]
 struct MenuAreaCustomization {
     area_name: String,
     background_type: String,
@@ -2678,6 +2751,7 @@ struct MenuAreaCustomization {
     shape_mask_scale: String,
 }
 
+#[allow(dead_code)]
 fn generate_menu_css_public(customization: &MenuAreaCustomization, area_name: &str) -> String {
     let mut css_parts = Vec::new();
     
@@ -2718,6 +2792,7 @@ fn generate_menu_css_public(customization: &MenuAreaCustomization, area_name: &s
     css_parts.join(" ")
 }
 
+#[allow(dead_code)]
 fn generate_container_css_comprehensive(customization: &MenuAreaCustomization) -> String {
     let mut styles = Vec::new();
     
@@ -2779,6 +2854,7 @@ fn generate_container_css_comprehensive(customization: &MenuAreaCustomization) -
     )
 }
 
+#[allow(dead_code)]
 fn generate_nav_css_comprehensive(customization: &MenuAreaCustomization) -> String {
     let mut nav_styles = Vec::new();
     
@@ -2819,6 +2895,7 @@ fn generate_nav_css_comprehensive(customization: &MenuAreaCustomization) -> Stri
     )
 }
 
+#[allow(dead_code)]
 fn generate_interaction_css_comprehensive(customization: &MenuAreaCustomization) -> String {
     let mut css_parts = Vec::new();
     
@@ -2901,6 +2978,7 @@ fn generate_interaction_css_comprehensive(customization: &MenuAreaCustomization)
     css_parts.join(" ")
 }
 
+#[allow(dead_code)]
 fn generate_css_variable_overrides() -> String {
     ":root { \
         --header-text: inherit !important; \
@@ -2912,6 +2990,7 @@ fn generate_css_variable_overrides() -> String {
     }".to_string()
 }
 
+#[allow(dead_code)]
 fn generate_cleanup_css() -> String {
     // Remove all pseudo-elements and unwanted decorations
     "#site-header.site-header .site-nav a::before, \
@@ -2932,6 +3011,7 @@ fn generate_cleanup_css() -> String {
     }".to_string()
 }
 
+#[allow(dead_code)]
 fn apply_effects_to_styles(styles: &mut Vec<String>, customization: &MenuAreaCustomization) {
     match customization.effects.as_str() {
         "glassmorphism" => {
@@ -2978,6 +3058,7 @@ fn apply_effects_to_styles(styles: &mut Vec<String>, customization: &MenuAreaCus
     }
 }
 
+#[allow(dead_code)]
 fn generate_shape_mask_clip_path(customization: &MenuAreaCustomization) -> String {
     let mut points = Vec::new();
     
@@ -3006,6 +3087,7 @@ fn generate_shape_mask_clip_path(customization: &MenuAreaCustomization) -> Strin
     }
 }
 
+#[allow(dead_code)]
 fn generate_shape_points(shape_type: &str, is_upper: bool, scale: &str) -> Vec<String> {
     let scale_factor = scale.parse::<f32>().unwrap_or(100.0) / 100.0;
     let amplitude = 10.0 * scale_factor;
@@ -3083,6 +3165,7 @@ fn generate_shape_points(shape_type: &str, is_upper: bool, scale: &str) -> Vec<S
     }
 }
 
+#[allow(dead_code)]
 fn generate_nav_link_styles(customization: &MenuAreaCustomization, area_name: &str) -> String {
     let nav_selector = match area_name {
         "header" => ".site-header nav a",
@@ -3107,6 +3190,7 @@ fn generate_nav_link_styles(customization: &MenuAreaCustomization, area_name: &s
     format!("{} {{ {} }}", nav_selector, styles.join("; "))
 }
 
+#[allow(dead_code)]
 fn generate_hover_gradient_styles(customization: &MenuAreaCustomization, area_name: &str) -> String {
     let nav_selector = match area_name {
         "header" => ".site-header nav a",
@@ -3150,6 +3234,7 @@ fn generate_hover_gradient_styles(customization: &MenuAreaCustomization, area_na
     hover_rules.join(" ")
 }
 
+#[allow(dead_code)]
 fn generate_animation_keyframes(animation_type: &str) -> String {
     match animation_type {
         "bounce" => {
@@ -3165,6 +3250,7 @@ fn generate_animation_keyframes(animation_type: &str) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn inject_menu_css_public(area_name: &str, css: &str) {
     if let Some(window) = web_sys::window() {
         if let Some(document) = window.document() {

@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use once_cell::sync::Lazy;
 
 /// Input sanitization service for preventing XSS attacks
+#[allow(dead_code)]
 pub struct InputSanitizerService {
     html_cleaner: ammonia::Builder<'static>,
 }
@@ -15,6 +16,7 @@ impl Default for InputSanitizerService {
     }
 }
 
+#[allow(dead_code)]
 impl InputSanitizerService {
     pub fn new() -> Self {
         // Configure HTML sanitizer with safe tags and attributes
@@ -145,10 +147,12 @@ impl InputSanitizerService {
 }
 
 /// Helper functions for common sanitization needs
+#[allow(dead_code)]
 pub fn escape_html(text: &str) -> String {
     encode_text(text).to_string()
 }
 
+#[allow(dead_code)]
 pub fn sanitize_search_query(query: &str) -> String {
     // Remove special regex characters that could be used for injection
     static SEARCH_SANITIZE_REGEX: Lazy<Regex> = Lazy::new(|| {

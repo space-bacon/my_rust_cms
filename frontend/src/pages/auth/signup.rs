@@ -7,6 +7,7 @@ use crate::components::simple_notification::SimpleNotification;
 pub enum NotificationType {
     Success,
     Error,
+    #[allow(dead_code)]
     Info,
 }
 

@@ -3,7 +3,7 @@ use crate::{
     services::sample_plugins::get_sample_plugins,
     database::DbPool,
 };
-use diesel::prelude::*;
+// use diesel::prelude::*; // Unused import
 use std::sync::Arc;
 
 /// Seed the database with sample plugins
@@ -90,6 +90,7 @@ pub async fn seed_sample_plugins(db_pool: Arc<DbPool>) -> Result<(), Box<dyn std
 }
 
 /// Remove all sample plugins from the database
+#[allow(dead_code)]
 pub async fn remove_sample_plugins(db_pool: Arc<DbPool>) -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = db_pool.get()?;
     

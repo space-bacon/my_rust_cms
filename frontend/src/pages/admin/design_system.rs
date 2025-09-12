@@ -920,7 +920,7 @@ fn design_system_page_component() -> Html {
             
             wasm_bindgen_futures::spawn_local(async move {
                 // Convert color schemes to settings data
-                let mut settings_data = vec![
+                let settings_data = vec![
                     // Public accent colors
                     SettingData {
                         key: "public_accent_primary".to_string(),

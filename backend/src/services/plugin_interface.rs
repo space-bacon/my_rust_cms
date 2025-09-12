@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use async_trait::async_trait;
@@ -79,6 +81,7 @@ pub struct PluginDependency {
 
 /// Plugin execution context provided to plugins
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PluginContext {
     /// Plugin configuration data
     pub config: serde_json::Value,

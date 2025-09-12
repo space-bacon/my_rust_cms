@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 /// File type validation service for secure uploads
+#[allow(dead_code)]
 pub struct FileSecurityService {
     allowed_types: HashMap<String, Vec<u8>>,
     max_file_size: usize,
 }
 
+#[allow(dead_code)]
 impl FileSecurityService {
     pub fn new(max_file_size: usize) -> Self {
         let mut allowed_types = HashMap::new();
@@ -208,6 +210,7 @@ impl FileSecurityService {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum FileSecurityError {
     FileTooLarge(usize, usize),
     UnsupportedFileType(String),

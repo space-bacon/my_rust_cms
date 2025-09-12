@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 
 /// Rate limiting configuration for different types of operations
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct RateLimitConfig {
     pub auth_per_minute: u32,
     pub general_per_minute: u32,
@@ -48,6 +49,7 @@ pub fn create_general_rate_limiter() -> impl Layer<Service> {
 */
 
 /// Custom middleware for enhanced rate limiting with user-based tracking
+#[allow(dead_code)]
 pub async fn enhanced_auth_rate_limit(
     ConnectInfo(_addr): ConnectInfo<SocketAddr>,
     req: Request,

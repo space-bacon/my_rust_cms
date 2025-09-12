@@ -15,6 +15,7 @@ pub enum UserManagementView {
 pub enum NotificationType {
     Success,
     Error,
+    #[allow(dead_code)]
     Info,
 }
 

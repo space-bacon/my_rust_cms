@@ -65,6 +65,7 @@ impl Setting {
             .get_result(conn)
     }
 
+    #[allow(dead_code)]
     pub fn delete(conn: &mut PgConnection, key: &str) -> QueryResult<usize> {
         diesel::delete(settings::table.filter(settings::setting_key.eq(key)))
             .execute(conn)

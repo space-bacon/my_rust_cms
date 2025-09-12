@@ -16,6 +16,7 @@ pub struct CommentsSectionProps {
 pub enum NotificationType {
     Success,
     Error,
+    #[allow(dead_code)]
     Info,
 }
 

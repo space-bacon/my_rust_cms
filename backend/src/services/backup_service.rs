@@ -18,12 +18,14 @@ use crate::database::DbPool;
 pub struct BackupService {
     pub backup_dir: String,
     pub database_url: String,
+    #[allow(dead_code)]
     pub encryption_key: Option<[u8; 32]>,
 }
 
 #[derive(Debug)]
 pub enum BackupError {
     DatabaseError(String),
+    #[allow(dead_code)]
     FileSystemError(String),
     ProcessError(String),
     ValidationError(String),
@@ -42,6 +44,7 @@ impl std::fmt::Display for BackupError {
 
 impl std::error::Error for BackupError {}
 
+#[allow(dead_code)]
 impl BackupService {
     pub fn new(backup_dir: String, database_url: String) -> Self {
         // Ensure backup directory exists
