@@ -874,15 +874,28 @@ pub struct MenuAreaCustomization {
     pub area_name: String,
     
     // Background
-    pub background_type: String, // "solid", "gradient", "image"
+    pub background_type: String, // "solid", "linear-gradient", "radial-gradient", "conic-gradient", "image"
     pub background_color: String,
     pub gradient_start: String,
     pub gradient_end: String,
+    pub gradient_middle: String, // For 3-color gradients
     pub gradient_direction: String,
+    pub gradient_shape: String, // For radial: "circle", "ellipse"
+    pub gradient_position: String, // "center", "top", "bottom", etc.
     pub background_image: String,
+    pub background_opacity: String, // "0" to "100"
     
     // Text Colors
     pub text_color: String,
+    
+    // Text Decoration & Underlines
+    pub underline_enabled: bool,
+    pub underline_type: String, // "solid", "dotted", "dashed", "double", "wavy"
+    pub underline_thickness: String, // "1px", "2px", "3px", etc.
+    pub underline_color: String,
+    pub underline_animation: String, // "none", "slide-in", "fade-in", "grow", "pulse"
+    pub underline_animation_duration: String,
+    pub underline_position: String, // "bottom", "top", "through"
     
     // Hover Effects
     pub hover_type: String, // "color", "gradient", "shape", "button"
@@ -967,11 +980,24 @@ impl Default for MenuAreaCustomization {
             background_color: "#ffffff".to_string(),
             gradient_start: "#667eea".to_string(),
             gradient_end: "#764ba2".to_string(),
+            gradient_middle: "#7c3aed".to_string(),
             gradient_direction: "to-right".to_string(),
+            gradient_shape: "circle".to_string(),
+            gradient_position: "center".to_string(),
             background_image: String::new(),
+            background_opacity: "100".to_string(),
             
             // Text Colors
             text_color: "#333333".to_string(),
+            
+            // Text Decoration & Underlines
+            underline_enabled: false,
+            underline_type: "solid".to_string(),
+            underline_thickness: "2px".to_string(),
+            underline_color: "#007bff".to_string(),
+            underline_animation: "none".to_string(),
+            underline_animation_duration: "0.3s".to_string(),
+            underline_position: "bottom".to_string(),
             
             // Hover Effects
             hover_type: "color".to_string(),
@@ -1389,6 +1415,21 @@ fn render_menu_customization_panel(
                         // Text
                         "text_color" => current.text_color = value,
                         
+                        // Text Decoration & Underlines
+                        "underline_enabled" => current.underline_enabled = value == "true",
+                        "underline_type" => current.underline_type = value,
+                        "underline_thickness" => current.underline_thickness = value,
+                        "underline_color" => current.underline_color = value,
+                        "underline_animation" => current.underline_animation = value,
+                        "underline_animation_duration" => current.underline_animation_duration = value,
+                        "underline_position" => current.underline_position = value,
+                        
+                        // Background (new fields)
+                        "gradient_middle" => current.gradient_middle = value,
+                        "gradient_shape" => current.gradient_shape = value,
+                        "gradient_position" => current.gradient_position = value,
+                        "background_opacity" => current.background_opacity = value,
+                        
                         // Hover Effects
                         "hover_type" => current.hover_type = value,
                         "hover_color" => current.hover_color = value,
@@ -1497,6 +1538,9 @@ fn render_menu_customization_panel(
                     
                     // Background & Colors Section
                     {render_background_section(customization, update_customization.clone())}
+
+                    // Text Decoration & Underlines Section
+                    {render_underline_section(customization, update_customization.clone())}
 
                     // Hover & Active Effects Section
                     {render_hover_active_section(customization, update_customization.clone())}
@@ -1651,7 +1695,7 @@ fn render_background_section(customization: &MenuAreaCustomization, update_custo
                     <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 14px;">
                         {"Background Type"}
                     </label>
-                    <div class="bg-type-cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 400px;">
+                    <div class="bg-type-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 12px; max-width: 500px;">
                         {render_background_type_cards(customization, update_customization.clone())}
                     </div>
                 </div>
@@ -1675,10 +1719,300 @@ fn render_background_section(customization: &MenuAreaCustomization, update_custo
     }
 }
 
+fn render_underline_section(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    html! {
+        <div class="enhanced-section" style="
+            background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+            border-radius: 16px;
+            padding: 28px;
+            border: 1px solid #f59e0b;
+            box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.1);
+        ">
+            <div class="section-header" style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 24px;
+                padding-bottom: 16px;
+                border-bottom: 2px solid #f59e0b;
+            ">
+                <div style="
+                    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                    color: white;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 18px;
+                ">
+                    {"✏️"}
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: #1f2937;">
+                        {"Text Decoration & Underlines"}
+                    </h3>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                        {"Add stylish underlines and text decorations to menu items"}
+                    </p>
+                </div>
+            </div>
+
+            <div class="controls-grid" style="display: grid; gap: 24px;">
+                // Enable/Disable Toggle
+                <div class="control-group">
+                    <label style="display: flex; align-items: center; gap: 12px; font-weight: 600; color: #374151; cursor: pointer;">
+                        <input 
+                            type="checkbox"
+                            checked={customization.underline_enabled}
+                            onchange={{
+                                let update_customization = update_customization.clone();
+                                Callback::from(move |e: Event| {
+                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                    update_customization.emit(vec![("underline_enabled".to_string(), target.checked().to_string())]);
+                                })
+                            }}
+                            style="
+                                width: 20px;
+                                height: 20px;
+                                accent-color: #f59e0b;
+                            "
+                        />
+                        <span>{"Enable Underline Effects"}</span>
+                    </label>
+                </div>
+
+                if customization.underline_enabled {
+                    // Underline Style Controls
+                    <div class="control-group">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 14px;">
+                            {"Underline Style"}
+                        </label>
+                        <div class="underline-type-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; max-width: 600px;">
+                            {render_underline_type_cards(customization, update_customization.clone())}
+                        </div>
+                    </div>
+
+                    // Underline Properties
+                    <div class="control-group">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                            // Thickness
+                            <div class="form-group">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                                    {"Thickness"}
+                                </label>
+                                <select 
+                                    value={customization.underline_thickness.clone()}
+                                    onchange={{
+                                        let update_customization = update_customization.clone();
+                                        Callback::from(move |e: Event| {
+                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                            update_customization.emit(vec![("underline_thickness".to_string(), target.value())]);
+                                        })
+                                    }}
+                                    style="
+                                        width: 100%;
+                                        padding: 10px;
+                                        border: 2px solid #e9ecef;
+                                        border-radius: 8px;
+                                        font-size: 14px;
+                                        background: white;
+                                    "
+                                >
+                                    <option value="1px">{"Thin (1px)"}</option>
+                                    <option value="2px">{"Normal (2px)"}</option>
+                                    <option value="3px">{"Thick (3px)"}</option>
+                                    <option value="4px">{"Bold (4px)"}</option>
+                                    <option value="5px">{"Extra Bold (5px)"}</option>
+                                </select>
+                            </div>
+
+                            // Color
+                            <div class="form-group">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                                    {"Underline Color"}
+                                </label>
+                                <input 
+                                    type="color"
+                                    value={customization.underline_color.clone()}
+                                    onchange={{
+                                        let update_customization = update_customization.clone();
+                                        Callback::from(move |e: Event| {
+                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                            update_customization.emit(vec![("underline_color".to_string(), target.value())]);
+                                        })
+                                    }}
+                                    style="
+                                        width: 100%;
+                                        height: 44px;
+                                        border: 2px solid #e9ecef;
+                                        border-radius: 8px;
+                                        cursor: pointer;
+                                    "
+                                />
+                            </div>
+
+                            // Position
+                            <div class="form-group">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                                    {"Position"}
+                                </label>
+                                <select 
+                                    value={customization.underline_position.clone()}
+                                    onchange={{
+                                        let update_customization = update_customization.clone();
+                                        Callback::from(move |e: Event| {
+                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                            update_customization.emit(vec![("underline_position".to_string(), target.value())]);
+                                        })
+                                    }}
+                                    style="
+                                        width: 100%;
+                                        padding: 10px;
+                                        border: 2px solid #e9ecef;
+                                        border-radius: 8px;
+                                        font-size: 14px;
+                                        background: white;
+                                    "
+                                >
+                                    <option value="bottom">{"Bottom"}</option>
+                                    <option value="top">{"Top"}</option>
+                                    <option value="through">{"Strike Through"}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    // Animation Controls
+                    <div class="control-group">
+                        <label style="display: block; font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 14px;">
+                            {"Animation Effects"}
+                        </label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                            // Animation Type
+                            <div class="form-group">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                                    {"Animation Type"}
+                                </label>
+                                <select 
+                                    value={customization.underline_animation.clone()}
+                                    onchange={{
+                                        let update_customization = update_customization.clone();
+                                        Callback::from(move |e: Event| {
+                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                            update_customization.emit(vec![("underline_animation".to_string(), target.value())]);
+                                        })
+                                    }}
+                                    style="
+                                        width: 100%;
+                                        padding: 10px;
+                                        border: 2px solid #e9ecef;
+                                        border-radius: 8px;
+                                        font-size: 14px;
+                                        background: white;
+                                    "
+                                >
+                                    <option value="none">{"No Animation"}</option>
+                                    <option value="slide-in">{"Slide In ➡️"}</option>
+                                    <option value="fade-in">{"Fade In ✨"}</option>
+                                    <option value="grow">{"Grow 📈"}</option>
+                                    <option value="pulse">{"Pulse 💓"}</option>
+                                </select>
+                            </div>
+
+                            // Animation Duration
+                            <div class="form-group">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                                    {"Animation Duration"}
+                                </label>
+                                <select 
+                                    value={customization.underline_animation_duration.clone()}
+                                    onchange={{
+                                        let update_customization = update_customization.clone();
+                                        Callback::from(move |e: Event| {
+                                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                            update_customization.emit(vec![("underline_animation_duration".to_string(), target.value())]);
+                                        })
+                                    }}
+                                    style="
+                                        width: 100%;
+                                        padding: 10px;
+                                        border: 2px solid #e9ecef;
+                                        border-radius: 8px;
+                                        font-size: 14px;
+                                        background: white;
+                                    "
+                                >
+                                    <option value="0.1s">{"Fast (0.1s)"}</option>
+                                    <option value="0.2s">{"Quick (0.2s)"}</option>
+                                    <option value="0.3s">{"Normal (0.3s)"}</option>
+                                    <option value="0.5s">{"Smooth (0.5s)"}</option>
+                                    <option value="0.8s">{"Slow (0.8s)"}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+}
+
+fn render_underline_type_cards(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
+    let types = vec![
+        ("solid", "━", "Solid"),
+        ("dotted", "┅", "Dotted"),
+        ("dashed", "╌", "Dashed"),
+        ("double", "═", "Double"),
+        ("wavy", "〰", "Wavy"),
+    ];
+
+    html! {
+        <>
+            {types.into_iter().map(|(value, icon, label)| {
+                let is_active = customization.underline_type == value;
+                let update_customization = update_customization.clone();
+                html! {
+                    <button
+                        style={format!("
+                            background: {};
+                            border: 2px solid {};
+                            color: {};
+                            padding: 12px 8px;
+                            border-radius: 12px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: 600;
+                            transition: all 0.2s ease;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            gap: 4px;
+                        ",
+                            if is_active { "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" } else { "white" },
+                            if is_active { "#f59e0b" } else { "#e5e7eb" },
+                            if is_active { "white" } else { "#6b7280" }
+                        )}
+                        onclick={Callback::from(move |_| {
+                            update_customization.emit(vec![("underline_type".to_string(), value.to_string())]);
+                        })}
+                    >
+                        <span style="font-size: 16px;">{icon}</span>
+                        <span>{label}</span>
+                    </button>
+                }
+            }).collect::<Html>()}
+        </>
+    }
+}
+
 fn render_background_type_cards(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     let types = vec![
         ("solid", "🎯", "Solid"),
-        ("gradient", "🌈", "Gradient"), 
+        ("linear-gradient", "📐", "Linear"), 
+        ("radial-gradient", "🔵", "Radial"),
+        ("conic-gradient", "🌀", "Conic"),
         ("image", "🖼️", "Image"),
     ];
 
@@ -4404,31 +4738,58 @@ fn render_creative_construction_section(customization: &MenuAreaCustomization, u
 fn render_background_controls(customization: &MenuAreaCustomization, update_customization: Callback<Vec<(String, String)>>) -> Html {
     match customization.background_type.as_str() {
         "solid" => html! {
-            <div class="form-group">
-                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
-                    {"Background Color"}
-                </label>
-                <input 
-                    type="color"
-                    value={customization.background_color.clone()}
-                    onchange={{
-                        let update_customization = update_customization.clone();
-                        Callback::from(move |e: Event| {
-                            let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
-                            update_customization.emit(vec![("background_color".to_string(), target.value())]);
-                        })
-                    }}
-                    style="
-                        width: 100%;
-                        height: 44px;
-                        border: 2px solid #e9ecef;
-                        border-radius: 8px;
-                        cursor: pointer;
-                    "
-                />
-            </div>
+            <>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Background Color"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.background_color.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("background_color".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Background Opacity (%)"}
+                    </label>
+                    <input 
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={customization.background_opacity.clone()}
+                        oninput={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: InputEvent| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("background_opacity".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                        "
+                    />
+                    <div style="text-align: center; margin-top: 4px; font-size: 12px; color: #6c757d;">
+                        {format!("{}%", customization.background_opacity)}
+                    </div>
+                </div>
+            </>
         },
-        "gradient" => html! {
+        "linear-gradient" => html! {
             <>
                 <div class="form-group">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
@@ -4506,6 +4867,217 @@ fn render_background_controls(customization: &MenuAreaCustomization, update_cust
                         <option value="to-bottom-left">{"Diagonal ↙"}</option>
                         <option value="to-top-right">{"Diagonal ↗"}</option>
                         <option value="to-top-left">{"Diagonal ↖"}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Middle Color (Optional)"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_middle.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_middle".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+            </>
+        },
+        "radial-gradient" => html! {
+            <>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Start"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_start.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_start".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient End"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_end.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_end".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Shape"}
+                    </label>
+                    <select 
+                        value={customization.gradient_shape.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("gradient_shape".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="circle">{"Circle ⚪"}</option>
+                        <option value="ellipse">{"Ellipse ⭕"}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Position"}
+                    </label>
+                    <select 
+                        value={customization.gradient_position.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("gradient_position".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="center">{"Center"}</option>
+                        <option value="top">{"Top"}</option>
+                        <option value="bottom">{"Bottom"}</option>
+                        <option value="left">{"Left"}</option>
+                        <option value="right">{"Right"}</option>
+                        <option value="top left">{"Top Left"}</option>
+                        <option value="top right">{"Top Right"}</option>
+                        <option value="bottom left">{"Bottom Left"}</option>
+                        <option value="bottom right">{"Bottom Right"}</option>
+                    </select>
+                </div>
+            </>
+        },
+        "conic-gradient" => html! {
+            <>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Start"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_start.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_start".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient End"}
+                    </label>
+                    <input 
+                        type="color"
+                        value={customization.gradient_end.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlInputElement>();
+                                update_customization.emit(vec![("gradient_end".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            height: 44px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        "
+                    />
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        {"Gradient Position"}
+                    </label>
+                    <select 
+                        value={customization.gradient_position.clone()}
+                        onchange={{
+                            let update_customization = update_customization.clone();
+                            Callback::from(move |e: Event| {
+                                let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                update_customization.emit(vec![("gradient_position".to_string(), target.value())]);
+                            })
+                        }}
+                        style="
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e9ecef;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            background: white;
+                        "
+                    >
+                        <option value="center">{"Center"}</option>
+                        <option value="top">{"Top"}</option>
+                        <option value="bottom">{"Bottom"}</option>
+                        <option value="left">{"Left"}</option>
+                        <option value="right">{"Right"}</option>
                     </select>
                 </div>
             </>
@@ -4996,25 +5568,28 @@ fn render_live_preview_section(customization: &MenuAreaCustomization, area_name:
                         {"🌟 Logo"}
                     </div>
                     <nav class="nav-preview" style="display: flex; gap: 16px;">
-                        <a href="#" style="
-                            text-decoration: none;
-                            padding: 8px 12px;
-                            border-radius: 4px;
-                            transition: all 0.2s ease;
-                        ">{"Home"}</a>
-                        <a href="#" style="
-                            text-decoration: none;
-                            padding: 8px 12px;
-                            border-radius: 4px;
-                            transition: all 0.2s ease;
-                        ">{"About"}</a>
-                        <a href="#" style="
-                            text-decoration: none;
-                            padding: 8px 12px;
-                            border-radius: 4px;
-                            transition: all 0.2s ease;
+                        <a href="#" style={format!("
+                            {};
+                            color: {};
+                        ", 
+                            generate_nav_link_styles_admin(customization),
+                            customization.text_color
+                        )}>{"Home"}</a>
+                        <a href="#" style={format!("
+                            {};
+                            color: {};
+                        ", 
+                            generate_nav_link_styles_admin(customization),
+                            customization.text_color
+                        )}>{"About"}</a>
+                        <a href="#" style={format!("
+                            {};
+                            color: {};
                             opacity: 0.8;
-                        ">{"Contact"}</a>
+                        ", 
+                            generate_nav_link_styles_admin(customization),
+                            customization.text_color
+                        )}>{"Contact"}</a>
                     </nav>
                 </div>
             </div>
@@ -5116,14 +5691,75 @@ fn generate_menu_css(customization: &MenuAreaCustomization, _area_name: &str) ->
     let mut container_styles = Vec::new();
     
     // Background
+    let opacity_factor = customization.background_opacity.parse::<f32>().unwrap_or(100.0) / 100.0;
     match customization.background_type.as_str() {
         "solid" => {
-            container_styles.push(format!("background: {}", customization.background_color));
+            if opacity_factor < 1.0 {
+                // Convert hex to rgba for opacity support
+                let hex_color = customization.background_color.trim_start_matches('#');
+                if hex_color.len() == 6 {
+                    if let (Ok(r), Ok(g), Ok(b)) = (
+                        u8::from_str_radix(&hex_color[0..2], 16),
+                        u8::from_str_radix(&hex_color[2..4], 16),
+                        u8::from_str_radix(&hex_color[4..6], 16),
+                    ) {
+                        container_styles.push(format!("background: rgba({}, {}, {}, {})", r, g, b, opacity_factor));
+                    } else {
+                        container_styles.push(format!("background: {}", customization.background_color));
+                    }
+                } else {
+                    container_styles.push(format!("background: {}", customization.background_color));
+                }
+            } else {
+                container_styles.push(format!("background: {}", customization.background_color));
+            }
         },
-        "gradient" => {
+        "linear-gradient" => {
+            let direction = match customization.gradient_direction.as_str() {
+                "to-right" => "to right",
+                "to-left" => "to left", 
+                "to-bottom" => "to bottom",
+                "to-top" => "to top",
+                "to-bottom-right" => "to bottom right",
+                "to-bottom-left" => "to bottom left",
+                "to-top-right" => "to top right",
+                "to-top-left" => "to top left",
+                _ => "to right"
+            };
+            if !customization.gradient_middle.is_empty() && customization.gradient_middle != "#7c3aed" {
+                container_styles.push(format!(
+                    "background: linear-gradient({}, {}, {}, {})",
+                    direction,
+                    customization.gradient_start,
+                    customization.gradient_middle,
+                    customization.gradient_end
+                ));
+            } else {
+                container_styles.push(format!(
+                    "background: linear-gradient({}, {}, {})",
+                    direction,
+                    customization.gradient_start,
+                    customization.gradient_end
+                ));
+            }
+        },
+        "radial-gradient" => {
+            let shape = &customization.gradient_shape;
+            let position = &customization.gradient_position;
             container_styles.push(format!(
-                "background: linear-gradient({}, {}, {})",
-                customization.gradient_direction.replace("-", " "),
+                "background: radial-gradient({} {} at {}, {}, {})",
+                shape,
+                "closest-side",
+                position,
+                customization.gradient_start,
+                customization.gradient_end
+            ));
+        },
+        "conic-gradient" => {
+            let position = &customization.gradient_position;
+            container_styles.push(format!(
+                "background: conic-gradient(from 0deg at {}, {}, {})",
+                position,
                 customization.gradient_start,
                 customization.gradient_end
             ));
@@ -5339,11 +5975,53 @@ fn generate_shape_points_admin(shape_type: &str, is_upper: bool, scale: &str) ->
 fn generate_nav_link_styles_admin(customization: &MenuAreaCustomization) -> String {
     let mut styles = vec![
         format!("color: {}", customization.text_color),
-        "text-decoration: none".to_string(),
         "padding: 8px 16px".to_string(),
         "border-radius: 6px".to_string(),
         "display: inline-block".to_string(),
+        "position: relative".to_string(),
     ];
+    
+    // Handle underline styles
+    if customization.underline_enabled {
+        let text_decoration = match customization.underline_position.as_str() {
+            "through" => format!("line-through {} {} {}", 
+                customization.underline_type, 
+                customization.underline_thickness, 
+                customization.underline_color),
+            "top" => {
+                // For top underlines, we'll use a pseudo-element approach
+                styles.push("text-decoration: none".to_string());
+                "none".to_string()
+            },
+            _ => {
+                // Default bottom underline
+                format!("underline {} {} {}", 
+                    customization.underline_type, 
+                    customization.underline_thickness, 
+                    customization.underline_color)
+            }
+        };
+        
+        if text_decoration != "none" {
+            styles.push(format!("text-decoration: {}", text_decoration));
+        } else {
+            styles.push("text-decoration: none".to_string());
+        }
+        
+        // Add animation styles
+        if customization.underline_animation != "none" {
+            let animation_css = match customization.underline_animation.as_str() {
+                "slide-in" => format!("transition: text-decoration-color {} ease", customization.underline_animation_duration),
+                "fade-in" => format!("transition: opacity {} ease", customization.underline_animation_duration),
+                "grow" => format!("transition: text-decoration-thickness {} ease", customization.underline_animation_duration),
+                "pulse" => format!("animation: underline-pulse {} infinite", customization.underline_animation_duration),
+                _ => format!("transition: all {} ease", customization.underline_animation_duration)
+            };
+            styles.push(animation_css);
+        }
+    } else {
+        styles.push("text-decoration: none".to_string());
+    }
     
     if customization.animation_type != "none" {
         styles.push(format!("transition: all {} ease", customization.animation_duration));
@@ -5353,15 +6031,34 @@ fn generate_nav_link_styles_admin(customization: &MenuAreaCustomization) -> Stri
 }
 
 fn generate_hover_gradient_styles_admin(customization: &MenuAreaCustomization) -> String {
-    let hover_bg = if customization.background_type == "gradient" {
-        format!(
-            "linear-gradient({}, {}, {})",
-            customization.gradient_direction.replace("-", " "),
-            customization.hover_color,
-            customization.active_color
-        )
-    } else {
-        customization.hover_color.clone()
+    let hover_bg = match customization.background_type.as_str() {
+        "linear-gradient" => {
+            let direction = customization.gradient_direction.replace("-", " ");
+            format!(
+                "linear-gradient({}, {}, {})",
+                direction,
+                customization.hover_color,
+                customization.active_color
+            )
+        },
+        "radial-gradient" => {
+            format!(
+                "radial-gradient({} closest-side at {}, {}, {})",
+                customization.gradient_shape,
+                customization.gradient_position,
+                customization.hover_color,
+                customization.active_color
+            )
+        },
+        "conic-gradient" => {
+            format!(
+                "conic-gradient(from 0deg at {}, {}, {})",
+                customization.gradient_position,
+                customization.hover_color,
+                customization.active_color
+            )
+        },
+        _ => customization.hover_color.clone()
     };
     
     let styles = vec![

@@ -34,30 +34,31 @@
     border: none;
     padding: 1rem 1.5rem;
     font-size: 1rem;
-    font-weight: 500;
-    color: var(--admin-text-secondary);
+    font-weight: 600;
+    color: var(--admin-text-secondary, #374151) !important;
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all 0.2s ease;
 }
 
 .template-tabs .tab-button:hover {
-    color: var(--admin-text-primary);
-    background: var(--admin-surface-hover);
+    color: var(--admin-text-primary, #111827) !important;
+    background: var(--admin-surface-hover, rgba(59, 130, 246, 0.1));
 }
 
 .template-tabs .tab-button.active {
-    color: var(--admin-primary-color);
-    border-bottom-color: var(--admin-primary-color);
-    background: var(--admin-surface-hover);
+    color: var(--admin-primary-color, #1d4ed8) !important;
+    border-bottom-color: var(--admin-primary-color, #1d4ed8);
+    background: var(--admin-surface-hover, rgba(59, 130, 246, 0.15));
+    font-weight: 700;
 }
 
 /* Template Content */
 .template-content {
-    background: var(--admin-surface);
+    background: var(--admin-surface, #ffffff);
     border-radius: 12px;
     padding: 2rem;
-    box-shadow: var(--admin-shadow-md);
+    box-shadow: var(--admin-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
 }
 
 /* Menu Areas Section */
@@ -66,14 +67,14 @@
 .component-templates-section h2 {
     font-size: 1.5rem;
     font-weight: 600;
-    color: var(--admin-text-primary);
+    color: var(--admin-text-primary, #1f2937);
     margin: 0 0 0.5rem 0;
 }
 
 .menu-areas-section p,
 .menu-templates-section p,
 .component-templates-section p {
-    color: var(--admin-text-secondary);
+    color: var(--admin-text-secondary, #6b7280);
     margin-bottom: 2rem;
 }
 
@@ -84,33 +85,33 @@
 }
 
 .area-card {
-    background: var(--admin-surface-elevated);
-    border: 1px solid var(--admin-border-color);
+    background: var(--admin-surface-elevated, #f8fafc);
+    border: 1px solid var(--admin-border-color, #e5e7eb);
     border-radius: 8px;
     padding: 1.5rem;
     transition: all 0.2s ease;
 }
 
 .area-card:hover {
-    box-shadow: var(--admin-shadow-md);
-    border-color: var(--admin-primary-color);
+    box-shadow: var(--admin-shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+    border-color: var(--admin-primary-color, #3b82f6);
 }
 
 .area-card h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--admin-text-primary);
+    color: var(--admin-text-primary, #1f2937);
     margin: 0 0 0.75rem 0;
 }
 
 .area-card p {
-    color: var(--admin-text-secondary);
+    color: var(--admin-text-secondary, #6b7280);
     margin-bottom: 1rem;
     line-height: 1.5;
 }
 
 .area-status {
-    color: var(--admin-success-color);
+    color: var(--admin-success-color, #10b981);
     font-weight: 500;
     font-size: 0.875rem;
 }

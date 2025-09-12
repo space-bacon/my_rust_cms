@@ -1140,13 +1140,14 @@ body.admin-body {
 
 /* Enhanced Modern Tables */
 .admin-table-container {
-    background: var(--admin-table-bg);
-    border-radius: 12px;
+    background: var(--admin-table-bg, #ffffff);
+    border-radius: 16px;
     padding: 0;
-    border: 1px solid var(--admin-table-cell-border);
-    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--admin-table-cell-border, #e5e7eb);
+    box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
     overflow: hidden;
     position: relative;
+    margin-top: 1.5rem;
 }
 
 table {
@@ -1166,19 +1167,22 @@ th, td {
 }
 
 th {
-    font-weight: 600;
-    color: var(--admin-table-header-text);
-    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--admin-table-header-text, #1f2937) !important;
+    font-size: 0.875rem;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
-    background: var(--admin-table-header-bg);
-    border: 1px solid var(--admin-table-cell-border);
+    letter-spacing: 0.1em;
+    background: var(--admin-table-header-bg, #f8fafc) !important;
+    border: 1px solid var(--admin-table-cell-border, #e5e7eb);
+    padding: 1.5rem 1.5rem !important;
+    border-radius: 8px 8px 0 0;
 }
 
 td {
     border-radius: 0;
-    border-bottom: 1px solid var(--admin-table-cell-border);
-    color: var(--text-primary);
+    border-bottom: 1px solid var(--admin-table-cell-border, #e5e7eb);
+    color: var(--text-primary, #374151);
+    background: var(--bg-primary, #ffffff) !important;
 }
 
 tbody tr:first-child td:first-child {
@@ -1202,9 +1206,10 @@ tbody tr {
 }
 
 tbody tr:hover td {
-    background: var(--bg-tertiary);
+    background: var(--bg-tertiary, #f8fafc) !important;
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    color: var(--text-primary, #1f2937) !important;
 }
 
 tbody tr:hover td::before {
