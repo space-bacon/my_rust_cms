@@ -232,7 +232,7 @@
 /* Modern Header with Enhanced Gradient */
 .site-header {
     background: var(--header-background);
-    backdrop-filter: blur(15px);
+    /* Removed hardcoded backdrop-filter - let template effects control this */
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     position: sticky;
@@ -334,28 +334,32 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
 }
 
 .site-header .container {
-    height: 100%;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     transition: var(--transition);
     /* Ensure consistent alignment in all states */
-    min-height: inherit;
+    min-height: 60px; /* Minimum for navigation */
+    padding: 1rem; /* Internal padding for content */
+    /* Remove height: 100% to allow header height to work properly */
 }
 
 /* Maintain alignment consistency during scroll effects */
 .site-header[style*="height"] .container {
-    height: 100% !important;
+    /* Remove min-height constraint to allow full header height utilization */
+    height: 100% !important; /* Fill the header height */
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    padding: 1rem !important; /* Internal padding for spacing */
+    /* Allow container to use full header height */
 }
 
-/* Completely isolate navigation from header scroll effects */
+/* Allow navigation to scale with header height */
 .site-header[style*="height"] .site-nav {
-    height: 60px !important;
-    min-height: 60px !important;
-    max-height: 60px !important;
+    /* Remove fixed height constraints to allow navigation to scale with header */
+    min-height: 60px !important; /* Keep minimum for usability */
+    /* Remove max-height to allow navigation to scale with header height */
     position: relative !important;
     z-index: 10 !important;
 }
@@ -365,9 +369,8 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
     transition: none !important; /* Remove all transitions from nav */
     display: flex !important;
     align-items: center !important;
-    height: 60px !important; /* Fixed height always */
-    min-height: 60px !important;
-    max-height: 60px !important;
+    /* Remove fixed height constraints to allow header to scale */
+    min-height: 60px !important; /* Keep minimum for usability */
     gap: var(--spacing-xl);
     /* Prevent navigation from wrapping or breaking layout */
     flex-shrink: 0 !important;

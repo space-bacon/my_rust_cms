@@ -798,14 +798,22 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
             template.id, template.name, template.is_default).into());
     }
     
-    // Try to find default template first
-    let default_template = component_templates.iter()
-        .find(|t| t.component_type == component_type && t.is_active && t.is_default);
+    // Try to find default template first, but prefer the most recently updated one
+    let default_templates: Vec<_> = component_templates.iter()
+        .filter(|t| t.component_type == component_type && t.is_active && t.is_default)
+        .collect();
     
-    let fallback_template = component_templates.iter()
-        .find(|t| t.component_type == component_type && t.is_active);
-    
-    let selected_template = default_template.or(fallback_template);
+    let selected_template = if default_templates.len() > 1 {
+        // If multiple default templates, pick the one with the highest ID (most recent)
+        default_templates.iter()
+            .max_by_key(|t| t.id)
+            .copied()
+    } else {
+        // Single default template or fallback to first active template
+        default_templates.first().copied()
+            .or_else(|| component_templates.iter()
+                .find(|t| t.component_type == component_type && t.is_active))
+    };
     
     if let Some(template) = selected_template {
         web_sys::console::log_1(&format!("🎯 Selected template: ID={}, name='{}', is_default={}", 
@@ -821,17 +829,17 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                     }
                     
                     if component_type == "header" {
-                        // For header, enforce minimum height of 110px
+                        // For header, enforce minimum height of 60px only (not 110px to allow custom heights)
                         if let Some(stripped) = h.strip_suffix("px") {
                             if let Ok(px) = stripped.trim().parse::<i32>() {
-                                if px < 110 { h = "110px".to_string(); }
+                                if px < 60 { h = "60px".to_string(); }
                             }
                         }
                     }
                     
-                    styles.push(format!("height: {}", h));
+                    styles.push(format!("height: {} !important", h));
                 } else if component_type == "header" {
-                    styles.push("height: 110px".to_string());
+                    styles.push("height: 80px !important".to_string());
                 }
                 
                 // Handle position property for all components
@@ -882,12 +890,12 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                     if let Some(main_element) = document.get_element_by_id("site-main") {
                                 let main_styles = match position {
                                     "static" => {
-                                        // For static header, reduce top padding to avoid gap
-                                        vec!["padding-top: 1rem !important".to_string()]
+                                        // For static header, minimal padding
+                                        vec!["padding-top: 0.5rem !important".to_string()]
                                     }
                                     "sticky" | "fixed" => {
-                                        // For sticky/fixed header, restore normal padding
-                                        vec!["padding-top: 2rem !important".to_string()]
+                                        // For sticky/fixed header, minimal padding (header handles its own spacing)
+                                        vec!["padding-top: 0.5rem !important".to_string()]
                                     }
                                     _ => vec![]
                                 };
@@ -1510,9 +1518,28 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                 }
             };
             
-            // Check if header has scroll effects enabled
+            // Check if header has scroll effects enabled - use same selection logic as template styles
             let templates = (*component_templates).clone();
-            if let Some(header_template) = templates.iter().find(|t| t.component_type == "header" && t.is_active) {
+            
+            // Use the same sophisticated template selection logic as get_component_style
+            let default_templates: Vec<_> = templates.iter()
+                .filter(|t| t.component_type == "header" && t.is_active && t.is_default)
+                .collect();
+            
+            let selected_header_template = if default_templates.len() > 1 {
+                // If multiple default templates, pick the one with the highest ID (most recent)
+                default_templates.iter()
+                    .max_by_key(|t| t.id)
+                    .copied()
+            } else {
+                // Single default template or fallback to first active template
+                default_templates.first().copied()
+                    .or_else(|| templates.iter()
+                        .find(|t| t.component_type == "header" && t.is_active))
+            };
+            
+            if let Some(header_template) = selected_header_template {
+                web_sys::console::log_1(&format!("🎯 Scroll Effects: Selected header template ID={}, name='{}'", header_template.id, header_template.name).into());
                 // Debug: Log all template data to see what's available
                 web_sys::console::log_1(&format!("🔍 Header template data: {:?}", header_template.template_data).into());
                 
@@ -1532,19 +1559,47 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                         let scroll_easing = header_template.template_data.get("scroll_easing")
                             .and_then(|v| v.as_str()).unwrap_or("elastic");
                         
+                        // Get original height for transitions (this is the EXPANDED height)
+                        let height_str = header_template.template_data.get("height")
+                            .and_then(|v| v.as_str()).unwrap_or("80");
+                        
+                        // Parse height, removing 'px' suffix if present
+                        let original_height = if height_str.ends_with("px") {
+                            height_str.strip_suffix("px").unwrap_or("80").parse::<f64>().unwrap_or(80.0)
+                        } else {
+                            height_str.parse::<f64>().unwrap_or(80.0)
+                        };
+                        
+                        web_sys::console::log_1(&format!("🔧 Scroll Effect: Reading height '{}' -> parsed as {}px", height_str, original_height).into());
+                        
                         // Shrink effect specific properties
                         let shrink_height = if scroll_effect == "shrink" {
+                            // This should be the SMALLER height when scrolled down
                             header_template.template_data.get("shrink_height")
-                                .and_then(|v| v.as_str()).unwrap_or("500").parse::<f64>().unwrap_or(500.0)
-                        } else { 500.0 };
+                                .and_then(|v| v.as_str()).unwrap_or("60").parse::<f64>().unwrap_or(60.0)
+                        } else { 60.0 };
                         let shrink_logo_scale = if scroll_effect == "shrink" {
+                            // This should be the SMALLER scale when scrolled down  
                             header_template.template_data.get("shrink_logo_scale")
                                 .and_then(|v| v.as_str()).unwrap_or("80").parse::<f64>().unwrap_or(80.0) / 100.0
                         } else { 0.8 };
                         
-                        // Get original height for transitions
-                        let original_height = header_template.template_data.get("height")
-                            .and_then(|v| v.as_str()).unwrap_or("80").parse::<f64>().unwrap_or(80.0);
+                        // Ensure shrink height is reasonable but don't override user settings
+                        let shrink_height = if shrink_height >= original_height {
+                            // Only override if shrink height is unreasonably large
+                            if shrink_height > original_height * 1.5 {
+                                original_height * 0.6 // Default to 60% of original height
+                            } else {
+                                shrink_height // Keep user's setting
+                            }
+                        } else {
+                            shrink_height
+                        };
+                        
+                        web_sys::console::log_1(&format!("🔧 Shrink calculation: original={}px, configured_shrink={}px, final_shrink={}px", 
+                            header_template.template_data.get("height").and_then(|v| v.as_str()).unwrap_or("0"), 
+                            header_template.template_data.get("shrink_height").and_then(|v| v.as_str()).unwrap_or("0"), 
+                            shrink_height).into());
                         
                         // Convert easing to CSS easing function
                         let css_easing = match scroll_easing {
@@ -1628,10 +1683,10 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                                 let key = key.trim().to_lowercase();
                                                                 let value = value.trim();
                                                                 if !key.is_empty() && !value.is_empty() {
-                                                                    // Skip scroll-related properties to avoid conflicts, but preserve core background
+                                                                    // Skip scroll-related properties to avoid conflicts, but preserve core styling
                                                                     if !matches!(key.as_str(), "transition" | "--logo-scale" | "height" | "overflow" | "--scroll-duration" | "--scroll-easing") {
-                                                                        // Keep core background but remove dynamic background properties
-                                                                        if !key.contains("transform") && !key.starts_with("background-") {
+                                                                        // Preserve all background properties and other important styles
+                                                                        if !key.contains("transform") {
                                                                             style_map.insert(key, value.to_string());
                                                                         }
                                                                     }
@@ -1642,6 +1697,13 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         // Set CSS variables for transitions (but not inline transition property)
                                                         style_map.insert("--scroll-duration".to_string(), format!("{}ms", scroll_duration));
                                                         style_map.insert("--scroll-easing".to_string(), css_easing.to_string());
+                                                        
+                                                        // Debug: Log preserved background styles
+                                                        for (key, value) in &style_map {
+                                                            if key.contains("background") {
+                                                                web_sys::console::log_1(&format!("🎨 Scroll Handler: Preserving background style: {}: {}", key, value).into());
+                                                            }
+                                                        }
                                                         
                                                         web_sys::console::log_1(&format!("🎭 Scroll handler: duration={}ms, easing={}", scroll_duration, css_easing).into());
                                                         
@@ -1669,15 +1731,34 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         // Handle height changes with smooth interpolation
                                                         // Use the original height extracted before the closure
                                                         
-                                                        if scroll_y > scroll_trigger {
-                                                            // Shrink state
-                                                            style_map.insert("height".to_string(), format!("{}px", shrink_height));
-                                                            style_map.insert("overflow".to_string(), "hidden".to_string());
-                                                            
-                                                            web_sys::console::log_1(&format!("🔽 Shrinking header from {}px to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, shrink_height, scroll_y, scroll_duration, css_easing).into());
+                                                        // Use a simple approach to detect if this is initial setup vs user scroll
+                                                        // Check if the header has been properly initialized with template styles
+                                                        let has_template_styles = existing_style.contains("background:") || existing_style.contains("clip-path:");
+                                                        
+                                                        if scroll_y > scroll_trigger && has_template_styles {
+                                                            // Shrink state - but only if we're not in live edit mode and not initial page load
+                                                            if let Some(live_edit_active) = header.get_attribute("data-live-edit-active") {
+                                                                if live_edit_active == "true" {
+                                                                    // In live edit mode, preserve the original height
+                                                                    style_map.insert("height".to_string(), format!("{}px !important", original_height));
+                                                                    web_sys::console::log_1(&format!("🚫 Scroll Handler: Live edit active - preserving original height {}px", original_height).into());
+                                                                } else {
+                                                                    style_map.insert("height".to_string(), format!("{}px !important", shrink_height));
+                                                                    style_map.insert("overflow".to_string(), "hidden".to_string());
+                                                                    web_sys::console::log_1(&format!("🔽 Shrinking header from {}px to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, shrink_height, scroll_y, scroll_duration, css_easing).into());
+                                                                }
+                                                            } else {
+                                                                style_map.insert("height".to_string(), format!("{}px !important", shrink_height));
+                                                                style_map.insert("overflow".to_string(), "hidden".to_string());
+                                                                web_sys::console::log_1(&format!("🔽 Shrinking header from {}px to {}px at scroll {} (CSS vars: --scroll-duration={}ms, --scroll-easing={})", original_height, shrink_height, scroll_y, scroll_duration, css_easing).into());
+                                                            }
+                                                        } else if !has_template_styles && scroll_y > scroll_trigger {
+                                                            // On initial load without template styles, always show original height first (even if scrolled)
+                                                            style_map.insert("height".to_string(), format!("{}px !important", original_height));
+                                                            web_sys::console::log_1(&format!("🚀 Initial Load: Showing original height {}px (ignoring scroll position)", original_height).into());
                                                         } else {
                                                             // Expanded state - set explicit original height for smooth transition
-                                                            style_map.insert("height".to_string(), format!("{}px", original_height));
+                                                            style_map.insert("height".to_string(), format!("{}px !important", original_height));
                                                             style_map.remove("overflow"); // Remove overflow hidden in expanded state
                                                             
                                                             // When fully scrolled to top, clean up any stuck styles
@@ -1773,13 +1854,16 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                     // Remove any existing height and logo scale properties
                                                     style_parts.retain(|s| !s.starts_with("height:") && !s.starts_with("--logo-scale:") && !s.starts_with("overflow:"));
                                                     
-                                                    // Add initial expanded state properties
-                                                    style_parts.push(format!("height: {}px", original_height));
+                                                    // Add initial expanded state properties with !important for consistency
+                                                    style_parts.push(format!("height: {}px !important", original_height));
                                                     style_parts.push("--logo-scale: 1".to_string());
                                                     // Don't add overflow: hidden in expanded state
                                                     
                                                     let initial_style = style_parts.join("; ");
                                                     let _ = header.set_attribute("style", &initial_style);
+                                                    
+                                                    // Debug the initial state setup
+                                                    web_sys::console::log_1(&format!("🚀 Initial State: original_height={}px (expanded), shrink_height={}px (shrunken)", original_height, shrink_height).into());
                                                     
                                                     // ALSO apply logo scale directly to logo element for consistency
                                                     if let Some(logo_element) = document.query_selector(".site-logo").ok().flatten() {

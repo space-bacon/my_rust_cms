@@ -27,7 +27,10 @@ pub enum PanelType {
 #[function_component(UnifiedPropertiesPanel)]
 pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
     let working_template_data = use_state(|| {
-        props.template_data.clone().unwrap_or_else(|| serde_json::json!({}))
+        let data = props.template_data.clone().unwrap_or_else(|| serde_json::json!({}));
+        web_sys::console::log_1(&format!("🔍 Live Edit Panel: Initializing with template data: {}", 
+            serde_json::to_string_pretty(&data).unwrap_or_else(|_| "Failed to serialize".to_string())).into());
+        data
     });
 
     let working_properties = use_state(|| {
@@ -77,7 +80,15 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                 if let Some(new_data) = template_data_opt.clone() {
                     // Check if the data has actually changed to avoid unnecessary resets
                     if *working_template_data != new_data {
-                        working_template_data.set(new_data);
+                        // CRITICAL: Always ensure we have complete template data
+                        let complete_data = if new_data.as_object().map(|obj| obj.is_empty()).unwrap_or(true) {
+                            // If new data is empty, keep current working data
+                            (*working_template_data).clone()
+                        } else {
+                            new_data
+                        };
+                        working_template_data.set(complete_data);
+                        web_sys::console::log_1(&"🔄 Live Edit: Updated working template data from props".into());
                     }
                 }
             }
@@ -120,6 +131,11 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                         // Handle template property updates with enhanced change accumulation
                         let mut data = (*working_template_data).clone();
                         
+                        // CRITICAL: Ensure we preserve ALL existing template properties
+                        // Debug: Log current working data size
+                        let current_props_count = data.as_object().map(|obj| obj.len()).unwrap_or(0);
+                        web_sys::console::log_1(&format!("🔧 Live Edit: Working data has {} properties before update", current_props_count).into());
+                        
                         // Handle special property types that need processing
                         let processed_value = match name.as_str() {
                             // Height values - ensure they have px units if numeric
@@ -137,7 +153,12 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                         };
                         
                         // Update the working data with processed value
-                        data[&name] = serde_json::Value::String(processed_value);
+                        data[&name] = serde_json::Value::String(processed_value.clone());
+                        
+                        // Debug: Log what we're updating and what we're preserving
+                        web_sys::console::log_1(&format!("🔧 Live Edit: Updating property '{}' = '{}', preserving {} other properties", 
+                            name, processed_value, data.as_object().map(|obj| obj.len()).unwrap_or(0) - 1).into());
+                        
                         working_template_data.set(data.clone());
                         
                         // Apply real-time preview for template properties
@@ -150,7 +171,14 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                         
                         if !component_type.is_empty() {
                             // Apply preview with accumulated changes
-                            crate::components::enhanced_live_edit_system::apply_template_style_preview(component_type, &data);
+                            // For height changes, we need to pass the full template data to preserve shape masks and other properties
+                            if name == "height" {
+                                // For height changes, pass full data but mark it as a height change
+                                crate::components::enhanced_live_edit_system::apply_template_style_preview_with_context(component_type, &data, &name);
+                            } else {
+                                // For other changes, pass the changed property name to prevent unintended style applications
+                                crate::components::enhanced_live_edit_system::apply_template_style_preview_with_context(component_type, &data, &name);
+                            }
                         }
                     }
                 }
@@ -225,6 +253,11 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                             match crate::services::navigation_service::update_component_template(template_for_api.id, &template_for_api).await {
                                 Ok(saved_template) => {
                                     web_sys::console::log_1(&"🎉 Live Edit: Successfully saved all accumulated changes to database!".into());
+                                    web_sys::console::log_1(&format!("💾 Live Edit: Saved template data: {}", 
+                                        serde_json::to_string_pretty(&saved_template.template_data).unwrap_or_else(|_| "Failed to serialize".to_string())
+                                    ).into());
+                                    
+                                    // Emit the saved template to update parent component
                                     callback_for_api.emit(saved_template);
                                     has_unsaved_changes_for_api.set(false);
                                     
@@ -232,9 +265,20 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                                     if template_for_api.component_type == "header" {
                                         if let Some(window) = web_sys::window() {
                                             if let Some(document) = window.document() {
-                                                if let Some(header) = document.get_element_by_id("site-header") {
-                                                    header.remove_attribute("data-live-edit-active").ok();
-                                                    web_sys::console::log_1(&"✅ Live Edit: Re-enabled scroll effects after save".into());
+                                                if let Some(_header) = document.get_element_by_id("site-header") {
+                                                    // Add a small delay to ensure template data has been updated in parent
+                                                    let timeout_closure = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                                                        if let Some(header) = document.get_element_by_id("site-header") {
+                                                            header.remove_attribute("data-live-edit-active").ok();
+                                                            web_sys::console::log_1(&"✅ Live Edit: Re-enabled scroll effects after save (with delay)".into());
+                                                        }
+                                                    }) as Box<dyn FnMut()>);
+                                                    
+                                                    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                                                        timeout_closure.as_ref().unchecked_ref(), 
+                                                        100 // 100ms delay
+                                                    );
+                                                    timeout_closure.forget();
                                                 }
                                             }
                                         }

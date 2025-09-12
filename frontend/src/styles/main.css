@@ -30,11 +30,11 @@ body {
 .site-header {
     background: var(--public-header-bg, #000);
     color: var(--public-header-text, #fff);
-    padding: 1rem 0;
     border-bottom: 2px solid var(--public-border-light, #333);
     position: sticky;
     top: 0;
     z-index: 100;
+    /* Remove hardcoded padding - let height property control the size */
 }
 
 .site-header .container {
@@ -57,31 +57,113 @@ body {
     color: var(--public-header-text-hover, #ccc);
 }
 
+/* Logo scaling and alignment for scroll effects */
+.site-logo,
+.site-title {
+    transform: scale(var(--logo-scale, 1));
+    transition: transform var(--scroll-duration, 300ms) var(--scroll-easing, ease);
+    transform-origin: left center;
+    height: fit-content;
+    line-height: 1;
+}
+
+/* Ensure header container maintains proper alignment during scroll effects */
+.site-header .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%; /* Fill the header height instead of minimum constraint */
+    min-height: 60px; /* Keep minimum for very small headers */
+}
+
 .site-nav {
     display: flex;
     align-items: center;
     gap: 2rem;
 }
 
-/* Removed hardcoded nav-link styles to allow menu customization */
+/* Navigation link styles using CSS variables for live edit customization */
+.site-nav .nav-link,
+.site-nav a {
+    color: var(--header-text, var(--public-header-text, #fff));
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    display: inline-block;
+}
+
+.site-nav .nav-link:hover,
+.site-nav a:hover {
+    color: var(--nav-hover-color, var(--header-text-hover, #f7fafc));
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Navigation underline effects */
+.site-nav .nav-link::after,
+.site-nav a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    width: 0;
+    height: var(--nav-underline-thickness, 2px);
+    background: var(--nav-underline-color, var(--header-text, #fff));
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.site-nav .nav-link:hover::after,
+.site-nav a:hover::after {
+    width: 100%;
+}
+
+/* Navigation underline animations */
+.site-nav[data-underline-animation="slide"] .nav-link::after,
+.site-nav[data-underline-animation="slide"] a::after {
+    left: 0;
+    transform: translateX(-100%);
+}
+
+.site-nav[data-underline-animation="slide"] .nav-link:hover::after,
+.site-nav[data-underline-animation="slide"] a:hover::after {
+    transform: translateX(0);
+}
+
+.site-nav[data-underline-animation="fade"] .nav-link::after,
+.site-nav[data-underline-animation="fade"] a::after {
+    opacity: 0;
+    width: 100%;
+}
+
+.site-nav[data-underline-animation="fade"] .nav-link:hover::after,
+.site-nav[data-underline-animation="fade"] a:hover::after {
+    opacity: 1;
+}
 
 .nav-button {
-    background: none;
-    border: none;
-    color: var(--public-header-text, #fff);
+    background: var(--button-primary-bg, linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1)));
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: var(--button-primary-text, var(--public-header-text, #fff));
     font-size: 1rem;
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: all 0.3s ease;
     font-family: inherit;
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: 4px;
-    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
 }
 
 .nav-button:hover {
-    color: var(--public-text-primary, #000);
-    background: var(--public-header-text, #fff);
+    background: var(--button-primary-hover-bg, linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.2)));
+    color: var(--button-primary-text, var(--public-header-text, #fff));
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Login button styles - higher specificity to override nav-button */
@@ -7800,10 +7882,10 @@ tr:last-child td {
     }
 }
 
-/* Dynamic spacing for main content based on header height */
+/* Dynamic spacing for main content based on header height - reduced to prevent white space */
 body.header-has-effects main {
-    margin-top: var(--header-height, 120px) !important;
-    padding-top: 20px !important; /* Additional padding for visual separation */
+    margin-top: 0 !important; /* Remove automatic margin */
+    padding-top: 1rem !important; /* Minimal padding for visual separation */
 }
 
 /* Fallback for browsers that don't support CSS custom properties */
@@ -7817,15 +7899,15 @@ body.header-has-effects main {
 
 /* Ensure all page content respects the header spacing */
 body[style*="--header-height"] main {
-    margin-top: var(--header-height, 120px) !important;
-    padding-top: 20px !important;
+    margin-top: 0 !important; /* Remove automatic margin */
+    padding-top: 1rem !important; /* Minimal padding */
 }
 
 /* Force spacing even without the class as backup */
 .site-header[class*="effect-"] + main,
 .site-header[class*="effect-"] ~ main {
-    margin-top: var(--header-height, 493px) !important; /* Use header height from template */
-    padding-top: 20px !important;
+    margin-top: 0 !important; /* Remove automatic margin */
+    padding-top: 1rem !important; /* Minimal padding */
 }
 
 /* Effects are now handled by ::before pseudo-elements above */

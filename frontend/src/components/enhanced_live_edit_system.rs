@@ -475,23 +475,26 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
         let on_templates_updated = props.on_templates_updated.clone();
         
         Callback::from(move |updated_template: ComponentTemplate| {
-            web_sys::console::log_1(&format!("Template update callback received: ID {}, type {}", updated_template.id, updated_template.component_type).into());
+            web_sys::console::log_1(&format!("🔄 Template update callback received: ID {}, type {}", updated_template.id, updated_template.component_type).into());
+            web_sys::console::log_1(&format!("🔄 Updated template data: {}", 
+                serde_json::to_string_pretty(&updated_template.template_data).unwrap_or_else(|_| "Failed to serialize".to_string())
+            ).into());
             
-            // Apply live preview immediately
+            // Apply live preview immediately with the updated data
             apply_template_style_preview(&updated_template.component_type, &updated_template.template_data);
             
             let mut updated_templates = component_templates.clone();
             
             // Find and update the template in the list
             if let Some(index) = updated_templates.iter().position(|t| t.id == updated_template.id) {
-                web_sys::console::log_1(&format!("Found template at index {}, updating...", index).into());
+                web_sys::console::log_1(&format!("🔄 Found template at index {}, updating...", index).into());
                 updated_templates[index] = updated_template.clone();
             } else {
-                web_sys::console::log_1(&format!("Template with ID {} not found in list!", updated_template.id).into());
+                web_sys::console::log_1(&format!("❌ Template with ID {} not found in list!", updated_template.id).into());
             }
             
             // Notify parent of changes
-            web_sys::console::log_1(&"Emitting updated templates to parent".into());
+            web_sys::console::log_1(&"🔄 Emitting updated templates to parent".into());
             on_templates_updated.emit(updated_templates);
         })
     };
@@ -515,7 +518,25 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                     if let Some(target) = &*selected_target {
                         match target {
                             EditTarget::Header => {
-                                if let Some(template) = props.component_templates.iter().find(|t| t.component_type == "header" && t.is_active) {
+                                // Use the same template selection logic as public layout
+                                let default_templates: Vec<_> = props.component_templates.iter()
+                                    .filter(|t| t.component_type == "header" && t.is_active && t.is_default)
+                                    .collect();
+                                
+                                let selected_template = if default_templates.len() > 1 {
+                                    // If multiple default templates, pick the one with the highest ID (most recent)
+                                    default_templates.iter()
+                                        .max_by_key(|t| t.id)
+                                        .copied()
+                                } else {
+                                    // Single default template or fallback to first active template
+                                    default_templates.first().copied()
+                                        .or_else(|| props.component_templates.iter()
+                                            .find(|t| t.component_type == "header" && t.is_active))
+                                };
+                                
+                                if let Some(template) = selected_template {
+                                    web_sys::console::log_1(&format!("🎯 Live Edit: Selected header template ID={}, name='{}'", template.id, template.name).into());
                                     html! {
                                         <UnifiedPropertiesPanel
                                             component={None}
@@ -533,7 +554,25 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                 }
                             }
                             EditTarget::Footer => {
-                                if let Some(template) = props.component_templates.iter().find(|t| t.component_type == "footer" && t.is_active) {
+                                // Use the same template selection logic as public layout
+                                let default_templates: Vec<_> = props.component_templates.iter()
+                                    .filter(|t| t.component_type == "footer" && t.is_active && t.is_default)
+                                    .collect();
+                                
+                                let selected_template = if default_templates.len() > 1 {
+                                    // If multiple default templates, pick the one with the highest ID (most recent)
+                                    default_templates.iter()
+                                        .max_by_key(|t| t.id)
+                                        .copied()
+                                } else {
+                                    // Single default template or fallback to first active template
+                                    default_templates.first().copied()
+                                        .or_else(|| props.component_templates.iter()
+                                            .find(|t| t.component_type == "footer" && t.is_active))
+                                };
+                                
+                                if let Some(template) = selected_template {
+                                    web_sys::console::log_1(&format!("🎯 Live Edit: Selected footer template ID={}, name='{}'", template.id, template.name).into());
                                     html! {
                                         <UnifiedPropertiesPanel
                                             component={None}
@@ -686,6 +725,10 @@ fn detect_component_type_from_element(event: &MouseEvent) -> ComponentType {
 
 // Helper function to apply real-time template style updates
 pub fn apply_template_style_preview(component_type: &str, template_data: &serde_json::Value) {
+    apply_template_style_preview_with_context(component_type, template_data, "");
+}
+
+pub fn apply_template_style_preview_with_context(component_type: &str, template_data: &serde_json::Value, changed_property: &str) {
     use wasm_bindgen::JsCast;
     use web_sys::{window, HtmlElement};
     
@@ -702,7 +745,26 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                 // CRITICAL: Disable scroll effects during live editing to prevent interference
                 if component_type == "header" {
                     let _ = element.set_attribute("data-live-edit-active", "true");
-                    web_sys::console::log_1(&"🚫 Live Edit: Temporarily disabled scroll effects for header".into());
+                    
+                    // Force stop any running scroll effects by removing scroll effect data
+                    let _ = element.remove_attribute("data-scroll-effect-active");
+                    
+                    // Clear any scroll-related CSS variables that might interfere
+                    let current_style = element.get_attribute("style").unwrap_or_default();
+                    let cleaned_style = current_style
+                        .split(';')
+                        .filter(|s| {
+                            let trimmed = s.trim();
+                            !trimmed.starts_with("--scroll-") && 
+                            !trimmed.starts_with("--logo-scale") &&
+                            !trimmed.contains("overflow: hidden")
+                        })
+                        .collect::<Vec<&str>>()
+                        .join("; ");
+                    
+                    let _ = element.set_attribute("style", &cleaned_style);
+                    
+                    web_sys::console::log_1(&"🚫 Live Edit: Disabled scroll effects and cleaned scroll-related styles for header".into());
                 }
                 
                 if let Ok(html_element) = element.dyn_into::<HtmlElement>() {
@@ -718,35 +780,64 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                         }
                         
                         if component_type == "header" {
-                            // For header, enforce minimum height of 110px
+                            // For header, enforce minimum height of 60px only (allow custom heights)
                             if let Some(stripped) = h.strip_suffix("px") {
                                 if let Ok(px) = stripped.trim().parse::<i32>() {
-                                    if px < 110 { h = "110px".to_string(); }
+                                    if px < 60 { h = "60px".to_string(); }
                                 }
                             }
                         }
                         
                         // Debug logging for height changes
-                        web_sys::console::log_1(&format!("🎨 Live Preview: Setting {} height to {}", component_type, h).into());
+                        web_sys::console::log_1(&format!("🎨 Live Preview: Setting {} height to {} !important", component_type, h).into());
                         
-                        styles.push(format!("height: {}", h));
+                        styles.push(format!("height: {} !important", h));
                     }
                     
-                    // Handle background properties
-                    let bg_type = template_data.get("bg_type").and_then(|v| v.as_str()).unwrap_or("color");
+                    // Handle background properties - check both bg_type and background keys
+                    let bg_type = template_data.get("bg_type")
+                        .and_then(|v| v.as_str())
+                        .or_else(|| template_data.get("background").and_then(|v| v.as_str()))
+                        .unwrap_or("color");
                     
                     web_sys::console::log_1(&format!("🎨 Live Preview: Background type is '{}' for {}", bg_type, component_type).into());
                     web_sys::console::log_1(&format!("🎨 Live Preview: Template data: {}", serde_json::to_string_pretty(template_data).unwrap_or_else(|_| "Failed to serialize".to_string())).into());
                     
+                    // CRITICAL: Use changed_property parameter to determine what should be applied
+                    let is_background_change = matches!(changed_property, "bg_color" | "bg_type" | "bg_gradient_start" | "bg_gradient_end" | "bg_image" | "background");
+                    let is_effects_change = matches!(changed_property, "effects" | "effects_intensity");
+                    
+                    web_sys::console::log_1(&format!("🎨 Live Preview: Changed property: '{}', is_background_change: {}, is_effects_change: {}", changed_property, is_background_change, is_effects_change).into());
+                    
+                    // Only apply background colors if they're being actively changed in this update
+                    // Don't override existing gradient/image backgrounds when just adjusting other properties
+                    if let Some(mut bg_color) = template_data.get("bg_color").and_then(|v| v.as_str()) {
+                        // Only apply if this is actually a background-related change, not just height/other property changes
+                        if is_background_change {
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Found bg_color: {}", bg_color).into());
+                            
+                            // For header, coerce white to black per default theme requirement
+                            if component_type == "header" && bg_color.trim().eq_ignore_ascii_case("#ffffff") {
+                                bg_color = "#000000";
+                                web_sys::console::log_1(&"🎨 Live Preview: Coerced white header to black for readability".into());
+                            }
+                            
+                            styles.push(format!("background-color: {} !important", bg_color));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Applied background-color: {}", bg_color).into());
+                        } else {
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Skipping bg_color application - not a background change (preserving existing background)").into());
+                        }
+                    }
+                    
+                    // CRITICAL: Prevent effects from being applied unless explicitly being changed
+                    // Don't apply glassmorphism or other effects when just adjusting height/other properties
+                    if !is_effects_change {
+                        web_sys::console::log_1(&"🎨 Live Preview: Skipping effects application - not an effects change (preserving existing effects)".into());
+                    }
+                    
                     match bg_type {
                         "color" => {
-                            if let Some(mut bg_color) = template_data.get("bg_color").and_then(|v| v.as_str()) {
-                                // For header, coerce white to black per default theme requirement
-                                if component_type == "header" && bg_color.trim().eq_ignore_ascii_case("#ffffff") {
-                                    bg_color = "#000000";
-                                }
-                                styles.push(format!("background-color: {} !important", bg_color));
-                            }
+                            // Color handling is done above for all cases
                         },
                         "image" => {
                             if let Some(bg_image) = template_data.get("bg_image").and_then(|v| v.as_str()) {
@@ -821,6 +912,57 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                             styles.push(format!("--header-text: {}", text_color));
                         } else if component_type == "footer" {
                             styles.push(format!("--footer-text: {}", text_color));
+                        }
+                    }
+                    
+                    // Handle navigation-specific properties for header
+                    if component_type == "header" {
+                        // Navigation hover color
+                        if let Some(nav_hover_color) = template_data.get("nav_hover_color").and_then(|v| v.as_str()) {
+                            styles.push(format!("--nav-hover-color: {}", nav_hover_color));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting nav hover color to {}", nav_hover_color).into());
+                        }
+                        
+                        // Navigation underline color
+                        if let Some(nav_underline_color) = template_data.get("nav_underline_color").and_then(|v| v.as_str()) {
+                            styles.push(format!("--nav-underline-color: {}", nav_underline_color));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting nav underline color to {}", nav_underline_color).into());
+                        }
+                        
+                        // Navigation underline thickness
+                        if let Some(nav_underline_thickness) = template_data.get("nav_underline_thickness").and_then(|v| v.as_str()) {
+                            styles.push(format!("--nav-underline-thickness: {}", nav_underline_thickness));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting nav underline thickness to {}", nav_underline_thickness).into());
+                        }
+                        
+                        // Navigation underline animation
+                        if let Some(nav_underline_animation) = template_data.get("nav_underline_animation").and_then(|v| v.as_str()) {
+                            styles.push(format!("--nav-underline-animation: {}", nav_underline_animation));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting nav underline animation to {}", nav_underline_animation).into());
+                            
+                            // Also set the data attribute on the navigation element for CSS selectors
+                            if let Some(nav_element) = document.query_selector(".site-nav").ok().flatten() {
+                                let _ = nav_element.set_attribute("data-underline-animation", nav_underline_animation);
+                                web_sys::console::log_1(&format!("🎨 Live Preview: Set nav data-underline-animation to {}", nav_underline_animation).into());
+                            }
+                        }
+                        
+                        // Button primary background
+                        if let Some(button_primary_bg) = template_data.get("button_primary_bg").and_then(|v| v.as_str()) {
+                            styles.push(format!("--button-primary-bg: {}", button_primary_bg));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting button primary bg to {}", button_primary_bg).into());
+                        }
+                        
+                        // Button primary hover background
+                        if let Some(button_primary_hover_bg) = template_data.get("button_primary_hover_bg").and_then(|v| v.as_str()) {
+                            styles.push(format!("--button-primary-hover-bg: {}", button_primary_hover_bg));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting button primary hover bg to {}", button_primary_hover_bg).into());
+                        }
+                        
+                        // Button primary text color
+                        if let Some(button_primary_text) = template_data.get("button_primary_text").and_then(|v| v.as_str()) {
+                            styles.push(format!("--button-primary-text: {}", button_primary_text));
+                            web_sys::console::log_1(&format!("🎨 Live Preview: Setting button primary text to {}", button_primary_text).into());
                         }
                     }
                     
@@ -1000,42 +1142,14 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                     web_sys::console::log_1(&format!("🎨 Live Preview: Updated scroll easing to {}", scroll_easing).into());
                                 }
                                 
-                                // Handle shrink height for shrink scroll effect
-                                if scroll_effect == "shrink" {
+                                // CRITICAL: Don't apply shrink height during live edit - it interferes with height adjustments
+                                // Only handle shrink height updates when specifically editing shrink properties
+                                if scroll_effect == "shrink" && changed_property.starts_with("shrink_") {
                                     if let Some(shrink_height) = template_data.get("shrink_height").and_then(|v| v.as_str()) {
-                                        // Apply shrink height immediately for live preview if currently in shrunk state
-                                        if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-                                            if let Some(header) = document.get_element_by_id("site-header") {
-                                                let scroll_y = web_sys::window().and_then(|w| w.scroll_y().ok()).unwrap_or(0.0);
-                                                let scroll_trigger = template_data.get("scroll_trigger")
-                                                    .and_then(|v| v.as_str())
-                                                    .unwrap_or("100")
-                                                    .parse::<f64>()
-                                                    .unwrap_or(100.0);
-                                                
-                                                // If currently scrolled past trigger, apply the new shrink height immediately
-                                                if scroll_y > scroll_trigger {
-                                                    let current_style = header.get_attribute("style").unwrap_or_default();
-                                                    let mut style_parts: Vec<String> = current_style
-                                                        .split(';')
-                                                        .filter(|s| !s.trim().is_empty())
-                                                        .map(|s| s.trim().to_string())
-                                                        .collect();
-                                                    
-                                                    // Remove existing height
-                                                    style_parts.retain(|s| !s.starts_with("height:"));
-                                                    
-                                                    // Add new shrink height
-                                                    style_parts.push(format!("height: {}px", shrink_height));
-                                                    
-                                                    let new_style = style_parts.join("; ");
-                                                    let _ = header.set_attribute("style", &new_style);
-                                                }
-                                            }
-                                        }
-                                        
-                                        web_sys::console::log_1(&format!("🎨 Live Preview: Updated shrink height to {}px", shrink_height).into());
+                                        web_sys::console::log_1(&format!("🎨 Live Preview: Updated shrink height setting to {}px (will apply on scroll)", shrink_height).into());
                                     }
+                                } else if scroll_effect == "shrink" && changed_property == "height" {
+                                    web_sys::console::log_1(&"🎨 Live Preview: Height change detected - scroll handler will manage shrink behavior".into());
                                 }
                                 
                                 // Add scroll effect class for CSS targeting
@@ -1275,6 +1389,9 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                         }
                     }
                     
+                    // CRITICAL: Only apply shape masks if they're being actively changed
+                    let is_shape_mask_change = changed_property.starts_with("shape_mask_");
+                    
                     // Handle shape masks with improved approach
                     let shape_mask_upper = template_data.get("shape_mask_upper").and_then(|v| v.as_str()).unwrap_or("none");
                     let shape_mask_upper_scale = template_data.get("shape_mask_upper_scale").and_then(|v| v.as_str()).unwrap_or("100");
@@ -1295,16 +1412,25 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                     let shape_mask_lower_amplitude = template_data.get("shape_mask_lower_amplitude").and_then(|v| v.as_str()).unwrap_or("50");
                     let shape_mask_lower_degrees = template_data.get("shape_mask_lower_degrees").and_then(|v| v.as_str()).unwrap_or("15");
                     
-                    // Apply shape masks using direct DOM manipulation
-                    apply_shape_masks_to_element(
-                        &html_element, 
-                        shape_mask_upper, shape_mask_upper_scale, shape_mask_upper_frequency, shape_mask_upper_direction, shape_mask_upper_amplitude, shape_mask_upper_degrees,
-                        shape_mask_lower, shape_mask_lower_scale, shape_mask_lower_frequency, shape_mask_lower_direction, shape_mask_lower_amplitude, shape_mask_lower_degrees
-                    );
+                    // Apply shape masks using direct DOM manipulation - only if shape mask properties are being changed
+                    if is_shape_mask_change {
+                        web_sys::console::log_1(&"🎭 Live Preview: Applying shape mask changes".into());
+                        apply_shape_masks_to_element(
+                            &html_element, 
+                            shape_mask_upper, shape_mask_upper_scale, shape_mask_upper_frequency, shape_mask_upper_direction, shape_mask_upper_amplitude, shape_mask_upper_degrees,
+                            shape_mask_lower, shape_mask_lower_scale, shape_mask_lower_frequency, shape_mask_lower_direction, shape_mask_lower_amplitude, shape_mask_lower_degrees
+                        );
+                    } else {
+                        web_sys::console::log_1(&"🎭 Live Preview: Skipping shape mask application - not a shape mask change (preserving existing shape masks)".into());
+                    }
                     
                     // Apply the styles
                     let current_style = html_element.get_attribute("style").unwrap_or_default();
                     web_sys::console::log_1(&format!("🔍 Live Preview: Existing styles for {}: {}", element_id, current_style).into());
+                    
+                    // Debug: Log current element classes and attributes that might affect height
+                    let current_class = html_element.get_attribute("class").unwrap_or_default();
+                    web_sys::console::log_1(&format!("🔍 Live Preview: Element classes: {}", current_class).into());
                     
                     let mut existing_styles: Vec<String> = current_style
                         .split(';')
@@ -1313,12 +1439,13 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                             // Remove existing properties that might conflict with our new ones
                             let s = s.trim();
                             let should_keep = !s.starts_with("height:") && 
-                                !s.starts_with("background:") && 
-                                !s.starts_with("background-color:") && 
-                                !s.starts_with("background-image:") && 
-                                !s.starts_with("background-size:") && 
-                                !s.starts_with("background-position:") && 
-                                !s.starts_with("background-repeat:") && 
+                                // CRITICAL: Only remove background styles if this is a background change
+                                (!s.starts_with("background:") || !is_background_change) && 
+                                (!s.starts_with("background-color:") || !is_background_change) && 
+                                (!s.starts_with("background-image:") || !is_background_change) && 
+                                (!s.starts_with("background-size:") || !is_background_change) && 
+                                (!s.starts_with("background-position:") || !is_background_change) && 
+                                (!s.starts_with("background-repeat:") || !is_background_change) && 
                                 !s.starts_with("--header-text:") && 
                                 !s.starts_with("--footer-text:") &&
                                 // Remove position-related properties to avoid conflicts
@@ -1328,7 +1455,12 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                                 !s.starts_with("right:") &&
                                 !s.starts_with("z-index:") &&
                                 !s.starts_with("width:") &&
-                                !s.starts_with("transform:");
+                                !s.starts_with("transform:") &&
+                                // CRITICAL: Remove glassmorphism effects unless explicitly being changed
+                                (!s.starts_with("backdrop-filter:") || is_effects_change) &&
+                                (!s.starts_with("-webkit-backdrop-filter:") || is_effects_change) &&
+                                // CRITICAL: Preserve clip-path unless shape masks are being changed
+                                (!s.starts_with("clip-path:") || is_shape_mask_change);
                             
                             if !should_keep {
                                 web_sys::console::log_1(&format!("🗑️ Live Preview: Removing conflicting style: {}", s).into());
@@ -1338,11 +1470,26 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                         .map(|s| s.to_string())
                         .collect();
                     
-                    // Add new styles
+                    // Add new styles and deduplicate
                     web_sys::console::log_1(&format!("➕ Live Preview: Adding new styles: {:?}", styles).into());
                     existing_styles.extend(styles.clone());
                     
-                    let new_style = existing_styles.join("; ");
+                    // Deduplicate styles by keeping only the last occurrence of each property
+                    let mut style_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+                    for style in existing_styles {
+                        if let Some((key, value)) = style.split_once(':') {
+                            let key = key.trim().to_string();
+                            let value = value.trim().to_string();
+                            if !key.is_empty() && !value.is_empty() {
+                                style_map.insert(key, value);
+                            }
+                        }
+                    }
+                    
+                    let new_style = style_map.iter()
+                        .map(|(k, v)| format!("{}: {}", k, v))
+                        .collect::<Vec<String>>()
+                        .join("; ");
                     
                     // Debug logging for applied styles
                     web_sys::console::log_1(&format!("✅ Live Preview: Final styles for {}: {}", element_id, new_style).into());
@@ -1459,6 +1606,10 @@ pub fn apply_template_style_preview(component_type: &str, template_data: &serde_
                     // Verify the styles were applied
                     if let Some(applied_style) = html_element.get_attribute("style") {
                         web_sys::console::log_1(&format!("🔍 Live Preview: Verified applied styles: {}", applied_style).into());
+                        
+                        // Debug: Check if there are any data attributes that might be interfering
+                        let data_attrs = html_element.get_attribute("data-scroll-effect-active").unwrap_or_default();
+                        web_sys::console::log_1(&format!("🔍 Live Preview: Data attributes: data-scroll-effect-active={}", data_attrs).into());
                     } else {
                         web_sys::console::log_1(&format!("❌ Live Preview: No styles found after application").into());
                     }
