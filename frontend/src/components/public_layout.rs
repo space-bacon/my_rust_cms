@@ -1657,11 +1657,15 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                 // Use Rc<RefCell<>> for shared mutable state
                                 let last_scroll_time = Rc::new(RefCell::new(0.0));
                                 let last_animation_time = Rc::new(RefCell::new(0.0));
+                                let last_scroll_y = Rc::new(RefCell::new(0.0));
+                                let header_is_shrunk = Rc::new(RefCell::new(false));
                                 let throttle_delay = 16.0; // ~60fps
                                 let animation_delay = 350.0; // Prevent animation interruption (slightly longer than 300ms transition)
                                 
                                 let last_scroll_time_clone = last_scroll_time.clone();
                                 let last_animation_time_clone = last_animation_time.clone();
+                                let last_scroll_y_clone = last_scroll_y.clone();
+                                let header_is_shrunk_clone = header_is_shrunk.clone();
                                 
                                 wasm_bindgen::closure::Closure::wrap(Box::new(move || {
                                     if let Some(window) = web_sys::window() {
@@ -1778,36 +1782,37 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         // Check if the header has been properly initialized with template styles
                                                         let has_template_styles = existing_style.contains("background:") || existing_style.contains("clip-path:");
                                                         
-                                                        // Simplified scroll logic - only expand when scrolling back to near top
-                                                        let shrink_threshold = scroll_trigger;
-                                                        let expand_threshold = 10.0; // Only expand when very close to top
+                                                        // Get current scroll position and previous scroll position
+                                                        let prev_scroll_y = *last_scroll_y_clone.borrow();
+                                                        let is_currently_shrunk = *header_is_shrunk_clone.borrow();
                                                         
-                                                        // Check current state to determine which threshold to use
-                                                        // Look for shrink height or overflow hidden (more reliable indicator)
-                                                        let is_currently_shrunk = existing_style.contains("overflow: hidden") ||
-                                                            existing_style.contains(&format!("height: {}px", shrink_height as i32)) ||
-                                                            existing_style.contains(&format!("height:{}px", shrink_height as i32)) ||
-                                                            existing_style.contains(&format!("height: {} px", shrink_height as i32));
+                                                        // Update last scroll position
+                                                        *last_scroll_y_clone.borrow_mut() = scroll_y;
                                                         
-                                                        // Determine the action based on current state and scroll position
-                                                        let action = if is_currently_shrunk {
-                                                            // If already shrunk, only expand when very close to top
-                                                            if scroll_y <= expand_threshold {
+                                                        // Simple logic: shrink when scrolling down past trigger, expand only when near top
+                                                        let action = if scroll_y <= 10.0 {
+                                                            // Very close to top - always expand
+                                                            if is_currently_shrunk {
+                                                                *header_is_shrunk_clone.borrow_mut() = false;
                                                                 "expand"
                                                             } else {
-                                                                "stay_shrunk"
+                                                                "stay_expanded"
                                                             }
+                                                        } else if scroll_y > scroll_trigger && !is_currently_shrunk {
+                                                            // Past trigger and not yet shrunk - shrink it
+                                                            *header_is_shrunk_clone.borrow_mut() = true;
+                                                            "shrink"
                                                         } else {
-                                                            // If expanded, shrink when above shrink threshold
-                                                            if scroll_y > shrink_threshold {
-                                                                "shrink"
+                                                            // Stay in current state
+                                                            if is_currently_shrunk {
+                                                                "stay_shrunk"
                                                             } else {
                                                                 "stay_expanded"
                                                             }
                                                         };
                                                         
-                                                        web_sys::console::log_1(&format!("🎯 Scroll Detection: y={}, shrink_threshold={}, expand_threshold={}, currently_shrunk={}, action={}", 
-                                                            scroll_y, shrink_threshold, expand_threshold, is_currently_shrunk, action).into());
+                                                        web_sys::console::log_1(&format!("🎯 Scroll Detection: y={}, trigger={}, currently_shrunk={}, action={}", 
+                                                            scroll_y, scroll_trigger, is_currently_shrunk, action).into());
                                                         
                                                         if action == "shrink" && has_template_styles {
                                                             // Update animation time to prevent interruption
