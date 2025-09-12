@@ -945,6 +945,10 @@ pub struct MenuAreaCustomization {
     
     // Mobile Menu
     pub mobile_hamburger_style: String, // "lines", "dots", "arrow", "custom"
+    pub mobile_hamburger_color: String,
+    pub mobile_hamburger_bg: String,
+    pub mobile_hamburger_size: String,
+    pub mobile_hamburger_padding: String,
     pub mobile_dropdown_animation: String, // "slide", "fade", "scale", "flip"
     pub mobile_dropdown_direction: String, // "down", "up", "left", "right"
     pub mobile_item_hover_type: String,
@@ -1030,6 +1034,10 @@ impl Default for MenuAreaCustomization {
             
             // Mobile Menu
             mobile_hamburger_style: "lines".to_string(),
+            mobile_hamburger_color: "#ffffff".to_string(),
+            mobile_hamburger_bg: "rgba(255, 255, 255, 0.1)".to_string(),
+            mobile_hamburger_size: "28px".to_string(),
+            mobile_hamburger_padding: "14px".to_string(),
             mobile_dropdown_animation: "slide".to_string(),
             mobile_dropdown_direction: "down".to_string(),
             mobile_item_hover_type: "color".to_string(),
@@ -3030,6 +3038,110 @@ fn render_enhanced_hamburger_controls(customization: &MenuAreaCustomization, upd
                                 </button>
                             }
                         }).collect::<Html>()}
+                    </div>
+                </div>
+
+                // Hamburger Colors
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Colors"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #64748b; margin-bottom: 4px;">{"Icon Color"}</label>
+                            <input 
+                                type="color" 
+                                value={customization.mobile_hamburger_color.clone()}
+                                style="width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer;"
+                                onchange={{
+                                    let update_customization = update_customization.clone();
+                                    Callback::from(move |e: Event| {
+                                        if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                            update_customization.emit(vec![("mobile_hamburger_color".to_string(), input.value())]);
+                                        }
+                                    })
+                                }}
+                            />
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #64748b; margin-bottom: 4px;">{"Background"}</label>
+                            <input 
+                                type="color" 
+                                value={customization.mobile_hamburger_bg.clone()}
+                                style="width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer;"
+                                onchange={{
+                                    let update_customization = update_customization.clone();
+                                    Callback::from(move |e: Event| {
+                                        if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                            update_customization.emit(vec![("mobile_hamburger_bg".to_string(), input.value())]);
+                                        }
+                                    })
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                // Hamburger Size & Spacing
+                <div>
+                    <label style="
+                        display: block; 
+                        font-weight: 600; 
+                        color: #1e293b; 
+                        margin-bottom: 12px; 
+                        font-size: 14px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    ">
+                        {"Size & Spacing"}
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #64748b; margin-bottom: 4px;">{"Icon Size (px)"}</label>
+                            <input 
+                                type="range" 
+                                min="16" 
+                                max="40" 
+                                value={customization.mobile_hamburger_size.parse::<i32>().unwrap_or(26).to_string()}
+                                style="width: 100%;"
+                                onchange={{
+                                    let update_customization = update_customization.clone();
+                                    Callback::from(move |e: Event| {
+                                        if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                            update_customization.emit(vec![("mobile_hamburger_size".to_string(), format!("{}px", input.value()))]);
+                                        }
+                                    })
+                                }}
+                            />
+                            <span style="font-size: 11px; color: #94a3b8;">{format!("{}px", customization.mobile_hamburger_size.parse::<i32>().unwrap_or(26))}</span>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #64748b; margin-bottom: 4px;">{"Padding (px)"}</label>
+                            <input 
+                                type="range" 
+                                min="4" 
+                                max="20" 
+                                value={customization.mobile_hamburger_padding.parse::<i32>().unwrap_or(12).to_string()}
+                                style="width: 100%;"
+                                onchange={{
+                                    let update_customization = update_customization.clone();
+                                    Callback::from(move |e: Event| {
+                                        if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                                            update_customization.emit(vec![("mobile_hamburger_padding".to_string(), format!("{}px", input.value()))]);
+                                        }
+                                    })
+                                }}
+                            />
+                            <span style="font-size: 11px; color: #94a3b8;">{format!("{}px", customization.mobile_hamburger_padding.parse::<i32>().unwrap_or(12))}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -5095,12 +5207,23 @@ fn generate_menu_css(customization: &MenuAreaCustomization, _area_name: &str) ->
         container_styles.push(format!("transition: all {}", customization.animation_duration));
     }
     
+    // Hamburger menu CSS variables
+    let hamburger_vars = vec![
+        format!("--hamburger-color: {}", customization.mobile_hamburger_color),
+        format!("--hamburger-bg: {}", customization.mobile_hamburger_bg),
+        format!("--hamburger-icon-size: {}", customization.mobile_hamburger_size),
+        format!("--hamburger-padding: {}", customization.mobile_hamburger_padding),
+        format!("--hamburger-hover-bg: rgba(255, 255, 255, 0.15)"),
+        format!("--hamburger-hover-color: {}", customization.text_color),
+    ];
+    
     // Navigation link styles with hover gradients
     let nav_styles = generate_nav_link_styles_admin(customization);
     let hover_styles = generate_hover_gradient_styles_admin(customization);
     
-    format!("{}; nav a {{ {} }} nav a:hover {{ {} }}", 
+    format!("{}; {}; nav a {{ {} }} nav a:hover {{ {} }}", 
         container_styles.join("; "),
+        hamburger_vars.join("; "),
         nav_styles,
         hover_styles
     )
@@ -5287,7 +5410,7 @@ fn inject_menu_css(area_name: &str, css: &str) {
                 style_element.set_id(&style_id);
                 
                 let css_selector = match area_name {
-                    "header" => ".site-header nav, .site-header .header-nav",
+                    "header" => ".site-header nav, .site-header .header-nav, .site-header .hamburger-menu-container, .site-header",
                     "footer" => ".site-footer nav, .site-footer .footer-nav", 
                     "floating" => ".floating-menu, .floating-nav",
                     _ => &format!(".{}-menu", area_name)

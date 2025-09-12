@@ -762,6 +762,28 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
         })
     };
 
+    // Close mobile menu on scroll
+    {
+        let mobile_menu_open_clone = mobile_menu_open.clone();
+        let mobile_menu_open_for_deps = mobile_menu_open.clone();
+        use_effect_with_deps(move |is_open| {
+            if **is_open {
+                let mobile_menu_open = mobile_menu_open_clone.clone();
+                let scroll_handler = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                    mobile_menu_open.set(false);
+                }) as Box<dyn Fn()>);
+
+                if let Some(window) = web_sys::window() {
+                    let _ = window.add_event_listener_with_callback("scroll", scroll_handler.as_ref().unchecked_ref());
+                }
+
+                // Forget the handler to prevent memory leaks
+                scroll_handler.forget();
+            }
+            || ()
+        }, mobile_menu_open_for_deps);
+    }
+
     // Helper function to check if component is active
     let is_component_active = {
         let component_templates = component_templates.clone();
@@ -1756,10 +1778,9 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         // Check if the header has been properly initialized with template styles
                                                         let has_template_styles = existing_style.contains("background:") || existing_style.contains("clip-path:");
                                                         
-                                                        // Add hysteresis to prevent rapid toggling at the trigger point
-                                                        // Use different thresholds for shrinking vs expanding
+                                                        // Simplified scroll logic - only expand when scrolling back to near top
                                                         let shrink_threshold = scroll_trigger;
-                                                        let expand_threshold = scroll_trigger - 40.0; // 40px hysteresis buffer (increased from 20px)
+                                                        let expand_threshold = 10.0; // Only expand when very close to top
                                                         
                                                         // Check current state to determine which threshold to use
                                                         // Look for shrink height or overflow hidden (more reliable indicator)
@@ -1770,7 +1791,7 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         
                                                         // Determine the action based on current state and scroll position
                                                         let action = if is_currently_shrunk {
-                                                            // If already shrunk, expand when below expand threshold
+                                                            // If already shrunk, only expand when very close to top
                                                             if scroll_y <= expand_threshold {
                                                                 "expand"
                                                             } else {
@@ -2053,98 +2074,105 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                             </div>
                         </div>
                         
-                        // Mobile Menu Overlay
-                        {if *mobile_menu_open {
-                            html! {
-                                <div class="mobile-menu-overlay" onclick={on_mobile_menu_overlay_click.clone()} aria-hidden="false">
-                                    <div class="mobile-menu-content" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
-                                        <div class="mobile-menu-header">
-                                            <h3>{(*site_title).clone()}</h3>
-                                            <button 
-                                                class="close-button"
-                                                onclick={on_mobile_menu_toggle.clone()}
-                                                aria-label="Close mobile menu"
-                                            >
-                                                {"×"}
-                                            </button>
-                                        </div>
-                                        <nav class="mobile-menu-nav">
-                                            <ul class="mobile-nav-list">
-                                                {if !*loading {
-                                                    header_navigation_items.iter().filter(|item| item.is_active && item.mobile_visible).map(|item| {
-                                                        let is_active = props.current_page == item.url.trim_start_matches('/');
-                                                        let item_url = item.url.clone();
-                                                        let on_nav_click = {
-                                                            let on_nav_item_click = on_nav_item_click.clone();
-                                                            let mobile_menu_open = mobile_menu_open.clone();
-                                                            Callback::from(move |e: MouseEvent| {
-                                                                // Close mobile menu
-                                                                mobile_menu_open.set(false);
-                                                                // Navigate
-                                                                on_nav_item_click.emit(e);
-                                                            })
-                                                        };
-                                                        html! {
-                                                            <li class="mobile-nav-item">
-                                                                <a 
-                                                                    href="#" 
-                                                                    class={format!("mobile-nav-link {}", if is_active { "active" } else { "" })}
-                                                                    data-url={item_url}
-                                                                    onclick={on_nav_click}
-                                                                >
-                                                                    {if let Some(icon) = &item.icon {
-                                                                        html! { <span class="nav-icon">{icon}</span> }
-                                                                    } else {
-                                                                        html! {}
-                                                                    }}
-                                                                    <span class="nav-text">{&item.title}</span>
-                                                                    {if let Some(description) = &item.description {
-                                                                        html! { <span class="nav-description">{description}</span> }
-                                                                    } else {
-                                                                        html! {}
-                                                                    }}
-                                                                </a>
-                                                            </li>
-                                                        }
-                                                    }).collect::<Html>()
-                                                } else {
-                                                    html! {}
-                                                }}
-                                                
-                                                {if *login_button_visible {
-                                                    html! {
-                                                        <li class="mobile-nav-item">
-                                                            <a 
-                                                                href="#" 
-                                                                class="mobile-nav-link admin-nav-link"
-                                                                onclick={{
-                                                                    let on_admin_click = on_admin_click.clone();
-                                                                    let mobile_menu_open = mobile_menu_open.clone();
-                                                                    Callback::from(move |e: MouseEvent| {
-                                                                        e.prevent_default();
-                                                                        mobile_menu_open.set(false);
-                                                                        on_admin_click.emit(e);
-                                                                    })
-                                                                }}
-                                                            >
-                                                                <span class="nav-icon">{"⚙️"}</span>
-                                                                <span class="nav-text">{"Login"}</span>
-                                                                <span class="nav-description">{"Access admin panel"}</span>
-                                                            </a>
-                                                        </li>
-                                                    }
-                                                } else {
-                                                    html! {}
-                                                }}
-                                            </ul>
-                                        </nav>
-                                    </div>
-                                </div>
-                            }
-                        } else {
-                            html! {}
-                        }}
                     </header>
+                }
+            } else {
+                html! {}
+            }}
+
+            // Mobile Menu Overlay - positioned outside header to avoid shape mask clipping
+            {if *mobile_menu_open {
+                html! {
+                    <div class="mobile-menu-overlay" onclick={on_mobile_menu_overlay_click.clone()} aria-hidden="false">
+                        <div class="mobile-menu-content" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
+                            <button 
+                                class="mobile-close-x"
+                                onclick={on_mobile_menu_toggle.clone()}
+                                aria-label="Close mobile menu"
+                            >
+                                {"×"}
+                            </button>
+                            <nav class="mobile-menu-nav">
+                                <ul class="mobile-nav-list">
+                                    {if !*loading {
+                                        header_navigation_items.iter().filter(|item| item.is_active && item.mobile_visible).map(|item| {
+                                            let is_active = props.current_page == item.url.trim_start_matches('/');
+                                            let item_url = item.url.clone();
+                                            let on_nav_click = {
+                                                let on_nav_item_click = on_nav_item_click.clone();
+                                                let mobile_menu_open = mobile_menu_open.clone();
+                                                Callback::from(move |e: MouseEvent| {
+                                                    // Close mobile menu
+                                                    mobile_menu_open.set(false);
+                                                    // Navigate
+                                                    on_nav_item_click.emit(e);
+                                                })
+                                            };
+                                            html! {
+                                                <li class="mobile-nav-item">
+                                                    <a 
+                                                        href="#" 
+                                                        class={format!("mobile-nav-link {}", if is_active { "active" } else { "" })}
+                                                        data-url={item_url}
+                                                        onclick={on_nav_click}
+                                                    >
+                                                        {if let Some(icon) = &item.icon {
+                                                            let emoji_icon = match icon.as_str() {
+                                                                "home" => "🏠",
+                                                                "article" => "📄",
+                                                                "menu" => "☰",
+                                                                "dots" => "⋯",
+                                                                "plus" => "+",
+                                                                "search" => "🔍",
+                                                                "user" => "👤",
+                                                                "settings" => "⚙️",
+                                                                "about" => "ℹ️",
+                                                                "contact" => "📞",
+                                                                "blog" => "📝",
+                                                                "gallery" => "🖼️",
+                                                                _ => icon.as_str()
+                                                            };
+                                                            html! { <span class="nav-icon">{emoji_icon}</span> }
+                                                        } else {
+                                                            html! {}
+                                                        }}
+                                                        <span class="nav-text">{&item.title}</span>
+                                                    </a>
+                                                </li>
+                                            }
+                                        }).collect::<Html>()
+                                    } else {
+                                        html! {}
+                                    }}
+                                    
+                                    {if *login_button_visible {
+                                        html! {
+                                            <li class="mobile-nav-item">
+                                                <a 
+                                                    href="#" 
+                                                    class="mobile-nav-link admin-nav-link"
+                                                    onclick={{
+                                                        let on_admin_click = on_admin_click.clone();
+                                                        let mobile_menu_open = mobile_menu_open.clone();
+                                                        Callback::from(move |e: MouseEvent| {
+                                                            e.prevent_default();
+                                                            mobile_menu_open.set(false);
+                                                            on_admin_click.emit(e);
+                                                        })
+                                                    }}
+                                                >
+                                                    <span class="nav-icon">{"⚙️"}</span>
+                                                    <span class="nav-text">{"Login"}</span>
+                                                </a>
+                                            </li>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }}
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
                 }
             } else {
                 html! {}
