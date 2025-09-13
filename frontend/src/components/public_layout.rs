@@ -24,8 +24,30 @@ pub struct PublicLayoutProps {
 
 // Helper function to render the site logo based on header template settings
 fn render_site_logo(component_templates: &[ComponentTemplate], site_title: &str) -> Html {
-    let header_template = component_templates.iter()
-        .find(|t| t.component_type == "header" && t.is_active);
+    // Use the same template selection logic as the live edit system
+    let default_templates: Vec<_> = component_templates.iter()
+        .filter(|t| t.component_type == "header" && t.is_active && t.is_default)
+        .collect();
+    
+    let header_template = if default_templates.len() > 1 {
+        // If multiple default templates, pick the one with the highest ID (most recent)
+        default_templates.iter()
+            .max_by_key(|t| t.id)
+            .copied()
+    } else {
+        // Single default template or fallback to first active template
+        default_templates.first().copied()
+            .or_else(|| component_templates.iter()
+                .find(|t| t.component_type == "header" && t.is_active))
+    };
+    
+    // Debug logging to verify template selection
+    if let Some(template) = &header_template {
+        web_sys::console::log_1(&format!("🎯 Logo Render: Selected header template ID={}, name='{}', logo_type='{}'", 
+            template.id, template.name, 
+            template.template_data.get("logo_type").and_then(|v| v.as_str()).unwrap_or("text")
+        ).into());
+    }
     
     match header_template {
         Some(template) => {
@@ -1789,9 +1811,11 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                         // Update last scroll position
                                                         *last_scroll_y_clone.borrow_mut() = scroll_y;
                                                         
-                                                        // Simple logic: shrink when scrolling down past trigger, expand only when near top
-                                                        let action = if scroll_y <= 10.0 {
-                                                            // Very close to top - always expand
+                                                        // Improved logic: consider both position and direction
+                                                        let scroll_direction = if scroll_y > prev_scroll_y { "down" } else { "up" };
+                                                        
+                                                        let action = if scroll_y <= 10.0 && scroll_direction == "up" {
+                                                            // Very close to top AND scrolling up - expand
                                                             if is_currently_shrunk {
                                                                 *header_is_shrunk_clone.borrow_mut() = false;
                                                                 "expand"
@@ -1802,6 +1826,9 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                             // Past trigger and not yet shrunk - shrink it
                                                             *header_is_shrunk_clone.borrow_mut() = true;
                                                             "shrink"
+                                                        } else if scroll_y <= 10.0 && is_currently_shrunk && scroll_direction == "down" {
+                                                            // Close to top but scrolling down - don't expand yet, wait for actual upward scroll
+                                                            "stay_shrunk"
                                                         } else {
                                                             // Stay in current state
                                                             if is_currently_shrunk {
@@ -1811,8 +1838,8 @@ pub fn public_layout(props: &PublicLayoutProps) -> Html {
                                                             }
                                                         };
                                                         
-                                                        web_sys::console::log_1(&format!("🎯 Scroll Detection: y={}, trigger={}, currently_shrunk={}, action={}", 
-                                                            scroll_y, scroll_trigger, is_currently_shrunk, action).into());
+                                                        web_sys::console::log_1(&format!("🎯 Scroll Detection: y={}, prev_y={}, direction={}, trigger={}, currently_shrunk={}, action={}", 
+                                                            scroll_y, prev_scroll_y, scroll_direction, scroll_trigger, is_currently_shrunk, action).into());
                                                         
                                                         if action == "shrink" && has_template_styles {
                                                             // Update animation time to prevent interruption

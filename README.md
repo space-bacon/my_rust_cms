@@ -13,6 +13,8 @@ A full-stack content management system built entirely in Rust, featuring a sophi
 
 A professional, production-ready content management system built entirely in Rust. Features an advanced visual page builder with live edit mode, gradient backgrounds, shape masks, and comprehensive customization options. Comes pre-configured with professional styling and sample content.
 
+> 📸 **See it in action**: Check out the [Screenshots](#-screenshots) below to explore the CMS interface and features.
+
 ### 🌟 What Makes This Special
 
 **🎨 Live Edit Mode**
@@ -38,6 +40,45 @@ A professional, production-ready content management system built entirely in Rus
 - Comprehensive error handling and logging
 - Docker-based deployment with health checks
 - Clean codebase with zero compiler warnings
+
+## 📸 Screenshots
+
+Get a visual preview of the CMS in action:
+
+### 🌐 Public Frontend
+<img src="docs/myrustcms-public-view.png" alt="My Rust CMS - Public Frontend View" width="800">
+
+*Modern, responsive public interface with gradient headers, shape masks, and professional styling*
+
+### 🎨 Visual Page Builder
+<img src="docs/myrustcms-page-builder.png" alt="My Rust CMS - Visual Page Builder" width="800">
+
+*Drag-and-drop page builder with live preview, component library, and real-time editing*
+
+### 🎛️ Template Manager
+<img src="docs/myrustcms-template-manager-admin.png" alt="My Rust CMS - Template Manager" width="800">
+
+*Advanced template management with live edit mode, gradient backgrounds, and scroll effects*
+
+### 📝 Content Management
+<img src="docs/myrustcms-post-admin.png" alt="My Rust CMS - Post Management" width="800">
+
+*Comprehensive post management with rich text editing and category organization*
+
+### 🧭 Navigation Manager
+<img src="docs/myrustcms-navigatio-manager-admin.png" alt="My Rust CMS - Navigation Manager" width="800">
+
+*Intuitive navigation management with drag-and-drop ordering and menu customization*
+
+### 👥 User Management
+<img src="docs/myrustcms-user-management.png" alt="My Rust CMS - User Management" width="800">
+
+*Role-based user management with secure authentication and permission controls*
+
+### 💬 Comment Moderation
+<img src="docs/myrustcms-comment-moderation-admin.png" alt="My Rust CMS - Comment Moderation" width="800">
+
+*Built-in comment system with moderation tools and user interaction management*
 
 ## ✨ Features
 
@@ -95,6 +136,8 @@ Production-grade PostgreSQL with comprehensive schema:
 - **🔧 Default Data**: Complete setup with sample content and professional styling
 
 ## 🚀 Quick Start
+
+> 💡 **New to the CMS?** Check out the [Screenshots](#-screenshots) section above to see the CMS in action before diving in!
 
 ### 🐳 Docker Setup (Recommended)
 
@@ -383,6 +426,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 ## 🚀 Ready to Get Started?
+
+Take a look at the [Screenshots](#-screenshots) to see what you'll be building with, then jump right in:
 
 ```bash
 # One command to rule them all
