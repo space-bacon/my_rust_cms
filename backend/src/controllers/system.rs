@@ -64,7 +64,7 @@ pub async fn get_public_settings(
         .map_err(|e| AppError::DatabaseConnection(e.to_string()))?;
 
     // Only allow specific types to be exposed publicly
-    let allowed_types = ["site", "container", "theme", "menu"];
+    let allowed_types = ["site", "container", "theme", "menu", "typography"];
 
     let settings = match params.setting_type {
         Some(ref setting_type) if allowed_types.contains(&setting_type.as_str()) => {

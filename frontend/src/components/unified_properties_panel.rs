@@ -1,7 +1,7 @@
 use yew::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, InputEvent};
-use crate::components::page_builder::drag_drop_builder::{PageComponent, ComponentProperties, ComponentType};
+use crate::components::page_builder::drag_drop_builder::{PageComponent, ComponentProperties, ComponentType, ComponentStyles};
 use crate::services::navigation_service::ComponentTemplate;
 
 #[derive(Properties, PartialEq)]
@@ -14,6 +14,7 @@ pub struct UnifiedPropertiesPanelProps {
     pub on_close: Callback<()>,
     pub on_component_updated: Option<Callback<PageComponent>>,
     pub on_template_updated: Option<Callback<ComponentTemplate>>,
+    pub on_component_live_updated: Option<Callback<PageComponent>>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -45,6 +46,12 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
             .unwrap_or_default()
     });
 
+    let working_styles = use_state(|| {
+        props.component.as_ref()
+            .map(|c| c.styles.clone())
+            .unwrap_or_default()
+    });
+
     let has_unsaved_changes = use_state(|| false);
     let saving = use_state(|| false);
 
@@ -52,12 +59,14 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
     {
         let working_properties = working_properties.clone();
         let working_content = working_content.clone();
+        let working_styles = working_styles.clone();
         let _working_template_data = working_template_data.clone();
         
         use_effect_with_deps(move |component_opt| {
             if let Some(component) = component_opt {
                 working_properties.set(component.properties.clone());
                 working_content.set(component.content.clone());
+                working_styles.set(component.styles.clone());
             }
             || ()
         }, props.component.clone());
@@ -101,8 +110,11 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
         let working_template_data = working_template_data.clone();
         let working_properties = working_properties.clone();
         let working_content = working_content.clone();
+        let working_styles = working_styles.clone();
         let has_unsaved_changes = has_unsaved_changes.clone();
         let panel_type = props.panel_type.clone();
+        let props_component = props.component.clone();
+        let on_component_live_updated = props.on_component_live_updated.clone();
         
         Callback::from(move |e: InputEvent| {
             if let Some(target) = e.target() {
@@ -120,6 +132,33 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                         // Handle component property updates
                         if name == "content" {
                             working_content.set(value.clone());
+                        } else if matches!(name.as_str(), "component_padding" | "component_margin" | "component_border_radius") {
+                            // Handle component style updates
+                            let mut styles = (*working_styles).clone();
+                            match name.as_str() {
+                                "component_padding" => styles.padding = value.clone(),
+                                "component_margin" => styles.margin = value.clone(),
+                                "component_border_radius" => styles.border_radius = value.clone(),
+                                _ => {}
+                            }
+                            working_styles.set(styles.clone());
+                            
+                            // Apply live preview using direct DOM manipulation (like templates do)
+                            apply_component_style_preview_by_id("", &name, &value);
+                            
+                            // Also update component state for consistency
+                            if let Some(mut component) = props_component.clone() {
+                                component.styles = styles;
+                                
+                                web_sys::console::log_1(&format!("🎨 Live Edit: Updated component {} style {} = {}", component.id, name, value).into());
+                                
+                                // Trigger live update to re-render the component with new styles
+                                if let Some(callback) = &on_component_live_updated {
+                                    callback.emit(component);
+                                }
+                            }
+                            
+                            has_unsaved_changes.set(true);
                         } else {
                             // Update component properties
                             let mut props = (*working_properties).clone();
@@ -189,11 +228,15 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
         })
     };
 
+    // Clone working_styles for render before it gets moved into closures
+    let working_styles_for_render = working_styles.clone();
+    
     // Save changes
     let on_save = {
         let working_template_data = working_template_data.clone();
         let working_content = working_content.clone();
         let working_properties = working_properties.clone();
+        let working_styles = working_styles.clone();
         let props_component = props.component.clone();
         let props_on_component_updated = props.on_component_updated.clone();
         let props_on_template_updated = props.on_template_updated.clone();
@@ -211,12 +254,89 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
             saving.set(true);
             match panel_type {
                 PanelType::PageComponent => {
-                    if let (Some(mut component), Some(callback)) = (props_component.clone(), &props_on_component_updated) {
+                    if let Some(mut component) = props_component.clone() {
                         component.content = (*working_content).clone();
                         component.properties = (*working_properties).clone();
-                        callback.emit(component);
+                        component.styles = (*working_styles).clone();
+                        
+                        // Save component changes to the page in the database
+                        let component_clone = component.clone();
+                        let saving_for_component = saving.clone();
+                        let has_unsaved_changes_for_component = has_unsaved_changes.clone();
+                        
+                        wasm_bindgen_futures::spawn_local(async move {
+                            // Get the current page slug from the URL
+                            if let Some(window) = web_sys::window() {
+                                if let Some(location) = window.location().pathname().ok() {
+                                    let slug = if location == "/" { "home" } else { location.trim_start_matches('/') };
+                                    
+                                    web_sys::console::log_1(&format!("💾 Live Edit: Saving component changes for page slug: {}", slug).into());
+                                    
+                                    // Fetch the current page data
+                                    match crate::services::page_service::get_page_by_slug(slug).await {
+                                        Ok(page) => {
+                                            // Parse the current page content to get components
+                                            match serde_json::from_str::<Vec<PageComponent>>(&page.content) {
+                                                Ok(mut components) => {
+                                                    // Find and update the component
+                                                    if let Some(component_index) = components.iter().position(|c| c.id == component_clone.id) {
+                                                        components[component_index] = component_clone.clone();
+                                                        
+                                                        // Serialize back to JSON
+                                                        match serde_json::to_string(&components) {
+                                                            Ok(updated_content) => {
+                                                                // Save to backend using the content-only endpoint
+                                                                if let Some(page_id) = page.id {
+                                                                    match crate::services::page_service::update_page_content(page_id, &updated_content).await {
+                                                                        Ok(_) => {
+                                                                            web_sys::console::log_1(&"🎉 Live Edit: Successfully saved component changes to backend!".into());
+                                                                            has_unsaved_changes_for_component.set(false);
+                                                                            
+                                                                            // Show success feedback
+                                                                            if let Some(window) = web_sys::window() {
+                                                                                let _ = window.alert_with_message("✅ Component changes saved successfully!");
+                                                                            }
+                                                                        }
+                                                                        Err(e) => {
+                                                                            web_sys::console::log_1(&format!("❌ Live Edit: Failed to save to backend: {:?}", e).into());
+                                                                            
+                                                                            // Show error feedback
+                                                                            if let Some(window) = web_sys::window() {
+                                                                                let _ = window.alert_with_message(&format!("❌ Failed to save changes: {:?}", e));
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                web_sys::console::log_1(&format!("❌ Live Edit: Failed to serialize updated content: {:?}", e).into());
+                                                            }
+                                                        }
+                                                    } else {
+                                                        web_sys::console::log_1(&format!("❌ Live Edit: Component with ID {} not found in page components", component_clone.id).into());
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    web_sys::console::log_1(&format!("❌ Live Edit: Failed to parse page content: {:?}", e).into());
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            web_sys::console::log_1(&format!("❌ Live Edit: Failed to fetch page: {:?}", e).into());
+                                        }
+                                    }
+                                }
+                            }
+                            saving_for_component.set(false);
+                        });
+                        
+                        // Also call the callback if it exists (for local state updates)
+                        if let Some(callback) = &props_on_component_updated {
+                            callback.emit(component);
+                        }
+                    } else {
+                        saving.set(false);
                     }
-                    saving.set(false);
                 }
                 PanelType::HeaderTemplate | PanelType::FooterTemplate | PanelType::ContainerTemplate => {
                     if let Some(callback) = &props_on_template_updated {
@@ -386,7 +506,7 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
                 {match props.panel_type {
                     PanelType::PageComponent => {
                         let component_type = props.component.as_ref().map(|c| &c.component_type);
-                        render_component_properties(&working_content, &working_properties, component_type, on_property_change.clone())
+                        render_component_properties(&working_content, &working_properties, &working_styles_for_render, component_type, on_property_change.clone())
                     }
                     PanelType::HeaderTemplate => {
                         render_header_properties(&working_template_data, on_property_change.clone())
@@ -461,6 +581,7 @@ pub fn unified_properties_panel(props: &UnifiedPropertiesPanelProps) -> Html {
 fn render_component_properties(
     working_content: &UseStateHandle<String>, 
     working_properties: &UseStateHandle<ComponentProperties>, 
+    working_styles: &UseStateHandle<ComponentStyles>,
     component_type: Option<&ComponentType>,
     on_change: Callback<InputEvent>
 ) -> Html {
@@ -487,6 +608,80 @@ fn render_component_properties(
                     "
                     placeholder="Enter content..."
                 />
+            </div>
+            
+            // Spacing & Layout Section
+            <div class="property-section" style="margin-bottom: 16px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #555; font-weight: 600;">{"🎯 Spacing & Layout"}</h4>
+                
+                // Padding Controls
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{"Padding"}</label>
+                    <input 
+                        type="text"
+                        name="component_padding"
+                        value={working_styles.padding.clone()}
+                        placeholder="16px or 8px, 16px, 8px, 16px"
+                        oninput={on_change.clone()}
+                        style="
+                            width: 100%;
+                            padding: 6px 8px;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            font-family: monospace;
+                        "
+                    />
+                    <div style="font-size: 11px; color: #6c757d; margin-top: 4px;">
+                        {"Examples: '16px', '8px, 16px', '8px, 16px, 12px, 16px' (top, right, bottom, left)"}
+                    </div>
+                </div>
+                
+                // Margin Controls
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{"Margin"}</label>
+                    <input 
+                        type="text"
+                        name="component_margin"
+                        value={working_styles.margin.clone()}
+                        placeholder="0px or 8px, 0px, 16px, 0px"
+                        oninput={on_change.clone()}
+                        style="
+                            width: 100%;
+                            padding: 6px 8px;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            font-family: monospace;
+                        "
+                    />
+                    <div style="font-size: 11px; color: #6c757d; margin-top: 4px;">
+                        {"Use 'auto' for centering, '0' for no margin. Examples: '16px', 'auto, 0px', '8px, auto, 16px, auto'"}
+                    </div>
+                </div>
+                
+                // Border Radius Controls
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 12px; color: #555;">{"Border Radius"}</label>
+                    <input 
+                        type="text"
+                        name="component_border_radius"
+                        value={working_styles.border_radius.clone()}
+                        placeholder="4px or 8px, 8px, 0px, 0px"
+                        oninput={on_change.clone()}
+                        style="
+                            width: 100%;
+                            padding: 6px 8px;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            font-family: monospace;
+                        "
+                    />
+                    <div style="font-size: 11px; color: #6c757d; margin-top: 4px;">
+                        {"Use '50%' for circular, '0' for sharp corners. Examples: '8px', '8px, 4px', '8px, 8px, 0px, 0px'"}
+                    </div>
+                </div>
             </div>
             
             // Component-specific properties
@@ -1757,6 +1952,112 @@ fn update_component_property(props: &mut ComponentProperties, name: &str, value:
         _ => {
             // Log unknown property for debugging
             web_sys::console::log_1(&format!("Unknown component property: {}", name).into());
+        }
+    }
+}
+
+// Apply component style preview for live editing - use direct DOM manipulation like templates do
+fn apply_component_style_preview_by_id(component_id: &str, style_name: &str, style_value: &str) {
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            let css_property = match style_name {
+                "component_padding" => "padding",
+                "component_margin" => "margin", 
+                "component_border_radius" => "border-radius",
+                _ => return,
+            };
+            
+            // Strategy 1: Try to find the selected component with .selected class
+            if let Ok(Some(selected_element)) = document.query_selector("[data-component-index].selected") {
+                apply_style_to_element(&selected_element, css_property, style_value);
+                if let Some(index_str) = selected_element.get_attribute("data-component-index") {
+                    web_sys::console::log_1(&format!("🎨 Applied {} = {} to selected component at index {}", css_property, style_value, index_str).into());
+                }
+                return;
+            }
+            
+            // Strategy 2: Try to find by component class patterns
+            let component_selectors = vec![
+                ".component.heading-component",
+                ".component.subheading-component", 
+                ".component.text-component",
+                ".component.image-component",
+                ".component.button-component",
+                ".component.card-component",
+                ".component.hero-component",
+                ".component.posts-list-component",
+            ];
+            
+            for selector in component_selectors {
+                if let Ok(elements) = document.query_selector_all(selector) {
+                    for i in 0..elements.length() {
+                        if let Some(node) = elements.item(i) {
+                            if let Ok(element) = node.dyn_into::<web_sys::Element>() {
+                                if element.class_name().contains("selected") {
+                                    apply_style_to_element(&element, css_property, style_value);
+                                    web_sys::console::log_1(&format!("🎨 Applied {} = {} to selected {} component", css_property, style_value, selector).into());
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            web_sys::console::log_1(&format!("⚠️ Could not find selected component element for ID: {}", component_id).into());
+        }
+    }
+}
+
+// Helper function to apply styles to an element (following template pattern)
+fn apply_style_to_element(element: &web_sys::Element, css_property: &str, style_value: &str) {
+    // Apply style to the component container
+    if let Some(existing_style) = element.get_attribute("style") {
+        // Parse existing styles and update the specific property
+        let mut style_map = std::collections::HashMap::new();
+        for style_rule in existing_style.split(';') {
+            if let Some((key, value)) = style_rule.split_once(':') {
+                style_map.insert(key.trim().to_string(), value.trim().to_string());
+            }
+        }
+        style_map.insert(css_property.to_string(), format!("{} !important", style_value));
+        
+        let new_style = style_map.iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect::<Vec<_>>()
+            .join("; ");
+        let _ = element.set_attribute("style", &new_style);
+    } else {
+        let style_property = format!("{}: {} !important", css_property, style_value);
+        let _ = element.set_attribute("style", &style_property);
+    }
+    
+    // CRITICAL: Also apply styles to inner heading elements to override default CSS
+    // This addresses the issue where .post-body h1, .page-content h1 rules override component styles
+    if css_property == "margin" || css_property == "padding" {
+        let heading_selectors = vec!["h1", "h2", "h3", "h4", "h5", "h6", "p"];
+        for heading_selector in heading_selectors {
+            if let Ok(Some(heading_element)) = element.query_selector(heading_selector) {
+                let heading_style_property = format!("{}: {} !important", css_property, style_value);
+                if let Some(existing_heading_style) = heading_element.get_attribute("style") {
+                    let mut heading_style_map = std::collections::HashMap::new();
+                    for style_rule in existing_heading_style.split(';') {
+                        if let Some((key, value)) = style_rule.split_once(':') {
+                            heading_style_map.insert(key.trim().to_string(), value.trim().to_string());
+                        }
+                    }
+                    heading_style_map.insert(css_property.to_string(), format!("{} !important", style_value));
+                    
+                    let new_heading_style = heading_style_map.iter()
+                        .map(|(k, v)| format!("{}: {}", k, v))
+                        .collect::<Vec<_>>()
+                        .join("; ");
+                    let _ = heading_element.set_attribute("style", &new_heading_style);
+                } else {
+                    let _ = heading_element.set_attribute("style", &heading_style_property);
+                }
+                web_sys::console::log_1(&format!("🎯 Applied {} = {} to inner {} element", css_property, style_value, heading_selector).into());
+            }
         }
     }
 }

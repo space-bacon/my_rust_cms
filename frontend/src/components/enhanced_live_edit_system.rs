@@ -546,6 +546,7 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                             panel_type={PanelType::HeaderTemplate}
                                             on_component_updated={None::<Callback<PageComponent>>}
                                             on_template_updated={Some(on_template_updated.clone())}
+                                            on_component_live_updated={None::<Callback<PageComponent>>}
                                             on_close={on_close_panel.clone()}
                                         />
                                     }
@@ -582,6 +583,7 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                             panel_type={PanelType::FooterTemplate}
                                             on_component_updated={None::<Callback<PageComponent>>}
                                             on_template_updated={Some(on_template_updated.clone())}
+                                            on_component_live_updated={None::<Callback<PageComponent>>}
                                             on_close={on_close_panel.clone()}
                                         />
                                     }
@@ -600,6 +602,7 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                             panel_type={PanelType::ContainerTemplate}
                                             on_component_updated={None::<Callback<PageComponent>>}
                                             on_template_updated={Some(on_template_updated.clone())}
+                                            on_component_live_updated={None::<Callback<PageComponent>>}
                                             on_close={on_close_panel.clone()}
                                         />
                                     }
@@ -608,16 +611,32 @@ pub fn enhanced_live_edit_system(props: &EnhancedLiveEditSystemProps) -> Html {
                                 }
                             }
                             EditTarget::PageComponent(component) => {
+                                let on_component_live_updated = {
+                                    let page_components = props.page_components.clone();
+                                    let on_page_components_updated = props.on_page_components_updated.clone();
+                                    
+                                    Callback::from(move |updated_component: PageComponent| {
+                                        // Update the component in the page components array for live preview
+                                        let mut updated_components = page_components.clone();
+                                        if let Some(index) = updated_components.iter().position(|c| c.id == updated_component.id) {
+                                            updated_components[index] = updated_component.clone();
+                                            web_sys::console::log_1(&format!("🎨 Live Edit: Triggering page re-render with updated component {}", updated_component.id).into());
+                                            on_page_components_updated.emit(updated_components);
+                                        }
+                                    })
+                                };
+                                
                                 html! {
                                     <UnifiedPropertiesPanel
                                         component={Some(component.clone())}
-                                                                                    template_data={None}
-                                            template_id={None::<i32>}
-                                            template_name={None::<String>}
-                                            panel_type={PanelType::PageComponent}
-                                            on_component_updated={Some(on_component_updated.clone())}
-                                            on_template_updated={None::<Callback<ComponentTemplate>>}
-                                            on_close={on_close_panel.clone()}
+                                        template_data={None}
+                                        template_id={None::<i32>}
+                                        template_name={None::<String>}
+                                        panel_type={PanelType::PageComponent}
+                                        on_component_updated={Some(on_component_updated.clone())}
+                                        on_template_updated={None::<Callback<ComponentTemplate>>}
+                                        on_component_live_updated={Some(on_component_live_updated)}
+                                        on_close={on_close_panel.clone()}
                                     />
                                 }
                             }

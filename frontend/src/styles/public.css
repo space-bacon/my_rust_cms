@@ -890,6 +890,27 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
     line-height: 1.4;
 }
 
+/* CRITICAL: Component styles override - ensure component padding/margin takes precedence */
+.component h1, .component h2, .component h3, .component h4, .component h5, .component h6, .component p {
+    margin: inherit !important;
+    padding: inherit !important;
+}
+
+/* Specific override for component containers to ensure spacing control */
+.component.heading-component, 
+.component.subheading-component, 
+.component.text-component {
+    /* Component container styles take precedence over default heading styles */
+}
+
+.component.heading-component h1, 
+.component.subheading-component h2, 
+.component.text-component p {
+    /* Inner elements inherit spacing from component container */
+    margin: inherit !important;
+    padding: inherit !important;
+}
+
 .post-body h4, .page-content h4 {
     color: var(--public-heading-h4, #333333);
     font-size: var(--font-size-xl);

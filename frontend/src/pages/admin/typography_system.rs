@@ -1,5 +1,5 @@
 use yew::prelude::*;
-use crate::services::api_service::{get_settings, update_settings, SettingData};
+use crate::services::api_service::{get_settings, get_public_settings, update_settings, SettingData};
 use web_sys::HtmlSelectElement;
 use wasm_bindgen::JsCast;
 
@@ -181,9 +181,9 @@ pub fn load_and_apply_typography_settings() {
     web_sys::console::log_1(&"🚨 GLOBAL TYPOGRAPHY: load_and_apply_typography_settings called!".into());
     wasm_bindgen_futures::spawn_local(async {
         log::info!("🔍 Loading typography settings from database...");
-        web_sys::console::log_1(&"🚨 GLOBAL TYPOGRAPHY: Inside async block, about to call get_settings".into());
+        web_sys::console::log_1(&"🚨 GLOBAL TYPOGRAPHY: Inside async block, about to call get_public_settings".into());
         web_sys::console::log_1(&"🚨 GLOBAL TYPOGRAPHY: Querying ALL settings to check if typography exists".into());
-        match crate::services::api_service::get_settings(None).await {
+        match crate::services::api_service::get_public_settings(None).await {
             Ok(settings) => {
                 web_sys::console::log_1(&format!("🚨 GLOBAL TYPOGRAPHY: Database returned {} settings", settings.len()).into());
                 log::info!("📥 Found {} typography settings", settings.len());
@@ -704,7 +704,7 @@ pub fn typography_system() -> Html {
                 wasm_bindgen_futures::spawn_local(async move {
                     web_sys::console::log_1(&"🔍 Typography Component: About to start async loading".into());
                     log::info!("🔍 Typography Component: Loading settings from database...");
-                    match get_settings(None).await {
+                    match get_public_settings(None).await {
                         Ok(all_settings) => {
                             web_sys::console::log_1(&format!("🔍 Typography Component: Found {} total settings in database", all_settings.len()).into());
                             
@@ -1930,7 +1930,7 @@ pub fn typography_system() -> Html {
                         let current_font_weight_for_verification = current_font_weight.clone();
                         
                         wasm_bindgen_futures::spawn_local(async move {
-                            match crate::services::api_service::get_settings(None).await {
+                            match crate::services::api_service::get_public_settings(None).await {
                                 Ok(verify_settings) => {
                                     let typography_count = verify_settings.iter()
                                         .filter(|s| s.setting_type == "typography")

@@ -1399,6 +1399,50 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
         })
     };
 
+    let on_style_update = {
+        let components = components.clone();
+        Callback::from(move |(component_id, style_name, style_value): (String, String, String)| {
+            let mut current_components = (*components).clone();
+            if let Some(component) = current_components.iter_mut().find(|c| c.id == component_id) {
+                match style_name.as_str() {
+                    "padding" => component.styles.padding = style_value,
+                    "margin" => component.styles.margin = style_value,
+                    "border_radius" => component.styles.border_radius = style_value,
+                    "background_color" => component.styles.background_color = style_value,
+                    "text_color" => component.styles.text_color = style_value,
+                    "font_size" => component.styles.font_size = style_value,
+                    "font_weight" => component.styles.font_weight = style_value,
+                    "text_align" => component.styles.text_align = style_value,
+                    "border_width" => component.styles.border_width = style_value,
+                    "border_color" => component.styles.border_color = style_value,
+                    "border_style" => component.styles.border_style = style_value,
+                    "box_shadow" => component.styles.box_shadow = style_value,
+                    "font_family" => component.styles.font_family = style_value,
+                    "line_height" => component.styles.line_height = style_value,
+                    "letter_spacing" => component.styles.letter_spacing = style_value,
+                    "text_decoration" => component.styles.text_decoration = style_value,
+                    "text_transform" => component.styles.text_transform = style_value,
+                    "background_image" => component.styles.background_image = style_value,
+                    "background_size" => component.styles.background_size = style_value,
+                    "background_position" => component.styles.background_position = style_value,
+                    "background_repeat" => component.styles.background_repeat = style_value,
+                    "opacity" => {
+                        if let Ok(opacity_value) = style_value.parse::<f32>() {
+                            component.styles.opacity = opacity_value;
+                        }
+                    },
+                    "z_index" => {
+                        if let Ok(z_index_value) = style_value.parse::<i32>() {
+                            component.styles.z_index = z_index_value;
+                        }
+                    },
+                    _ => {}
+                }
+            }
+            components.set(current_components);
+        })
+    };
+
     // Component reordering callbacks
     let on_component_drag_start = {
         let dragging_existing_component = dragging_existing_component.clone();
@@ -1956,7 +2000,13 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                             <span class="badge-text">{component.component_type.display_name()}</span>
                                         </div>
                                     </div>
-                                    <button class="modal-close-btn" onclick={close_modal}>{"✕"}</button>
+                                    <button class="modal-close-btn" onclick={{
+                                        let editing_component = editing_component.clone();
+                                        Callback::from(move |e: MouseEvent| {
+                                            e.prevent_default();
+                                            editing_component.set(None);
+                                        })
+                                    }}>{"✕"}</button>
                                 </div>
 
                                 <div class="modal-body">
@@ -2260,20 +2310,131 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                             </div>
                                         </div>
                                         
-                                        // Spacing & Layout Section  
+                                        // Enhanced Spacing & Layout Section  
                                         <div class="property-section">
-                                            <h4 class="section-title">{"Spacing & Layout"}</h4>
+                                            <h4 class="section-title">{"🎯 Spacing & Layout"}</h4>
+                                            
+                                            // Padding Controls
                                             <div class="property-group">
-                                                <label>{"Padding"}</label>
-                                                <input type="text" value={component.styles.padding.clone()} placeholder="16px" />
+                                                <label style="font-weight: 600; margin-bottom: 8px; display: block;">{"Padding"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={component.styles.padding.clone()} 
+                                                    placeholder="16px or 8px, 16px, 8px, 16px"
+                                                    style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;"
+                                                    oninput={{
+                                                        let on_style_update = on_style_update.clone();
+                                                        let component_id = component.id.clone();
+                                                        Callback::from(move |e: InputEvent| {
+                                                            let target = e.target().unwrap().unchecked_into::<HtmlInputElement>();
+                                                            on_style_update.emit((component_id.clone(), "padding".to_string(), target.value()));
+                                                        })
+                                                    }}
+                                                />
+                                                <div style="font-size: 11px; color: #6c757d; margin-top: 4px;">
+                                                    {"Examples: '16px', '8px, 16px', '8px, 16px, 12px, 16px' (top, right, bottom, left)"}
+                                                </div>
                                             </div>
+                                            
+                                            // Margin Controls
                                             <div class="property-group">
-                                                <label>{"Margin"}</label>
-                                                <input type="text" value={component.styles.margin.clone()} placeholder="0px" />
+                                                <label style="font-weight: 600; margin-bottom: 8px; display: block;">{"Margin"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={component.styles.margin.clone()} 
+                                                    placeholder="0px or 8px, 0px, 16px, 0px"
+                                                    style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;"
+                                                    oninput={{
+                                                        let on_style_update = on_style_update.clone();
+                                                        let component_id = component.id.clone();
+                                                        Callback::from(move |e: InputEvent| {
+                                                            let target = e.target().unwrap().unchecked_into::<HtmlInputElement>();
+                                                            on_style_update.emit((component_id.clone(), "margin".to_string(), target.value()));
+                                                        })
+                                                    }}
+                                                />
+                                                <div style="font-size: 11px; color: #6c757d; margin-top: 4px;">
+                                                    {"Use 'auto' for centering, '0' for no margin. Examples: '16px', 'auto, 0px', '8px, auto, 16px, auto'"}
+                                                </div>
                                             </div>
+                                            
+                                            // Border Radius Controls
                                             <div class="property-group">
-                                                <label>{"Border Radius"}</label>
-                                                <input type="text" value={component.styles.border_radius.clone()} placeholder="4px" />
+                                                <label style="font-weight: 600; margin-bottom: 8px; display: block;">{"Border Radius"}</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={component.styles.border_radius.clone()} 
+                                                    placeholder="4px or 8px, 8px, 0px, 0px"
+                                                    style="font-family: monospace; width: 100%; padding: 8px; border: 1px solid #dee2e6; border-radius: 4px;"
+                                                    oninput={{
+                                                        let on_style_update = on_style_update.clone();
+                                                        let component_id = component.id.clone();
+                                                        Callback::from(move |e: InputEvent| {
+                                                            let target = e.target().unwrap().unchecked_into::<HtmlInputElement>();
+                                                            on_style_update.emit((component_id.clone(), "border_radius".to_string(), target.value()));
+                                                        })
+                                                    }}
+                                                />
+                                                <div style="font-size: 11px; color: #6c757d; margin-top: 4px;">
+                                                    {"Use '50%' for circular, '0' for sharp corners. Examples: '8px', '8px, 4px', '8px, 8px, 0px, 0px'"}
+                                                </div>
+                                            </div>
+                                            
+                                            // Width & Height Controls
+                                            <div class="property-group">
+                                                <label style="font-weight: 600; margin-bottom: 8px; display: block;">{"Dimensions"}</label>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                                    <div>
+                                                        <label style="font-size: 12px; color: #6c757d; margin-bottom: 4px; display: block;">{"Width"}</label>
+                                                        <select 
+                                                            value={component.position.width.clone()}
+                                                            onchange={{
+                                                                let components = components.clone();
+                                                                let component_id = component.id.clone();
+                                                                Callback::from(move |e: Event| {
+                                                                    let target = e.target().unwrap().unchecked_into::<web_sys::HtmlSelectElement>();
+                                                                    let mut current_components = (*components).clone();
+                                                                    if let Some(comp) = current_components.iter_mut().find(|c| c.id == component_id) {
+                                                                        comp.position.width = target.value();
+                                                                    }
+                                                                    components.set(current_components);
+                                                                })
+                                                            }}
+                                                            style="width: 100%; padding: 6px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 12px;"
+                                                        >
+                                                            <option value="auto">{"Auto"}</option>
+                                                            <option value="100%">{"Full (100%)"}</option>
+                                                            <option value="75%">{"3/4 (75%)"}</option>
+                                                            <option value="66.67%">{"2/3 (66%)"}</option>
+                                                            <option value="50%">{"Half (50%)"}</option>
+                                                            <option value="33.33%">{"1/3 (33%)"}</option>
+                                                            <option value="25%">{"1/4 (25%)"}</option>
+                                                            <option value="300px">{"Fixed (300px)"}</option>
+                                                            <option value="500px">{"Fixed (500px)"}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label style="font-size: 12px; color: #6c757d; margin-bottom: 4px; display: block;">{"Height"}</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={component.position.height.clone()} 
+                                                            placeholder="auto"
+                                                            style="width: 100%; padding: 6px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 12px; font-family: monospace;"
+                                                            oninput={{
+                                                                let components = components.clone();
+                                                                let component_id = component.id.clone();
+                                                                Callback::from(move |e: InputEvent| {
+                                                                    let target = e.target().unwrap().unchecked_into::<HtmlInputElement>();
+                                                                    let mut current_components = (*components).clone();
+                                                                    if let Some(comp) = current_components.iter_mut().find(|c| c.id == component_id) {
+                                                                        comp.position.height = target.value();
+                                                                    }
+                                                                    components.set(current_components);
+                                                                })
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                         
@@ -4686,6 +4847,69 @@ pub fn drag_drop_page_builder(props: &DragDropPageBuilderProps) -> Html {
                                                     {"Delete"}
                                                 </button>
                                             </div>
+                                        </div>
+                                    </div>
+                                    
+                                    // Save Button Section
+                                    <div class="modal-footer" style="
+                                        padding: 20px;
+                                        border-top: 1px solid #e9ecef;
+                                        background: #f8f9fa;
+                                        display: flex;
+                                        justify-content: space-between;
+                                        align-items: center;
+                                        gap: 12px;
+                                    ">
+                                        <div style="color: #6c757d; font-size: 14px;">
+                                            {"Changes are applied instantly"}
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button 
+                                                class="btn btn-secondary"
+                                                onclick={{
+                                                    let editing_component = editing_component.clone();
+                                                    Callback::from(move |e: MouseEvent| {
+                                                        e.prevent_default();
+                                                        editing_component.set(None);
+                                                    })
+                                                }}
+                                                style="
+                                                    padding: 8px 16px;
+                                                    background: #6c757d;
+                                                    color: white;
+                                                    border: none;
+                                                    border-radius: 4px;
+                                                    cursor: pointer;
+                                                    font-size: 14px;
+                                                "
+                                            >
+                                                {"Close"}
+                                            </button>
+                                            <button 
+                                                class="btn btn-primary"
+                                                onclick={{
+                                                    let editing_component = editing_component.clone();
+                                                    let components = components.clone();
+                                                    let on_save = props.on_save.clone();
+                                                    Callback::from(move |_: MouseEvent| {
+                                                        // Save the current components state
+                                                        on_save.emit((*components).clone());
+                                                        editing_component.set(None);
+                                                    })
+                                                }}
+                                                style="
+                                                    padding: 8px 16px;
+                                                    background: #007bff;
+                                                    color: white;
+                                                    border: none;
+                                                    border-radius: 4px;
+                                                    cursor: pointer;
+                                                    font-size: 14px;
+                                                    font-weight: 500;
+                                                "
+                                            >
+                                                {"💾 Save Changes"}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

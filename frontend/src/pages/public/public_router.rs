@@ -1313,10 +1313,10 @@ pub fn render_markdown_content(content: &str) -> Html {
     Html::from_html_unchecked(html_output.into())
 }
 
-// Helper function to format component styles
+// Helper function to format component styles with enhanced specificity
 pub fn format_component_styles(styles: &crate::components::page_builder::ComponentStyles) -> String {
     format!(
-        "background-color: {}; color: {}; padding: {}; margin: {}; border-radius: {}; font-size: {}; font-weight: {}; text-align: {}; border: {}px {} {}; opacity: {}; z-index: {}; font-family: {}; line-height: {}; letter-spacing: {}; text-decoration: {}; text-transform: {};",
+        "background-color: {} !important; color: {} !important; padding: {} !important; margin: {} !important; border-radius: {} !important; font-size: {} !important; font-weight: {} !important; text-align: {} !important; border: {}px {} {} !important; opacity: {} !important; z-index: {} !important; font-family: {} !important; line-height: {} !important; letter-spacing: {} !important; text-decoration: {} !important; text-transform: {} !important;",
         styles.background_color,
         styles.text_color,
         styles.padding,

@@ -1325,6 +1325,22 @@
         border-color: #64748b;
     }
     
+    .markdown-toolbar {
+        background: #334155;
+        border-bottom-color: #475569;
+    }
+    
+    .toolbar-btn {
+        background: #475569;
+        color: #e2e8f0;
+        border-color: #64748b;
+    }
+    
+    .toolbar-btn:hover {
+        background: #64748b;
+        border-color: #94a3b8;
+    }
+    
     .properties-modal {
         background: rgba(0, 0, 0, 0.8);
     }
