@@ -891,24 +891,47 @@ header.site-header[data-scroll-effect-active="true"][style*="height"] {
 }
 
 /* CRITICAL: Component styles override - ensure component padding/margin takes precedence */
-.component h1, .component h2, .component h3, .component h4, .component h5, .component h6, .component p {
-    margin: inherit !important;
-    padding: inherit !important;
-}
-
-/* Specific override for component containers to ensure spacing control */
-.component.heading-component, 
-.component.subheading-component, 
-.component.text-component {
-    /* Component container styles take precedence over default heading styles */
-}
-
+/* Only override for text-based components that conflict with framework heading styles */
 .component.heading-component h1, 
 .component.subheading-component h2, 
 .component.text-component p {
-    /* Inner elements inherit spacing from component container */
+    /* Inner elements inherit spacing from component container for text components only */
     margin: inherit !important;
     padding: inherit !important;
+}
+
+/* Component-specific spacing overrides for better defaults */
+.component.posts-list-component .post-card {
+    /* Preserve post-card specific styling with reasonable padding */
+    padding: var(--spacing-md) !important; /* 1.25rem (20px) - reduced from --spacing-xl for better proportions */
+}
+
+.component.card-component {
+    padding: var(--spacing-md) !important; /* 1.25rem (20px) - reasonable default for card components */
+}
+
+.component.hero-component {
+    padding: var(--spacing-lg) !important; /* 1.75rem (28px) - reasonable for hero sections */
+}
+
+.component.container-component {
+    padding: var(--spacing-md) !important; /* 1.25rem (20px) - reasonable for containers */
+}
+
+/* Ensure text components have reasonable defaults */
+.component.text-component {
+    padding: var(--spacing-sm) !important; /* 0.875rem (14px) - minimal padding for text */
+    margin: var(--spacing-sm) 0 !important; /* Vertical margin only */
+}
+
+.component.heading-component {
+    padding: var(--spacing-sm) !important; /* 0.875rem (14px) - minimal padding for headings */
+    margin: var(--spacing-md) 0 !important; /* 1.25rem (20px) vertical margin for visual separation */
+}
+
+.component.subheading-component {
+    padding: var(--spacing-xs) !important; /* 0.5rem (8px) - minimal padding for subheadings */
+    margin: var(--spacing-sm) 0 !important; /* 0.875rem (14px) vertical margin */
 }
 
 .post-body h4, .page-content h4 {

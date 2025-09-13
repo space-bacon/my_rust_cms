@@ -293,10 +293,10 @@ impl Default for ComponentStyles {
         Self {
             background_color: "transparent".to_string(),
             text_color: "var(--public-text-primary, #000000)".to_string(),
-            padding: "16px".to_string(),
-            margin: "8px".to_string(),
-            border_radius: "8px".to_string(),
-            font_size: "16px".to_string(),
+            padding: "1rem".to_string(),  // Reduced from 16px to 1rem (16px) for consistency
+            margin: "0.5rem".to_string(), // Reduced from 8px to 0.5rem (8px) for consistency
+            border_radius: "0.5rem".to_string(), // Changed to rem units for consistency
+            font_size: "1rem".to_string(), // Changed to rem for consistency
             font_weight: "normal".to_string(),
             text_align: "left".to_string(),
             border_width: "0px".to_string(),

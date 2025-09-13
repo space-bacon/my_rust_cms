@@ -1313,10 +1313,12 @@ pub fn render_markdown_content(content: &str) -> Html {
     Html::from_html_unchecked(html_output.into())
 }
 
-// Helper function to format component styles with enhanced specificity
+// Helper function to format component styles with selective specificity
 pub fn format_component_styles(styles: &crate::components::page_builder::ComponentStyles) -> String {
+    // Use !important only for spacing properties that need to override framework defaults
+    // Other properties use normal specificity to allow component-specific styles to work
     format!(
-        "background-color: {} !important; color: {} !important; padding: {} !important; margin: {} !important; border-radius: {} !important; font-size: {} !important; font-weight: {} !important; text-align: {} !important; border: {}px {} {} !important; opacity: {} !important; z-index: {} !important; font-family: {} !important; line-height: {} !important; letter-spacing: {} !important; text-decoration: {} !important; text-transform: {} !important;",
+        "background-color: {}; color: {}; padding: {} !important; margin: {} !important; border-radius: {}; font-size: {}; font-weight: {}; text-align: {}; border: {}px {} {}; opacity: {}; z-index: {}; font-family: {}; line-height: {}; letter-spacing: {}; text-decoration: {}; text-transform: {};",
         styles.background_color,
         styles.text_color,
         styles.padding,
