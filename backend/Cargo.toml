@@ -20,7 +20,9 @@ diesel = { version = "2.2.3", features = ["postgres", "chrono", "r2d2", "serde_j
 diesel_migrations = "2.1"
 r2d2 = "0.8"
 # Rate limiting
-tower_governor = "0.3"
+tower_governor = "0.8.0"
+governor = "0.10.0"  # Need direct access to middleware types
+tower = "0.4"
 futures = "0.3"
 uuid = { workspace = true }
 argon2 = "0.5"

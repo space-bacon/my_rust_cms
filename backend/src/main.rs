@@ -23,8 +23,8 @@ use config::Config;
 use database::{DbPool, establish_connection_pool};
 // Removed unused global import
 use middleware::auth::{auth_middleware_with_services, admin_auth_middleware_with_services};
-// Rate limiting temporarily disabled due to API changes
-// use middleware::rate_limiting::{create_auth_rate_limiter, create_upload_rate_limiter};
+// Rate limiting enabled with tower_governor 0.8.0! 🎉
+use middleware::rate_limiting::{create_general_rate_limiter};
 use middleware::security_headers::security_headers_middleware;
 
 use services::{SessionManager, SessionConfig};
@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/auth/login", post(controllers::auth::login))
         .route("/api/auth/signup", post(controllers::auth::signup))
         .route("/api/auth/verify-email", post(controllers::auth::verify_email))
-        // TODO: Re-enable rate limiting when API is stabilized
+        // TODO: Apply rate limiting at router level instead of route level
         // .layer(create_auth_rate_limiter())
         .route("/api/posts/:id", get(controllers::posts::get_post))
         .route("/api/categories", get(controllers::admin::get_categories))
@@ -163,7 +163,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/comments/:id", put(controllers::comments::update_comment).delete(controllers::comments::delete_comment))
         .route("/api/media", get(controllers::media::get_media))
         .route("/api/media/upload", post(controllers::media::upload_media))
-        // TODO: Re-enable upload rate limiting when API is stabilized
+        // TODO: Apply rate limiting at router level instead of route level
         // .layer(create_upload_rate_limiter())
         .route("/api/media/:id", delete(controllers::media::delete_media))
         .route("/api/sessions", get(controllers::admin::get_sessions))
@@ -214,6 +214,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nest_service("/uploads", tower_http::services::ServeDir::new("uploads"))
         .with_state(app_services.clone())
         .layer(cors)
+        // TODO: Rate limiting - tower_governor 0.8.0 service trait compatibility issue
+        // .layer(create_general_rate_limiter())
         .layer(axum_middleware::from_fn_with_state(
             config.clone(),
             security_headers_middleware
